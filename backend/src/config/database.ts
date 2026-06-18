@@ -11,7 +11,7 @@ export const AppDataSource = new DataSource({
   password: process.env.DB_PASSWORD || 'crm_password',
   database: process.env.DB_NAME || 'crm_db',
   synchronize: process.env.NODE_ENV === 'development',
-  logging: process.env.NODE_ENV === 'development',
+  logging: ['error', 'warn'],
   entities: [__dirname + '/../models/**/*.{ts,js}'],
   migrations: [__dirname + '/../../migrations/**/*.{ts,js}'],
   subscribers: [],
