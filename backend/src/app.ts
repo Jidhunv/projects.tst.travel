@@ -23,6 +23,12 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Import routes
+import authRoutes from './routes/auth';
+import leadRoutes from './routes/leads';
+import accountRoutes from './routes/accounts';
+import opportunityRoutes from './routes/opportunities';
+
 // Database initialization
 AppDataSource.initialize()
   .then(() => {
@@ -38,9 +44,11 @@ app.get('/api/health', (req, res) => {
   res.json({ success: true, message: 'Server is running' });
 });
 
-// Routes (will be added as we build controllers)
-// app.use('/api/auth', authRoutes);
-// app.use('/api/leads', leadRoutes);
+// Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/leads', leadRoutes);
+app.use('/api/accounts', accountRoutes);
+app.use('/api/opportunities', opportunityRoutes);
 
 // Error handling middleware
 app.use(errorHandler);
