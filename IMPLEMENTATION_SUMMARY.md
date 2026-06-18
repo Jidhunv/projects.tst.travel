@@ -480,11 +480,12 @@ frontend/
 - Error handling throughout
 
 ### Deployment Ready
-- Docker Compose for database
+- Local or cloud PostgreSQL support
 - Environment configuration
 - Logging infrastructure
 - Error handling middleware
 - CORS configured
+- Production build optimization
 
 ## Performance Characteristics
 
@@ -583,7 +584,7 @@ It's optimized for **software/SaaS companies** with better UX than Salesforce fo
 
 **Built with:** Node.js, Express, React, PostgreSQL, TypeScript, Material-UI
 
-**Deployment:** Docker, self-hosted, cloud-ready
+**Deployment:** Self-hosted or cloud-ready (no Docker required)
 
 **License:** MIT
 

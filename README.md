@@ -36,7 +36,6 @@ crm-platform/
 │   │   ├── utils/          # Utilities
 │   │   └── App.tsx
 │   └── package.json
-├── docker-compose.yml      # Database & services setup
 └── README.md
 ```
 
@@ -88,8 +87,7 @@ crm-platform/
 ### Prerequisites
 
 - Node.js 16+ and npm or yarn
-- Docker and Docker Compose
-- PostgreSQL 15 (or use Docker)
+- PostgreSQL 13+ (local installation)
 
 ### Installation
 
@@ -100,10 +98,16 @@ cd crm-platform
 ```
 
 2. **Setup Database**
+
+Ensure PostgreSQL is running locally. If not installed:
+- **Windows:** Download from https://www.postgresql.org/download/windows/
+- **Mac:** `brew install postgresql`
+- **Linux:** `sudo apt-get install postgresql`
+
+Create the database:
 ```bash
-docker-compose up -d
+createdb -U postgres crm_db
 ```
-This starts PostgreSQL and pgAdmin on ports 5432 and 5050.
 
 3. **Setup Backend**
 ```bash
@@ -263,17 +267,24 @@ npm test -- --coverage     # With coverage report
 
 ## Deployment
 
-### Docker Build
+### Production Build
 ```bash
-# Build backend
-docker build -t crm-backend ./backend
+# Backend
+cd backend
+npm run build
+npm start
 
-# Build frontend
-docker build -t crm-frontend ./frontend
-
-# Run with docker-compose
-docker-compose up -d
+# Frontend
+cd frontend
+npm run build
+# Serve the build/ directory with a static server
 ```
+
+### Cloud Deployment (AWS, Heroku, etc.)
+- Use the built code from `backend/dist` and `frontend/build`
+- Set PostgreSQL connection string in environment variables
+- Deploy frontend to CDN (S3 + CloudFront, Netlify, Vercel)
+- Deploy backend to EC2, Lambda, Heroku, or similar
 
 ### Production Checklist
 - [ ] Update environment variables for production

@@ -10,16 +10,22 @@ This guide will help you get the CRM system up and running in just a few minutes
 
 ## Setup (5 minutes)
 
-### Step 1: Start the Database
+### Step 1: Setup PostgreSQL Database
 
+#### Option A: Local PostgreSQL Installation (Windows)
+
+1. **Download PostgreSQL** from https://www.postgresql.org/download/windows/
+2. **Run installer** and complete setup
+3. **Remember your password** for the postgres user
+4. **PostgreSQL runs on** `localhost:5432`
+
+#### Option B: PostgreSQL on Windows (via Chocolatey)
 ```bash
-# From project root
-docker-compose up -d
+choco install postgresql13
 ```
 
-This starts:
-- PostgreSQL on `localhost:5432`
-- pgAdmin on `localhost:5050` (admin@example.com / admin)
+#### Option C: Cloud Database
+Use PostgreSQL on AWS RDS, Azure Database, or Heroku (update .env with connection string)
 
 ### Step 2: Setup Backend
 
@@ -167,10 +173,13 @@ GET    /api/pipeline/forecast          # Revenue forecast
 
 ## Common Tasks
 
-### View Database (pgAdmin)
-- Open http://localhost:5050
-- Login: admin@example.com / admin
-- Add new server, connect to `postgres:5432`
+### View Database (pgAdmin - Optional)
+```bash
+# Install pgAdmin locally or use web version
+# Then connect to: localhost:5432
+# Username: postgres
+# Password: (your postgres password)
+```
 
 ### View API Documentation
 ```bash
@@ -185,15 +194,14 @@ curl -X POST http://localhost:3001/api/auth/login \
 
 ### Reset Database
 ```bash
-# Stop containers
-docker-compose down
+# Drop and recreate database
+psql -U postgres -c "DROP DATABASE IF EXISTS crm_db;"
+psql -U postgres -c "CREATE DATABASE crm_db;"
 
-# Remove volumes (clears database)
-docker-compose down -v
-
-# Restart and re-seed
-docker-compose up -d
-cd backend && npm run migration:run && npm run seed
+# Re-run migrations and seed
+cd backend
+npm run migration:run
+npm run seed
 ```
 
 ### View Logs
@@ -227,11 +235,16 @@ kill -9 <PID>
 
 ### Database Connection Error
 ```bash
-# Ensure docker containers are running
-docker-compose ps
+# Check if PostgreSQL is running
+# Windows: Check Services (search "Services" in Start menu)
+# Mac: brew services list
+# Linux: systemctl status postgresql
 
-# Restart if needed
-docker-compose restart postgres
+# Test connection
+psql -U postgres -h localhost -d crm_db
+
+# If database doesn't exist, create it
+createdb -U postgres crm_db
 ```
 
 ### Dependencies Not Installing
