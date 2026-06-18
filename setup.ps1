@@ -10,22 +10,20 @@ Write-Host ""
 Write-Host "Checking Node.js..." -ForegroundColor Yellow
 $nodeVersion = node --version
 if ($?) {
-    Write-Host "✓ Node.js $nodeVersion found" -ForegroundColor Green
+    Write-Host "Node.js $nodeVersion found" -ForegroundColor Green
 } else {
-    Write-Host "✗ Node.js not found. Install from https://nodejs.org/" -ForegroundColor Red
+    Write-Host "Node.js not found. Install from https://nodejs.org/" -ForegroundColor Red
     exit 1
 }
 
 # Check PostgreSQL
 Write-Host "Checking PostgreSQL..." -ForegroundColor Yellow
-try {
-    $pgVersion = psql --version 2>$null
-    if ($?) {
-        Write-Host "✓ PostgreSQL found: $pgVersion" -ForegroundColor Green
-    }
-} catch {
-    Write-Host "✗ PostgreSQL not found or not in PATH" -ForegroundColor Red
-    Write-Host "  Install from: https://www.postgresql.org/download/windows/" -ForegroundColor Yellow
+$pgVersion = psql --version 2>$null
+if ($?) {
+    Write-Host "PostgreSQL found: $pgVersion" -ForegroundColor Green
+} else {
+    Write-Host "PostgreSQL not found or not in PATH" -ForegroundColor Red
+    Write-Host "Install from: https://www.postgresql.org/download/windows/" -ForegroundColor Yellow
     exit 1
 }
 
@@ -35,20 +33,20 @@ Write-Host "Setting up Backend..." -ForegroundColor Yellow
 Push-Location backend
 
 if (Test-Path .env) {
-    Write-Host "✓ .env file exists" -ForegroundColor Green
+    Write-Host ".env file exists" -ForegroundColor Green
 } else {
     Write-Host "Creating .env file..." -ForegroundColor Cyan
     Copy-Item .env.example .env
-    Write-Host "✓ .env created. Please edit with your PostgreSQL password:" -ForegroundColor Green
-    Write-Host "  Open backend\.env and update DB_PASSWORD" -ForegroundColor Yellow
+    Write-Host ".env created. Please edit with your PostgreSQL password:" -ForegroundColor Green
+    Write-Host "Open backend\.env and update DB_PASSWORD" -ForegroundColor Yellow
 }
 
 Write-Host "Installing backend dependencies..." -ForegroundColor Cyan
 npm install
 if ($?) {
-    Write-Host "✓ Backend dependencies installed" -ForegroundColor Green
+    Write-Host "Backend dependencies installed" -ForegroundColor Green
 } else {
-    Write-Host "✗ Backend installation failed" -ForegroundColor Red
+    Write-Host "Backend installation failed" -ForegroundColor Red
     exit 1
 }
 
@@ -62,9 +60,9 @@ Push-Location frontend
 Write-Host "Installing frontend dependencies..." -ForegroundColor Cyan
 npm install
 if ($?) {
-    Write-Host "✓ Frontend dependencies installed" -ForegroundColor Green
+    Write-Host "Frontend dependencies installed" -ForegroundColor Green
 } else {
-    Write-Host "✗ Frontend installation failed" -ForegroundColor Red
+    Write-Host "Frontend installation failed" -ForegroundColor Red
     exit 1
 }
 
@@ -80,16 +78,12 @@ $postgresPlainPassword = [System.Net.NetworkCredential]::new("", $postgresPasswo
 # Set environment variable for psql
 $env:PGPASSWORD = $postgresPlainPassword
 
-try {
-    Write-Host "Creating crm_db database..." -ForegroundColor Cyan
-    psql -U postgres -h localhost -c "DROP DATABASE IF EXISTS crm_db;" 2>$null
-    psql -U postgres -h localhost -c "CREATE DATABASE crm_db;"
+Write-Host "Creating crm_db database..." -ForegroundColor Cyan
+psql -U postgres -h localhost -c "DROP DATABASE IF EXISTS crm_db;" 2>$null
+psql -U postgres -h localhost -c "CREATE DATABASE crm_db;"
 
-    if ($?) {
-        Write-Host "✓ Database created" -ForegroundColor Green
-    }
-} catch {
-    Write-Host "✗ Database creation failed" -ForegroundColor Red
+if ($?) {
+    Write-Host "Database created" -ForegroundColor Green
 }
 
 # Update backend .env with password
@@ -98,7 +92,7 @@ $envFile = "backend\.env"
 $envContent = Get-Content $envFile
 $envContent = $envContent -replace 'DB_PASSWORD=.*', "DB_PASSWORD=$postgresPlainPassword"
 Set-Content $envFile $envContent
-Write-Host "✓ .env updated" -ForegroundColor Green
+Write-Host ".env updated" -ForegroundColor Green
 
 # Run migrations and seed
 Write-Host ""
@@ -109,9 +103,9 @@ npm run seed
 Pop-Location
 
 if ($?) {
-    Write-Host "✓ Database initialized" -ForegroundColor Green
+    Write-Host "Database initialized" -ForegroundColor Green
 } else {
-    Write-Host "✗ Database initialization failed" -ForegroundColor Red
+    Write-Host "Database initialization failed" -ForegroundColor Red
 }
 
 Write-Host ""

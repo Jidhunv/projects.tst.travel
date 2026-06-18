@@ -9,14 +9,10 @@ Write-Host ""
 Write-Host "Checking for existing PostgreSQL installation..." -ForegroundColor Yellow
 $pgInstalled = $false
 
-try {
-    $pgVersion = psql --version 2>$null
-    if ($?) {
-        Write-Host "✓ PostgreSQL already installed: $pgVersion" -ForegroundColor Green
-        $pgInstalled = $true
-    }
-} catch {
-    Write-Host "PostgreSQL not found in PATH" -ForegroundColor Yellow
+$pgVersion = psql --version 2>$null
+if ($?) {
+    Write-Host "PostgreSQL already installed: $pgVersion" -ForegroundColor Green
+    $pgInstalled = $true
 }
 
 if ($pgInstalled) {
@@ -36,11 +32,11 @@ Write-Host "1. Download PostgreSQL Installer" -ForegroundColor White
 Write-Host "   https://www.postgresql.org/download/windows/" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "   Installation Steps:" -ForegroundColor Yellow
-Write-Host "   • Download PostgreSQL 15 or later" -ForegroundColor White
-Write-Host "   • Run installer as Administrator" -ForegroundColor White
-Write-Host "   • When asked for password, use: postgres" -ForegroundColor White
-Write-Host "   • Keep port as 5432" -ForegroundColor White
-Write-Host "   • Complete the installation" -ForegroundColor White
+Write-Host "   - Download PostgreSQL 15 or later" -ForegroundColor White
+Write-Host "   - Run installer as Administrator" -ForegroundColor White
+Write-Host "   - When asked for password, use: postgres" -ForegroundColor White
+Write-Host "   - Keep port as 5432" -ForegroundColor White
+Write-Host "   - Complete the installation" -ForegroundColor White
 Write-Host ""
 
 Write-Host "2. Using Chocolatey (if installed)" -ForegroundColor White

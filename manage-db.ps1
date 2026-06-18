@@ -23,22 +23,18 @@ $postgresPlainPassword = [System.Net.NetworkCredential]::new("", $postgresPasswo
 $env:PGPASSWORD = $postgresPlainPassword
 
 function Check-PostgreSQL {
-    try {
-        psql -U $postgresUser -h $postgresHost -c "SELECT 1" 2>$null | Out-Null
-        return $true
-    } catch {
-        return $false
-    }
+    $result = psql -U $postgresUser -h $postgresHost -c "SELECT 1" 2>$null
+    return $?
 }
 
 # Check PostgreSQL connection
 if (-not (Check-PostgreSQL)) {
-    Write-Host "✗ Cannot connect to PostgreSQL" -ForegroundColor Red
-    Write-Host "  Make sure PostgreSQL is running on $postgresHost`:5432" -ForegroundColor Yellow
+    Write-Host "Cannot connect to PostgreSQL" -ForegroundColor Red
+    Write-Host "Make sure PostgreSQL is running on $postgresHost`:5432" -ForegroundColor Yellow
     exit 1
 }
 
-Write-Host "✓ Connected to PostgreSQL" -ForegroundColor Green
+Write-Host "Connected to PostgreSQL" -ForegroundColor Green
 Write-Host ""
 
 switch ($Action) {
@@ -46,9 +42,9 @@ switch ($Action) {
         Write-Host "Creating database '$dbName'..." -ForegroundColor Yellow
         psql -U $postgresUser -h $postgresHost -c "CREATE DATABASE $dbName;" 2>&1
         if ($?) {
-            Write-Host "✓ Database created successfully" -ForegroundColor Green
+            Write-Host "Database created successfully" -ForegroundColor Green
         } else {
-            Write-Host "✗ Failed to create database" -ForegroundColor Red
+            Write-Host "Failed to create database" -ForegroundColor Red
         }
     }
 
@@ -58,7 +54,7 @@ switch ($Action) {
         if ($confirm -eq "yes") {
             psql -U $postgresUser -h $postgresHost -c "DROP DATABASE IF EXISTS $dbName;" 2>&1
             if ($?) {
-                Write-Host "✓ Database dropped" -ForegroundColor Green
+                Write-Host "Database dropped" -ForegroundColor Green
             }
         } else {
             Write-Host "Cancelled" -ForegroundColor Yellow
@@ -85,7 +81,7 @@ switch ($Action) {
             npm run seed
             Pop-Location
 
-            Write-Host "✓ Database reset complete" -ForegroundColor Green
+            Write-Host "Database reset complete" -ForegroundColor Green
         } else {
             Write-Host "Cancelled" -ForegroundColor Yellow
         }
@@ -98,9 +94,9 @@ switch ($Action) {
         Pop-Location
 
         if ($?) {
-            Write-Host "✓ Database seeded" -ForegroundColor Green
+            Write-Host "Database seeded" -ForegroundColor Green
         } else {
-            Write-Host "✗ Failed to seed database" -ForegroundColor Red
+            Write-Host "Failed to seed database" -ForegroundColor Red
         }
     }
 
@@ -110,15 +106,15 @@ switch ($Action) {
 
         if ($?) {
             $size = (Get-Item $BackupFile).Length / 1KB
-            Write-Host "✓ Backup created successfully ($([math]::Round($size, 2)) KB)" -ForegroundColor Green
+            Write-Host "Backup created successfully ($([math]::Round($size, 2)) KB)" -ForegroundColor Green
         } else {
-            Write-Host "✗ Backup failed" -ForegroundColor Red
+            Write-Host "Backup failed" -ForegroundColor Red
         }
     }
 
     "restore" {
         if (-not (Test-Path $BackupFile)) {
-            Write-Host "✗ Backup file '$BackupFile' not found" -ForegroundColor Red
+            Write-Host "Backup file '$BackupFile' not found" -ForegroundColor Red
             exit 1
         }
 
@@ -131,9 +127,9 @@ switch ($Action) {
             psql -U $postgresUser -h $postgresHost $dbName -f $BackupFile
 
             if ($?) {
-                Write-Host "✓ Restore complete" -ForegroundColor Green
+                Write-Host "Restore complete" -ForegroundColor Green
             } else {
-                Write-Host "✗ Restore failed" -ForegroundColor Red
+                Write-Host "Restore failed" -ForegroundColor Red
             }
         } else {
             Write-Host "Cancelled" -ForegroundColor Yellow
