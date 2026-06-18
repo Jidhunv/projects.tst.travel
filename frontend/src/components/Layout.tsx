@@ -19,6 +19,7 @@ import {
   People as PeopleIcon,
   Business as BusinessIcon,
   Handshake as OpportunityIcon,
+  BarChart as ReportsIcon,
   Logout as LogoutIcon,
 } from '@mui/icons-material';
 import useAuth from '@hooks/useAuth';
@@ -52,6 +53,7 @@ export default function Layout({ children }: LayoutProps) {
     { text: 'Leads', icon: <PeopleIcon />, path: '/leads' },
     { text: 'Accounts', icon: <BusinessIcon />, path: '/accounts' },
     { text: 'Opportunities', icon: <OpportunityIcon />, path: '/opportunities' },
+    { text: 'Reports', icon: <ReportsIcon />, path: '/reports' },
   ];
 
   return (

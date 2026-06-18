@@ -10,6 +10,7 @@ import DashboardPage from '@pages/DashboardPage';
 import LeadsPage from '@pages/LeadsPage';
 import AccountsPage from '@pages/AccountsPage';
 import OpportunitiesPage from '@pages/OpportunitiesPage';
+import ReportsPage from '@pages/ReportsPage';
 
 const theme = createTheme({
   palette: {
@@ -77,6 +78,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <OpportunitiesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports"
+            element={
+              <ProtectedRoute>
+                <ReportsPage />
               </ProtectedRoute>
             }
           />

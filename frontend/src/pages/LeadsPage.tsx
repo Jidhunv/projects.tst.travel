@@ -3,7 +3,7 @@ import { Box, Dialog, DialogTitle, DialogContent, DialogActions, Button, TextFie
 import Layout from '@components/Layout';
 import DataTable from '@components/DataTable';
 import { api } from '@services/api';
-import { Lead } from '@types/index';
+import { Lead } from '../types';
 
 const COLUMNS = [
   { id: 'firstName', label: 'First Name' },

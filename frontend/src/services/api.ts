@@ -1,5 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
-import type { ApiResponse, PaginatedResponse } from '@types/index';
+import type { ApiResponse, PaginatedResponse } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
@@ -134,15 +134,15 @@ export const api = {
   getPipelineForecast: (filters?: Record<string, any>) =>
     apiClient.get<ApiResponse<any>>('/pipeline/forecast', { params: filters }),
 
-  // Dashboard
-  getDashboard: () =>
-    apiClient.get<ApiResponse<any>>('/dashboard'),
+  // Reports & MIS (dollar figures, role-scoped)
+  getMIS: () =>
+    apiClient.get<ApiResponse<any>>('/reports/mis'),
 
   getPipelineReport: () =>
     apiClient.get<ApiResponse<any>>('/reports/pipeline'),
 
-  getForecastReport: () =>
-    apiClient.get<ApiResponse<any>>('/reports/forecast'),
+  getSalesReport: (filters?: Record<string, any>) =>
+    apiClient.get<ApiResponse<any>>('/reports/sales', { params: filters }),
 };
 
 export default apiClient;
