@@ -7,8 +7,19 @@ import logger from '../utils/logger';
 export class LeadController {
   async createLead(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const { firstName, lastName, email, phoneNumber, company, jobTitle, source } =
-        req.body;
+      const {
+        firstName,
+        lastName,
+        email,
+        phoneNumber,
+        company,
+        jobTitle,
+        source,
+        value,
+        expectedCloseDate,
+        productId,
+        productName,
+      } = req.body;
 
       if (!firstName || !lastName || !email) {
         throw new AppError(400, 'First name, last name, and email are required');
@@ -22,6 +33,10 @@ export class LeadController {
         company,
         jobTitle,
         source,
+        value: value !== undefined ? Number(value) : undefined,
+        expectedCloseDate: expectedCloseDate ? new Date(expectedCloseDate) : undefined,
+        productId,
+        productName,
         ownerId: req.user!.id,
       });
 
@@ -153,6 +168,47 @@ export class LeadController {
       return res.status(201).json({
         success: true,
         data: account,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async convertToOpportunity(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+
+      const opportunity = await leadService.convertLeadToOpportunity(id);
+
+      logger.info(
+        `Lead ${id} converted to opportunity ${opportunity.id} by ${req.user!.email}`
+      );
+
+      return res.status(201).json({
+        success: true,
+        data: opportunity,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async markLost(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const { lostReason } = req.body;
+
+      if (!lostReason) {
+        throw new AppError(400, 'lostReason is required');
+      }
+
+      const lead = await leadService.markLeadLost(id, lostReason);
+
+      logger.info(`Lead ${id} marked lost (${lostReason}) by ${req.user!.email}`);
+
+      return res.json({
+        success: true,
+        data: lead,
       });
     } catch (error) {
       next(error);

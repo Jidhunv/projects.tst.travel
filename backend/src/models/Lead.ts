@@ -42,6 +42,24 @@ export class Lead {
   @Column({ default: 0 })
   score: number; // Lead score
 
+  // Estimated deal value (dollars) and expected close date
+  @Column({ type: 'numeric', precision: 15, scale: 2, default: 0 })
+  value: number;
+
+  @Column({ type: 'timestamp', nullable: true })
+  expectedCloseDate: Date;
+
+  // Product of interest (optional link to the catalog; name kept as snapshot)
+  @Column({ nullable: true })
+  productId: string;
+
+  @Column({ nullable: true })
+  productName: string;
+
+  // Reason captured when a lead is closed as lost
+  @Column({ nullable: true })
+  lostReason: string;
+
   @ManyToOne(() => User, (user) => user.leads)
   @JoinColumn({ name: 'ownerId' })
   owner: User;

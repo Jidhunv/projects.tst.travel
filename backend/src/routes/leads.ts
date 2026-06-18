@@ -15,6 +15,10 @@ router.patch('/:id/status', (req, res, next) => LeadController.updateLeadStatus(
 router.post('/:id/convert-to-account', (req, res, next) =>
   LeadController.convertLeadToAccount(req, res, next)
 );
+router.post('/:id/convert-to-opportunity', (req, res, next) =>
+  LeadController.convertToOpportunity(req, res, next)
+);
+router.patch('/:id/lost', (req, res, next) => LeadController.markLost(req, res, next));
 router.post('/bulk-import', (req, res, next) => LeadController.bulkImport(req, res, next));
 
 export default router;
