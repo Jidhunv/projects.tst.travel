@@ -4,12 +4,12 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import useAuth from '@hooks/useAuth';
 
-// Pages (will be created)
-// import LoginPage from '@pages/LoginPage';
-// import DashboardPage from '@pages/DashboardPage';
-// import LeadsPage from '@pages/LeadsPage';
-// import AccountsPage from '@pages/AccountsPage';
-// import OpportunitiesPage from '@pages/OpportunitiesPage';
+// Pages
+import LoginPage from '@pages/LoginPage';
+import DashboardPage from '@pages/DashboardPage';
+import LeadsPage from '@pages/LeadsPage';
+import AccountsPage from '@pages/AccountsPage';
+import OpportunitiesPage from '@pages/OpportunitiesPage';
 
 const theme = createTheme({
   palette: {
@@ -47,39 +47,39 @@ function App() {
       <CssBaseline />
       <Router>
         <Routes>
-          {/* <Route path="/login" element={<LoginPage />} /> */}
-          {/* <Route
+          <Route path="/login" element={<LoginPage />} />
+          <Route
             path="/dashboard"
             element={
               <ProtectedRoute>
                 <DashboardPage />
               </ProtectedRoute>
             }
-          /> */}
-          {/* <Route
+          />
+          <Route
             path="/leads"
             element={
               <ProtectedRoute>
                 <LeadsPage />
               </ProtectedRoute>
             }
-          /> */}
-          {/* <Route
+          />
+          <Route
             path="/accounts"
             element={
               <ProtectedRoute>
                 <AccountsPage />
               </ProtectedRoute>
             }
-          /> */}
-          {/* <Route
+          />
+          <Route
             path="/opportunities"
             element={
               <ProtectedRoute>
                 <OpportunitiesPage />
               </ProtectedRoute>
             }
-          /> */}
+          />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </Router>
