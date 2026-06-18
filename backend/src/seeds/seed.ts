@@ -2,6 +2,7 @@ import { AppDataSource } from '../config/database';
 import { User } from '../models/User';
 import { Role } from '../models/Role';
 import { Permission } from '../models/Permission';
+import { Product } from '../models/Product';
 import bcrypt from 'bcryptjs';
 import logger from '../utils/logger';
 
@@ -156,6 +157,26 @@ async function seed() {
     }
 
     logger.info('Demo users created');
+
+    // Seed a small product catalog
+    const productRepository = AppDataSource.getRepository(Product);
+    const demoProducts = [
+      { name: 'Starter Plan', sku: 'PLAN-START', category: 'Subscription', unitPrice: 49, billingType: 'subscription' },
+      { name: 'Professional Plan', sku: 'PLAN-PRO', category: 'Subscription', unitPrice: 149, billingType: 'subscription' },
+      { name: 'Enterprise Plan', sku: 'PLAN-ENT', category: 'Subscription', unitPrice: 499, billingType: 'subscription' },
+      { name: 'Implementation & Onboarding', sku: 'SVC-IMPL', category: 'Service', unitPrice: 2000, billingType: 'one-time' },
+      { name: 'Premium Support (Annual)', sku: 'SVC-SUPPORT', category: 'Service', unitPrice: 1200, billingType: 'subscription' },
+      { name: 'Additional User Seat', sku: 'ADDON-SEAT', category: 'Add-on', unitPrice: 15, billingType: 'subscription' },
+    ];
+
+    for (const p of demoProducts) {
+      const existing = await productRepository.findOne({ where: { sku: p.sku } });
+      if (!existing) {
+        await productRepository.save(productRepository.create({ ...p, isActive: true }));
+      }
+    }
+
+    logger.info('Demo products created');
 
     logger.info('Seeding completed successfully');
   } catch (error) {

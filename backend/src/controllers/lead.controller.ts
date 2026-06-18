@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import leadService from '../services/lead.service';
-import { AuthRequest } from '../middleware/auth';
+import { AuthRequest, getOwnerScope, canAccessRecord } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
 import logger from '../utils/logger';
 
@@ -40,12 +40,16 @@ export class LeadController {
     try {
       const { page = 1, limit = 20, status, source, ownerId, search } = req.query;
 
+      // Sales Reps are restricted to their own leads; Admin/Manager see all.
+      const scope = getOwnerScope(req.user);
+      const effectiveOwnerId = scope ?? (ownerId as string);
+
       const { data, total } = await leadService.getLeads({
         page: Number(page),
         limit: Number(limit),
         status: status as string,
         source: source as string,
-        ownerId: ownerId as string,
+        ownerId: effectiveOwnerId,
         search: search as string,
       });
 
@@ -68,6 +72,10 @@ export class LeadController {
     try {
       const { id } = req.params;
       const lead = await leadService.getLeadById(id);
+
+      if (!canAccessRecord(req.user, lead.ownerId)) {
+        throw new AppError(403, 'You can only view your own leads');
+      }
 
       return res.json({
         success: true,

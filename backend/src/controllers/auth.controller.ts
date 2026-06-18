@@ -14,7 +14,7 @@ export class AuthController {
       }
 
       const user = await userService.authenticateUser(email, password);
-      const token = generateToken(user.id, user.email);
+      const token = generateToken(user.id, user.email, user.role?.name || 'Sales Rep');
 
       logger.info(`User logged in: ${user.email}`);
 
@@ -56,14 +56,17 @@ export class AuthController {
         throw new AppError(400, 'Email is required');
       }
 
-      const user = await userService.getUserByEmail(email);
-
-      // TODO: Send password reset email
+      const resetToken = await userService.createPasswordResetToken(email);
       logger.info(`Password reset requested for: ${email}`);
 
+      // In production this token would be emailed, not returned in the response.
+      // For local/self-hosted use we return it so the reset can be completed.
       return res.json({
         success: true,
-        data: { message: 'Password reset email sent' },
+        data: {
+          message: 'Password reset token generated',
+          resetToken,
+        },
       });
     } catch (error) {
       next(error);
@@ -78,7 +81,7 @@ export class AuthController {
         throw new AppError(400, 'Token and new password are required');
       }
 
-      // TODO: Verify reset token and update password
+      await userService.resetPasswordWithToken(token, newPassword);
       logger.info('Password reset confirmed');
 
       return res.json({

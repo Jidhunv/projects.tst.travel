@@ -31,6 +31,11 @@ router.delete('/:opportunityId/line-items/:lineItemId', (req, res, next) =>
   OpportunityController.deleteLineItem(req, res, next)
 );
 
+// Fixed rejection-reason list for the "lose deal" dropdown
+router.get('/meta/rejection-reasons', (req, res, next) =>
+  OpportunityController.getRejectionReasons(req, res, next)
+);
+
 // Pipeline and forecasting
 router.get('/pipeline/view', (req, res, next) =>
   OpportunityController.getPipeline(req, res, next)

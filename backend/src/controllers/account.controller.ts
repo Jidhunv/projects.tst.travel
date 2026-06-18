@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import accountService from '../services/account.service';
-import { AuthRequest } from '../middleware/auth';
+import { AuthRequest, getOwnerScope, canAccessRecord } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
 import logger from '../utils/logger';
 
@@ -38,12 +38,16 @@ export class AccountController {
     try {
       const { page = 1, limit = 20, status, type, ownerId, search } = req.query;
 
+      // Sales Reps see only their own accounts; Admin/Manager see all.
+      const scope = getOwnerScope(req.user);
+      const effectiveOwnerId = scope ?? (ownerId as string);
+
       const { data, total } = await accountService.getAccounts({
         page: Number(page),
         limit: Number(limit),
         status: status as string,
         type: type as string,
-        ownerId: ownerId as string,
+        ownerId: effectiveOwnerId,
         search: search as string,
       });
 
@@ -66,6 +70,10 @@ export class AccountController {
     try {
       const { id } = req.params;
       const account = await accountService.getAccountById(id);
+
+      if (!canAccessRecord(req.user, account.ownerId)) {
+        throw new AppError(403, 'You can only view your own accounts');
+      }
 
       return res.json({
         success: true,

@@ -156,15 +156,17 @@ export class OpportunityService {
 
   async closeOpportunity(
     id: string,
-    reason: 'Won' | 'Lost'
+    outcome: 'Won' | 'Lost',
+    rejectionReason?: string
   ): Promise<Opportunity> {
     const opp = await this.getOpportunityById(id);
 
-    opp.status = reason === 'Won' ? 'Won' : 'Lost';
-    opp.stage = reason === 'Won' ? 'Closed-Won' : 'Closed-Lost';
-    opp.closedReason = reason;
+    opp.status = outcome === 'Won' ? 'Won' : 'Lost';
+    opp.stage = outcome === 'Won' ? 'Closed-Won' : 'Closed-Lost';
+    // For a win, record the outcome; for a loss, store the selected rejection reason.
+    opp.closedReason = outcome === 'Won' ? 'Won' : rejectionReason || 'Lost';
     opp.closedAt = new Date();
-    opp.probability = reason === 'Won' ? 100 : 0;
+    opp.probability = outcome === 'Won' ? 100 : 0;
 
     return await this.oppRepository.save(opp);
   }
@@ -177,6 +179,7 @@ export class OpportunityService {
   async addLineItem(
     opportunityId: string,
     data: {
+      productId?: string;
       productName: string;
       quantity: number;
       unitPrice: number;

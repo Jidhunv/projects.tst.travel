@@ -28,6 +28,9 @@ import authRoutes from './routes/auth';
 import leadRoutes from './routes/leads';
 import accountRoutes from './routes/accounts';
 import opportunityRoutes from './routes/opportunities';
+import productRoutes from './routes/products';
+import activityRoutes from './routes/activities';
+import userRoutes from './routes/users';
 
 // Database initialization
 AppDataSource.initialize()
@@ -49,6 +52,9 @@ app.use('/api/auth', authRoutes);
 app.use('/api/leads', leadRoutes);
 app.use('/api/accounts', accountRoutes);
 app.use('/api/opportunities', opportunityRoutes);
+app.use('/api/products', productRoutes);
+app.use('/api/activities', activityRoutes);
+app.use('/api/users', userRoutes);
 
 // Error handling middleware
 app.use(errorHandler);

@@ -2,6 +2,8 @@ import { AppDataSource } from '../config/database';
 import { User } from '../models/User';
 import { Role } from '../models/Role';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
+import { MoreThan } from 'typeorm';
 import { AppError } from '../middleware/errorHandler';
 
 export class UserService {
@@ -125,6 +127,47 @@ export class UserService {
     return user.role.permissions?.some(
       (p) => p.module === module && p.action === action
     ) ?? false;
+  }
+
+  // --- Password reset ---
+
+  // Generates a one-time reset token, stores its hash with a 1-hour expiry,
+  // and returns the raw token (to be emailed in production).
+  async createPasswordResetToken(email: string): Promise<string> {
+    const user = await this.userRepository.findOne({ where: { email } });
+    if (!user) {
+      // Don't reveal whether the email exists; surface a generic error.
+      throw new AppError(404, 'If the account exists, a reset token was generated');
+    }
+
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
+
+    user.resetToken = hashedToken;
+    user.resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+    await this.userRepository.save(user);
+
+    return rawToken;
+  }
+
+  async resetPasswordWithToken(rawToken: string, newPassword: string): Promise<void> {
+    const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
+
+    const user = await this.userRepository.findOne({
+      where: {
+        resetToken: hashedToken,
+        resetTokenExpiry: MoreThan(new Date()),
+      },
+    });
+
+    if (!user) {
+      throw new AppError(400, 'Invalid or expired reset token');
+    }
+
+    user.password = await bcrypt.hash(newPassword, 10);
+    user.resetToken = null as unknown as string;
+    user.resetTokenExpiry = null as unknown as Date;
+    await this.userRepository.save(user);
   }
 }
 

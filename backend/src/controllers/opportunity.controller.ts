@@ -1,7 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import opportunityService from '../services/opportunity.service';
-import { AuthRequest } from '../middleware/auth';
+import { AuthRequest, getOwnerScope, canAccessRecord } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
+import { REJECTION_REASONS } from '../utils/constants';
 import logger from '../utils/logger';
 
 export class OpportunityController {
@@ -50,12 +51,16 @@ export class OpportunityController {
     try {
       const { page = 1, limit = 20, stage, status, ownerId, accountId, search } = req.query;
 
+      // Sales Reps see only their own opportunities; Admin/Manager see all.
+      const scope = getOwnerScope(req.user);
+      const effectiveOwnerId = scope ?? (ownerId as string);
+
       const { data, total } = await opportunityService.getOpportunities({
         page: Number(page),
         limit: Number(limit),
         stage: stage as string,
         status: status as string,
-        ownerId: ownerId as string,
+        ownerId: effectiveOwnerId,
         accountId: accountId as string,
         search: search as string,
       });
@@ -79,6 +84,10 @@ export class OpportunityController {
     try {
       const { id } = req.params;
       const opp = await opportunityService.getOpportunityById(id);
+
+      if (!canAccessRecord(req.user, opp.ownerId)) {
+        throw new AppError(403, 'You can only view your own opportunities');
+      }
 
       return res.json({
         success: true,
@@ -132,20 +141,39 @@ export class OpportunityController {
   async closeOpportunity(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      const { reason } = req.body;
+      const { outcome, rejectionReason } = req.body;
 
-      if (!reason || !['Won', 'Lost'].includes(reason)) {
-        throw new AppError(400, 'Reason must be Won or Lost');
+      if (!outcome || !['Won', 'Lost'].includes(outcome)) {
+        throw new AppError(400, 'outcome must be Won or Lost');
       }
 
-      const opp = await opportunityService.closeOpportunity(id, reason);
+      // When a deal is Lost, require a rejection reason from the fixed list.
+      if (outcome === 'Lost') {
+        if (!rejectionReason || !REJECTION_REASONS.includes(rejectionReason)) {
+          throw new AppError(
+            400,
+            `A rejection reason is required when losing a deal. Allowed: ${REJECTION_REASONS.join(', ')}`
+          );
+        }
+      }
 
-      logger.info(`Opportunity closed as ${reason}: ${opp.id} by ${req.user!.email}`);
+      const opp = await opportunityService.closeOpportunity(id, outcome, rejectionReason);
+
+      logger.info(`Opportunity closed as ${outcome}: ${opp.id} by ${req.user!.email}`);
 
       return res.json({
         success: true,
         data: opp,
       });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // Expose the fixed rejection-reason list for dropdowns in the UI.
+  async getRejectionReasons(_req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      return res.json({ success: true, data: REJECTION_REASONS });
     } catch (error) {
       next(error);
     }
@@ -170,7 +198,7 @@ export class OpportunityController {
   async addLineItem(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { opportunityId } = req.params;
-      const { productName, quantity, unitPrice, discount, discountPercent, description } =
+      const { productId, productName, quantity, unitPrice, discount, discountPercent, description } =
         req.body;
 
       if (!productName || !quantity || !unitPrice) {
@@ -178,6 +206,7 @@ export class OpportunityController {
       }
 
       const lineItem = await opportunityService.addLineItem(opportunityId, {
+        productId,
         productName,
         quantity,
         unitPrice,

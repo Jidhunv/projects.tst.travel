@@ -14,6 +14,11 @@ export class LineItem {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  // Optional link to a catalog Product. productName is kept as a snapshot
+  // so historical line items stay accurate even if the product changes.
+  @Column({ nullable: true })
+  productId: string;
+
   @Column()
   productName: string;
 
