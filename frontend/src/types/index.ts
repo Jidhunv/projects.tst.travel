@@ -39,6 +39,11 @@ export interface Lead {
   source?: string;
   status: 'Open' | 'Qualified' | 'Disqualified' | 'Converted';
   score: number;
+  value: number;
+  expectedCloseDate?: Date;
+  productId?: string;
+  productName?: string;
+  lostReason?: string;
   owner: User;
   account?: Account;
   tags?: string;

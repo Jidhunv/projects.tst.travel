@@ -22,6 +22,8 @@ interface Column {
   minWidth?: number;
   align?: 'right' | 'left' | 'center';
   format?: (value: any) => string;
+  // Custom cell renderer that receives the whole row (for buttons, chips, etc.)
+  render?: (row: any) => React.ReactNode;
 }
 
 interface DataTableProps {
@@ -147,7 +149,9 @@ export default function DataTable({
                     >
                       {columns.map((column) => (
                         <TableCell key={column.id} align={column.align || 'left'}>
-                          {column.format
+                          {column.render
+                            ? column.render(row)
+                            : column.format
                             ? column.format(row[column.id])
                             : row[column.id] || '-'}
                         </TableCell>

@@ -67,6 +67,20 @@ export const api = {
   convertLeadToAccount: (id: string) =>
     apiClient.post<ApiResponse<any>>(`/leads/${id}/convert-to-account`, {}),
 
+  convertLeadToOpportunity: (id: string) =>
+    apiClient.post<ApiResponse<any>>(`/leads/${id}/convert-to-opportunity`, {}),
+
+  markLeadLost: (id: string, lostReason: string) =>
+    apiClient.patch<ApiResponse<any>>(`/leads/${id}/lost`, { lostReason }),
+
+  // Products
+  getProducts: (page = 1, limit = 100) =>
+    apiClient.get<PaginatedResponse<any>>('/products', { params: { page, limit } }),
+
+  // Rejection reasons (fixed dropdown list)
+  getRejectionReasons: () =>
+    apiClient.get<ApiResponse<string[]>>('/opportunities/meta/rejection-reasons'),
+
   // Accounts
   getAccounts: (page = 1, limit = 20, filters?: Record<string, any>) =>
     apiClient.get<PaginatedResponse<any>>('/accounts', { params: { page, limit, ...filters } }),
