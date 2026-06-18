@@ -1,5 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
-import { ApiResponse, PaginatedResponse } from '@types/index';
+import type { ApiResponse, PaginatedResponse } from '@types/index';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
