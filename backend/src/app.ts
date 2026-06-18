@@ -31,6 +31,7 @@ import opportunityRoutes from './routes/opportunities';
 import productRoutes from './routes/products';
 import activityRoutes from './routes/activities';
 import userRoutes from './routes/users';
+import reportRoutes from './routes/reports';
 
 // Database initialization
 AppDataSource.initialize()
@@ -55,6 +56,7 @@ app.use('/api/opportunities', opportunityRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/activities', activityRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/reports', reportRoutes);
 
 // Error handling middleware
 app.use(errorHandler);

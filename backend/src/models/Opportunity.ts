@@ -12,8 +12,6 @@ import { User } from './User';
 import { Account } from './Account';
 import { Contact } from './Contact';
 import { LineItem } from './LineItem';
-import { Activity } from './Activity';
-import { Note } from './Note';
 
 @Entity('opportunities')
 export class Opportunity {
@@ -67,11 +65,8 @@ export class Opportunity {
   @OneToMany(() => LineItem, (item) => item.opportunity, { cascade: true })
   lineItems: LineItem[];
 
-  @OneToMany(() => Activity, (activity) => activity.resource, { cascade: true })
-  activities: Activity[];
-
-  @OneToMany(() => Note, (note) => note.resource, { cascade: true })
-  notes: Note[];
+  // Notes & activities are polymorphic (linked by resourceType + resourceId)
+  // and are accessed via the note/activity services, not as ORM relations.
 
   @Column({ nullable: true })
   tags: string;

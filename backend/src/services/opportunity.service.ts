@@ -52,7 +52,7 @@ export class OpportunityService {
   async getOpportunityById(id: string): Promise<Opportunity> {
     const opp = await this.oppRepository.findOne({
       where: { id },
-      relations: ['owner', 'account', 'primaryContact', 'lineItems', 'activities', 'notes'],
+      relations: ['owner', 'account', 'primaryContact', 'lineItems'],
     });
 
     if (!opp) {

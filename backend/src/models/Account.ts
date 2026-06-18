@@ -11,8 +11,6 @@ import {
 import { User } from './User';
 import { Contact } from './Contact';
 import { Opportunity } from './Opportunity';
-import { Activity } from './Activity';
-import { Note } from './Note';
 
 @Entity('accounts')
 export class Account {
@@ -83,11 +81,7 @@ export class Account {
   @OneToMany(() => Opportunity, (opp) => opp.account)
   opportunities: Opportunity[];
 
-  @OneToMany(() => Activity, (activity) => activity.resource, { cascade: true })
-  activities: Activity[];
-
-  @OneToMany(() => Note, (note) => note.resource, { cascade: true })
-  notes: Note[];
+  // Notes & activities are polymorphic; accessed via their own services.
 
   @Column({ nullable: true })
   tags: string;

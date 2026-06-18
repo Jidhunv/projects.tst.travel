@@ -45,7 +45,7 @@ export class AccountService {
   async getAccountById(id: string): Promise<Account> {
     const account = await this.accountRepository.findOne({
       where: { id },
-      relations: ['owner', 'contacts', 'opportunities', 'activities', 'notes'],
+      relations: ['owner', 'contacts', 'opportunities'],
     });
 
     if (!account) {

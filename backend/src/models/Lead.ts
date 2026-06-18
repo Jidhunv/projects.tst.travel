@@ -5,13 +5,10 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   ManyToOne,
-  OneToMany,
   JoinColumn,
 } from 'typeorm';
 import { User } from './User';
 import { Account } from './Account';
-import { Activity } from './Activity';
-import { Note } from './Note';
 
 @Entity('leads')
 export class Lead {
@@ -59,11 +56,7 @@ export class Lead {
   @Column({ nullable: true })
   accountId: string;
 
-  @OneToMany(() => Activity, (activity) => activity.resource, { cascade: true })
-  activities: Activity[];
-
-  @OneToMany(() => Note, (note) => note.resource, { cascade: true })
-  notes: Note[];
+  // Notes & activities are polymorphic; accessed via their own services.
 
   @Column({ nullable: true })
   tags: string;

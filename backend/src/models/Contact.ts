@@ -5,12 +5,9 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   ManyToOne,
-  OneToMany,
   JoinColumn,
 } from 'typeorm';
 import { Account } from './Account';
-import { Activity } from './Activity';
-import { Note } from './Note';
 
 @Entity('contacts')
 export class Contact {
@@ -54,11 +51,7 @@ export class Contact {
   @Column({ nullable: true })
   birthday: Date;
 
-  @OneToMany(() => Activity, (activity) => activity.resource, { cascade: true })
-  activities: Activity[];
-
-  @OneToMany(() => Note, (note) => note.resource, { cascade: true })
-  notes: Note[];
+  // Notes & activities are polymorphic; accessed via their own services.
 
   @CreateDateColumn()
   createdAt: Date;

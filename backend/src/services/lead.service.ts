@@ -47,7 +47,7 @@ export class LeadService {
   async getLeadById(id: string): Promise<Lead> {
     const lead = await this.leadRepository.findOne({
       where: { id },
-      relations: ['owner', 'account', 'activities', 'notes'],
+      relations: ['owner', 'account'],
     });
 
     if (!lead) {
