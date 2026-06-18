@@ -12,8 +12,8 @@ Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$projectRoot\
 Start-Sleep -Seconds 1
 
 # Start Frontend
-Write-Host "Starting Frontend (port 3000)..." -ForegroundColor Yellow
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$projectRoot\frontend'; npm start"
+Write-Host "Starting Frontend with Vite (port 3000)..." -ForegroundColor Yellow
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$projectRoot\frontend'; npm run dev"
 
 Write-Host ""
 Write-Host "Both servers started!" -ForegroundColor Green

@@ -91,7 +91,7 @@ Write-Host ""
 Write-Host "Setting up Frontend..." -ForegroundColor Yellow
 Push-Location frontend
 
-Write-Host "Installing frontend dependencies..." -ForegroundColor Cyan
+Write-Host "Installing frontend dependencies (Vite)..." -ForegroundColor Cyan
 npm install
 if ($?) {
     Write-Host "Frontend dependencies installed" -ForegroundColor Green
