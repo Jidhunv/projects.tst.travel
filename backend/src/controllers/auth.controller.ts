@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { UserService } from '../services/user.service';
+import userService from '../services/user.service';
 import { generateToken } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
 import logger from '../utils/logger';
@@ -13,7 +13,7 @@ export class AuthController {
         throw new AppError(400, 'Email and password are required');
       }
 
-      const user = await UserService.authenticateUser(email, password);
+      const user = await userService.authenticateUser(email, password);
       const token = generateToken(user.id, user.email);
 
       logger.info(`User logged in: ${user.email}`);
@@ -56,7 +56,7 @@ export class AuthController {
         throw new AppError(400, 'Email is required');
       }
 
-      const user = await UserService.getUserByEmail(email);
+      const user = await userService.getUserByEmail(email);
 
       // TODO: Send password reset email
       logger.info(`Password reset requested for: ${email}`);

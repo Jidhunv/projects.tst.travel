@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { AccountService } from '../services/account.service';
+import accountService from '../services/account.service';
 import { AuthRequest } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
 import logger from '../utils/logger';
@@ -13,7 +13,7 @@ export class AccountController {
         throw new AppError(400, 'Account name is required');
       }
 
-      const account = await AccountService.createAccount({
+      const account = await accountService.createAccount({
         name,
         industry,
         size,
@@ -38,7 +38,7 @@ export class AccountController {
     try {
       const { page = 1, limit = 20, status, type, ownerId, search } = req.query;
 
-      const { data, total } = await AccountService.getAccounts({
+      const { data, total } = await accountService.getAccounts({
         page: Number(page),
         limit: Number(limit),
         status: status as string,
@@ -65,7 +65,7 @@ export class AccountController {
   async getAccount(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      const account = await AccountService.getAccountById(id);
+      const account = await accountService.getAccountById(id);
 
       return res.json({
         success: true,
@@ -81,7 +81,7 @@ export class AccountController {
       const { id } = req.params;
       const updates = req.body;
 
-      const account = await AccountService.updateAccount(id, updates);
+      const account = await accountService.updateAccount(id, updates);
 
       logger.info(`Account updated: ${account.id} by ${req.user!.email}`);
 
@@ -97,7 +97,7 @@ export class AccountController {
   async deleteAccount(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      await AccountService.deleteAccount(id);
+      await accountService.deleteAccount(id);
 
       logger.info(`Account deleted: ${id} by ${req.user!.email}`);
 
@@ -120,7 +120,7 @@ export class AccountController {
         throw new AppError(400, 'First name, last name, and email are required');
       }
 
-      const contact = await AccountService.addContact(accountId, {
+      const contact = await accountService.addContact(accountId, {
         firstName,
         lastName,
         email,
@@ -143,7 +143,7 @@ export class AccountController {
   async getContacts(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { accountId } = req.params;
-      const contacts = await AccountService.getAccountContacts(accountId);
+      const contacts = await accountService.getAccountContacts(accountId);
 
       return res.json({
         success: true,
@@ -159,7 +159,7 @@ export class AccountController {
       const { accountId, contactId } = req.params;
       const updates = req.body;
 
-      const contact = await AccountService.updateContact(accountId, contactId, updates);
+      const contact = await accountService.updateContact(accountId, contactId, updates);
 
       logger.info(`Contact updated: ${contactId} by ${req.user!.email}`);
 
@@ -175,7 +175,7 @@ export class AccountController {
   async deleteContact(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { accountId, contactId } = req.params;
-      await AccountService.deleteContact(accountId, contactId);
+      await accountService.deleteContact(accountId, contactId);
 
       logger.info(`Contact deleted: ${contactId} from account ${accountId}`);
 
@@ -192,7 +192,7 @@ export class AccountController {
     try {
       const { accountId, contactId } = req.params;
 
-      const contact = await AccountService.setPrimaryContact(accountId, contactId);
+      const contact = await accountService.setPrimaryContact(accountId, contactId);
 
       logger.info(`Primary contact set for account ${accountId}: ${contactId}`);
 
