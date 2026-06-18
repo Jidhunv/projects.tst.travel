@@ -22,9 +22,43 @@ $pgVersion = psql --version 2>$null
 if ($?) {
     Write-Host "PostgreSQL found: $pgVersion" -ForegroundColor Green
 } else {
-    Write-Host "PostgreSQL not found or not in PATH" -ForegroundColor Red
-    Write-Host "Install from: https://www.postgresql.org/download/windows/" -ForegroundColor Yellow
-    exit 1
+    Write-Host "psql not in PATH. Searching for PostgreSQL installation..." -ForegroundColor Yellow
+
+    # Search for PostgreSQL
+    $psqlPath = Get-ChildItem -Path "C:\Program Files\PostgreSQL" -Recurse -Filter "psql.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+
+    if ($psqlPath) {
+        $pgBinPath = $psqlPath.DirectoryName
+        Write-Host "Found PostgreSQL at: $pgBinPath" -ForegroundColor Green
+
+        # Add to current session PATH
+        Write-Host "Adding to PATH for this session..." -ForegroundColor Cyan
+        $env:Path += ";$pgBinPath"
+
+        # Verify it works
+        $pgVersion = psql --version 2>$null
+        if ($?) {
+            Write-Host "PostgreSQL $pgVersion now available" -ForegroundColor Green
+
+            # Offer to add permanently
+            Write-Host ""
+            $addPermanent = Read-Host "Add PostgreSQL to permanent PATH? (y/n)"
+            if ($addPermanent -eq "y") {
+                Write-Host "Adding to Windows PATH..." -ForegroundColor Cyan
+                [Environment]::SetEnvironmentVariable(
+                    "Path",
+                    [Environment]::GetEnvironmentVariable("Path", [EnvironmentVariableTarget]::User) + ";$pgBinPath",
+                    [EnvironmentVariableTarget]::User
+                )
+                Write-Host "PostgreSQL added to permanent PATH" -ForegroundColor Green
+                Write-Host "Note: You may need to restart PowerShell for permanent PATH to take effect" -ForegroundColor Yellow
+            }
+        }
+    } else {
+        Write-Host "PostgreSQL not found on system" -ForegroundColor Red
+        Write-Host "Install from: https://www.postgresql.org/download/windows/" -ForegroundColor Yellow
+        exit 1
+    }
 }
 
 # Setup Backend
@@ -71,7 +105,7 @@ Pop-Location
 # Database setup
 Write-Host ""
 Write-Host "Setting up Database..." -ForegroundColor Yellow
-Write-Host "Enter your PostgreSQL password (default: postgres):" -ForegroundColor Cyan
+Write-Host "Enter your PostgreSQL password:" -ForegroundColor Cyan
 $postgresPassword = Read-Host -AsSecureString
 $postgresPlainPassword = [System.Net.NetworkCredential]::new("", $postgresPassword).Password
 
