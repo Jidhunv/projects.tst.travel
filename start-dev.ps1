@@ -16,7 +16,7 @@ Write-Host "Starting Frontend (port 3000)..." -ForegroundColor Yellow
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$projectRoot\frontend'; npm start"
 
 Write-Host ""
-Write-Host "✓ Both servers started!" -ForegroundColor Green
+Write-Host "Both servers started!" -ForegroundColor Green
 Write-Host ""
 Write-Host "Backend:  http://localhost:3001" -ForegroundColor Cyan
 Write-Host "Frontend: http://localhost:3000" -ForegroundColor Cyan
