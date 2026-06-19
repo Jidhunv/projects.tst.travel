@@ -59,14 +59,17 @@ export class LeadController {
       const scope = getOwnerScope(req.user);
       const effectiveOwnerId = scope ?? (ownerId as string);
 
-      const { data, total } = await leadService.getLeads({
-        page: Number(page),
-        limit: Number(limit),
-        status: status as string,
-        source: source as string,
-        ownerId: effectiveOwnerId,
-        search: search as string,
-      });
+      const { data, total } = await leadService.getLeads(
+        {
+          page: Number(page),
+          limit: Number(limit),
+          status: status as string,
+          source: source as string,
+          ownerId: effectiveOwnerId,
+          search: search as string,
+        },
+        req.traceId
+      );
 
       return res.json({
         success: true,

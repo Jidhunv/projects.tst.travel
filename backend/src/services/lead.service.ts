@@ -5,6 +5,7 @@ import { Opportunity } from '../models/Opportunity';
 import { LineItem } from '../models/LineItem';
 import { AppError } from '../middleware/errorHandler';
 import { REJECTION_REASONS } from '../utils/constants';
+import { startSpan, endSpan } from '../utils/tracer';
 
 interface LeadFilters {
   status?: string;
@@ -66,41 +67,61 @@ export class LeadService {
     return lead;
   }
 
-  async getLeads(filters: LeadFilters = {}): Promise<{ data: Lead[]; total: number }> {
+  async getLeads(filters: LeadFilters = {}, traceId?: string): Promise<{ data: Lead[]; total: number }> {
     const { page = 1, limit = 20, search, ...where } = filters;
     const skip = (page - 1) * limit;
 
-    const query = this.leadRepository
-      .createQueryBuilder('lead')
-      .leftJoinAndSelect('lead.owner', 'owner')
-      .leftJoinAndSelect('lead.account', 'account');
-
-    // Add search filter
-    if (search) {
-      query.where(
-        '(lead.firstName ILIKE :search OR lead.lastName ILIKE :search OR lead.email ILIKE :search OR lead.company ILIKE :search)',
-        { search: `%${search}%` }
-      );
+    let dbSpan: any;
+    if (traceId) {
+      dbSpan = startSpan(traceId, 'service.lead.getLeads', {
+        page,
+        limit,
+        filters: { ...where, search: search ? '***masked***' : undefined },
+      });
     }
 
-    // Add other filters
-    if (where.status) {
-      query.andWhere('lead.status = :status', { status: where.status });
-    }
-    if (where.source) {
-      query.andWhere('lead.source = :source', { source: where.source });
-    }
-    if (where.ownerId) {
-      query.andWhere('lead.ownerId = :ownerId', { ownerId: where.ownerId });
-    }
+    try {
+      const query = this.leadRepository
+        .createQueryBuilder('lead')
+        .leftJoinAndSelect('lead.owner', 'owner')
+        .leftJoinAndSelect('lead.account', 'account');
 
-    const [data, total] = await query
-      .orderBy('lead.createdAt', 'DESC')
-      .skip(skip)
-      .take(limit)
-      .getManyAndCount();
+      // Add search filter
+      if (search) {
+        query.where(
+          '(lead.firstName ILIKE :search OR lead.lastName ILIKE :search OR lead.email ILIKE :search OR lead.company ILIKE :search)',
+          { search: `%${search}%` }
+        );
+      }
 
-    return { data, total };
+      // Add other filters
+      if (where.status) {
+        query.andWhere('lead.status = :status', { status: where.status });
+      }
+      if (where.source) {
+        query.andWhere('lead.source = :source', { source: where.source });
+      }
+      if (where.ownerId) {
+        query.andWhere('lead.ownerId = :ownerId', { ownerId: where.ownerId });
+      }
+
+      const [data, total] = await query
+        .orderBy('lead.createdAt', 'DESC')
+        .skip(skip)
+        .take(limit)
+        .getManyAndCount();
+
+      if (traceId && dbSpan) {
+        endSpan(traceId, dbSpan.id, { count: data.length, total });
+      }
+
+      return { data, total };
+    } catch (err: any) {
+      if (traceId && dbSpan) {
+        endSpan(traceId, dbSpan.id, undefined, err.message);
+      }
+      throw err;
+    }
   }
 
   async updateLead(id: string, data: Partial<Lead>): Promise<Lead> {

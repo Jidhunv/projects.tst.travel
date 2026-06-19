@@ -4,6 +4,8 @@ import helmet from 'helmet';
 import dotenv from 'dotenv';
 import { AppDataSource } from './config/database';
 import { errorHandler } from './middleware/errorHandler';
+import { tracingMiddleware } from './middleware/tracing';
+import traceService from './services/trace.service';
 import logger from './utils/logger';
 
 // Import routes (will be created next)
@@ -22,6 +24,8 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+// Enable tracing for all requests (must be before routes)
+app.use((req: any, res, next) => tracingMiddleware(req, res, next));
 
 // Import routes
 import authRoutes from './routes/auth';
@@ -32,6 +36,7 @@ import productRoutes from './routes/products';
 import activityRoutes from './routes/activities';
 import userRoutes from './routes/users';
 import reportRoutes from './routes/reports';
+import traceRoutes from './routes/traces';
 
 // Database initialization
 AppDataSource.initialize()
@@ -57,6 +62,17 @@ app.use('/api/products', productRoutes);
 app.use('/api/activities', activityRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/traces', traceRoutes);
+
+// Save traces after response completes (for debugging)
+app.use((req: any, res, next) => {
+  res.on('finish', () => {
+    if (req.traceId) {
+      traceService.saveTrace(req.traceId);
+    }
+  });
+  next();
+});
 
 // Error handling middleware
 app.use(errorHandler);
