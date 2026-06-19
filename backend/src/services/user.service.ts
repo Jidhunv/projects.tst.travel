@@ -94,15 +94,65 @@ export class UserService {
     return await this.userRepository.save(user);
   }
 
-  async deleteUser(id: string): Promise<void> {
+  async deleteUser(id: string): Promise<User> {
     const user = await this.getUserById(id);
     await this.userRepository.remove(user);
+    return user;
+  }
+
+  async changePassword(id: string, currentPassword: string, newPassword: string): Promise<User> {
+    const user = await this.getUserById(id);
+
+    const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
+    if (!isPasswordValid) {
+      throw new AppError(401, 'Current password is incorrect');
+    }
+
+    user.password = await bcrypt.hash(newPassword, 10);
+    return await this.userRepository.save(user);
   }
 
   async getAllUsers(): Promise<User[]> {
     return await this.userRepository.find({
       relations: ['role', 'role.permissions'],
     });
+  }
+
+  async getUsers(filters: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    roleId?: string;
+    isActive?: boolean;
+  }) {
+    const page = filters.page || 1;
+    const limit = filters.limit || 20;
+    const skip = (page - 1) * limit;
+
+    const query = this.userRepository.createQueryBuilder('user').leftJoinAndSelect('user.role', 'role');
+
+    if (filters.search) {
+      query.andWhere(
+        '(user.email ILIKE :search OR user.firstName ILIKE :search OR user.lastName ILIKE :search)',
+        { search: `%${filters.search}%` }
+      );
+    }
+
+    if (filters.roleId) {
+      query.andWhere('user.roleId = :roleId', { roleId: filters.roleId });
+    }
+
+    if (filters.isActive !== undefined) {
+      query.andWhere('user.isActive = :isActive', { isActive: filters.isActive });
+    }
+
+    const [data, total] = await query
+      .orderBy('user.createdAt', 'DESC')
+      .skip(skip)
+      .take(limit)
+      .getManyAndCount();
+
+    return { data, total };
   }
 
   async deactivateUser(id: string): Promise<User> {

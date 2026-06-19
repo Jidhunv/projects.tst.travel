@@ -10,7 +10,7 @@ import {
 import { User } from './User';
 
 @Entity('notifications')
-@Index(['userId', 'isRead'])
+@Index(['isRead'])
 @Index(['createdAt'])
 export class Notification {
   @PrimaryGeneratedColumn('uuid')

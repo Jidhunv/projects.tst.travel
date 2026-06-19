@@ -17,6 +17,8 @@ import { InvoicesPage } from '@pages/InvoicesPage';
 import { TicketsPage } from '@pages/TicketsPage';
 import { AuditLogsPage } from '@pages/AuditLogsPage';
 import { NotificationsPage } from '@pages/NotificationsPage';
+import { UsersPage } from '@pages/UsersPage';
+import { RolesPage } from '@pages/RolesPage';
 
 const theme = createTheme({
   palette: {
@@ -145,6 +147,22 @@ function App() {
             element={
               <ProtectedRoute>
                 <NotificationsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/users"
+            element={
+              <ProtectedRoute>
+                <UsersPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/roles"
+            element={
+              <ProtectedRoute>
+                <RolesPage />
               </ProtectedRoute>
             }
           />

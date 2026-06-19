@@ -3,7 +3,7 @@ import { User } from './User';
 
 @Entity('audit_logs')
 @Index(['entityType', 'entityId'])
-@Index(['userId', 'createdAt'])
+@Index(['createdAt'])
 export class AuditLog {
   @PrimaryGeneratedColumn('uuid')
   id: string;

@@ -13,18 +13,23 @@ export class TicketController {
         throw new AppError(400, 'Required fields: ticketNumber, title, description, accountId');
       }
 
-      const ticket = await ticketService.createTicket({
+      const ticketData: any = {
         ticketNumber,
         title,
         description,
         priority: priority || 'Medium',
         category,
         accountId,
-        contact: contactId ? { id: contactId } : undefined,
         reporterId: req.user?.id || '',
         slaResponseHours,
         slaResolutionHours,
-      });
+      };
+
+      if (contactId) {
+        ticketData.contact = { id: contactId };
+      }
+
+      const ticket = await ticketService.createTicket(ticketData);
 
       logger.info(`Ticket created: ${ticket.ticketNumber} by ${req.user?.email}`);
       return res.status(201).json({ success: true, data: ticket });

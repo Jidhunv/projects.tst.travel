@@ -1,0 +1,8 @@
+digraph trace_9783179f_250c_4809_9fdf_b3fe3d897591 {
+  rankdir=TB;
+  graph [fontname="Arial"];
+  node [fontname="Arial", shape=box];
+  edge [fontname="Arial"];
+
+  "48913883-217f-42e8-bbed-9918c5371239" [label="api.GET /\n7ms", fillcolor="#51cf66", style=filled];
+}

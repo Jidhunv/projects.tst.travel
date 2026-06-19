@@ -43,6 +43,7 @@ import invoiceRoutes from './routes/invoices';
 import ticketRoutes from './routes/tickets';
 import auditLogRoutes from './routes/audit-logs';
 import notificationRoutes from './routes/notifications';
+import roleRoutes from './routes/roles';
 
 // Database initialization
 AppDataSource.initialize()
@@ -75,6 +76,7 @@ app.use('/api/invoices', invoiceRoutes);
 app.use('/api/tickets', ticketRoutes);
 app.use('/api/audit-logs', auditLogRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/roles', roleRoutes);
 
 // Save traces after response completes (for debugging)
 app.use((req: any, res, next) => {

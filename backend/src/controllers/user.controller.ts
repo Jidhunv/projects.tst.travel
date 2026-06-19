@@ -41,9 +41,18 @@ export class UserController {
 
   async getUsers(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const users = await userService.getAllUsers();
+      const { page = 1, limit = 20, search, roleId, isActive } = req.query;
+
+      const { data, total } = await userService.getUsers({
+        page: Number(page),
+        limit: Number(limit),
+        search: search as string,
+        roleId: roleId as string,
+        isActive: isActive === 'true' ? true : isActive === 'false' ? false : undefined,
+      });
+
       // Never leak password hashes
-      const sanitized = users.map((u) => ({
+      const sanitized = data.map((u) => ({
         id: u.id,
         email: u.email,
         firstName: u.firstName,
@@ -51,8 +60,35 @@ export class UserController {
         phoneNumber: u.phoneNumber,
         isActive: u.isActive,
         role: u.role?.name,
+        createdAt: u.createdAt,
       }));
-      return res.json({ success: true, data: sanitized });
+
+      return res.json({
+        success: true,
+        data: sanitized,
+        meta: { page: Number(page), limit: Number(limit), total, totalPages: Math.ceil(total / Number(limit)) },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getUser(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const user = await userService.getUserById(req.params.id);
+      return res.json({
+        success: true,
+        data: {
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          phoneNumber: user.phoneNumber,
+          isActive: user.isActive,
+          role: user.role?.name,
+          roleId: user.role?.id,
+        },
+      });
     } catch (error) {
       next(error);
     }
@@ -89,9 +125,40 @@ export class UserController {
 
   async deactivateUser(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      await userService.deactivateUser(req.params.id);
-      logger.info(`User deactivated: ${req.params.id} by ${req.user!.email}`);
+      const user = await userService.deactivateUser(req.params.id);
+      logger.info(`User deactivated: ${user.email} by ${req.user!.email}`);
       return res.json({ success: true, data: { message: 'User deactivated' } });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async changePassword(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const { currentPassword, newPassword } = req.body;
+
+      if (!currentPassword || !newPassword) {
+        throw new AppError(400, 'currentPassword and newPassword are required');
+      }
+
+      if (newPassword.length < 6) {
+        throw new AppError(400, 'Password must be at least 6 characters');
+      }
+
+      const user = await userService.changePassword(req.params.id, currentPassword, newPassword);
+      logger.info(`Password changed for user: ${user.email}`);
+      return res.json({ success: true, data: { message: 'Password changed successfully' } });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async deleteUser(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const user = await userService.getUserById(req.params.id);
+      await userService.deleteUser(req.params.id);
+      logger.info(`User deleted: ${user.email} by ${req.user!.email}`);
+      return res.json({ success: true, data: { message: 'User deleted successfully' } });
     } catch (error) {
       next(error);
     }

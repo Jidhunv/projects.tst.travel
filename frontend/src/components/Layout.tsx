@@ -22,11 +22,13 @@ import {
   BarChart as ReportsIcon,
   Logout as LogoutIcon,
   Description as ContractIcon,
-  AssignmentIcon as ProjectIcon,
-  ReceiptIcon as InvoiceIcon,
+  Assignment as ProjectIcon,
+  Receipt as InvoiceIcon,
   BugReport as TicketIcon,
   History as AuditIcon,
   Notifications as NotificationIcon,
+  PersonAdd as UserIcon,
+  SecurityIcon,
 } from '@mui/icons-material';
 import useAuth from '@hooks/useAuth';
 
@@ -65,6 +67,8 @@ export default function Layout({ children }: LayoutProps) {
     { text: 'Tickets', icon: <TicketIcon />, path: '/tickets' },
     { text: 'Notifications', icon: <NotificationIcon />, path: '/notifications' },
     { text: 'Audit Logs', icon: <AuditIcon />, path: '/audit-logs' },
+    { text: 'Users', icon: <UserIcon />, path: '/users' },
+    { text: 'Roles', icon: <SecurityIcon />, path: '/roles' },
     { text: 'Reports', icon: <ReportsIcon />, path: '/reports' },
   ];
 
