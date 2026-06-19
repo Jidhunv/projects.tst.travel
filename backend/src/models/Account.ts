@@ -75,6 +75,34 @@ export class Account {
   @Column({ nullable: true })
   shippingCountry: string;
 
+  // Onboarding tracking
+  @Column({ default: 'Not Started' })
+  onboardingStatus: string; // Not Started, In Progress, Completed, On Hold
+
+  @Column({ type: 'timestamp', nullable: true })
+  onboardingDate: Date;
+
+  @Column({ type: 'timestamp', nullable: true })
+  onboardingCompletedDate: Date;
+
+  @Column({ nullable: true })
+  onboardingNotes: string;
+
+  @Column({ nullable: true })
+  contractSignedDate: Date;
+
+  @Column({ nullable: true })
+  goLiveDate: Date;
+
+  @Column({ nullable: true })
+  accountManager: string;
+
+  @Column({ nullable: true })
+  billingContact: string;
+
+  @Column({ nullable: true })
+  technicalContact: string;
+
   @OneToMany(() => Contact, (contact) => contact.account, { cascade: true })
   contacts: Contact[];
 

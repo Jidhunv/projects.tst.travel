@@ -1,17 +1,39 @@
 import React from 'react';
-import { Box, Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField } from '@mui/material';
+import {
+  Box,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  TextField,
+  MenuItem,
+  Chip,
+  Stack,
+  Snackbar,
+  Alert,
+  Tabs,
+  Tab,
+} from '@mui/material';
+import { Edit as EditIcon } from '@mui/icons-material';
 import Layout from '@components/Layout';
 import DataTable from '@components/DataTable';
 import { api } from '@services/api';
 import { Account } from '../types';
+import { formatCurrency } from '@utils/format';
 
-const COLUMNS = [
-  { id: 'name', label: 'Account Name' },
-  { id: 'industry', label: 'Industry' },
-  { id: 'website', label: 'Website' },
-  { id: 'type', label: 'Type' },
-  { id: 'status', label: 'Status' },
-];
+const statusColor: Record<string, any> = {
+  Prospect: 'info',
+  Customer: 'success',
+  Inactive: 'error',
+};
+
+const onboardingStatusColor: Record<string, any> = {
+  'Not Started': 'default',
+  'In Progress': 'warning',
+  Completed: 'success',
+  'On Hold': 'error',
+};
 
 export default function AccountsPage() {
   const [accounts, setAccounts] = React.useState<Account[]>([]);
@@ -19,13 +41,31 @@ export default function AccountsPage() {
   const [page, setPage] = React.useState(1);
   const [pageSize, setPageSize] = React.useState(20);
   const [loading, setLoading] = React.useState(false);
-  const [openDialog, setOpenDialog] = React.useState(false);
+  const [toast, setToast] = React.useState<{ msg: string; sev: 'success' | 'error' } | null>(null);
+
+  const [openCreate, setOpenCreate] = React.useState(false);
+  const [openEdit, setOpenEdit] = React.useState(false);
+  const [editingAccount, setEditingAccount] = React.useState<Account | null>(null);
+  const [tabValue, setTabValue] = React.useState(0);
+
   const [formData, setFormData] = React.useState({
     name: '',
     industry: '',
     website: '',
     phoneNumber: '',
-    type: 'Prospect',
+    type: 'Prospect' as 'Prospect' | 'Customer' | 'Inactive',
+  });
+
+  const [onboardingData, setOnboardingData] = React.useState({
+    onboardingStatus: 'Not Started' as const,
+    onboardingDate: '',
+    onboardingCompletedDate: '',
+    onboardingNotes: '',
+    contractSignedDate: '',
+    goLiveDate: '',
+    accountManager: '',
+    billingContact: '',
+    technicalContact: '',
   });
 
   const fetchAccounts = React.useCallback(async () => {
@@ -55,29 +95,94 @@ export default function AccountsPage() {
       phoneNumber: '',
       type: 'Prospect',
     });
-    setOpenDialog(true);
+    setOpenCreate(true);
   };
 
   const handleCreateAccount = async () => {
     try {
       await api.createAccount(formData);
-      setOpenDialog(false);
+      setOpenCreate(false);
+      setToast({ msg: 'Account created', sev: 'success' });
       fetchAccounts();
-    } catch (error) {
-      console.error('Error creating account:', error);
+    } catch (error: any) {
+      setToast({ msg: error.response?.data?.error || 'Failed to create account', sev: 'error' });
     }
   };
 
-  const handleRowClick = (account: Account) => {
-    // TODO: Navigate to account detail page
-    console.log('Account clicked:', account);
+  const handleEditClick = (account: Account) => {
+    setEditingAccount(account);
+    setFormData({
+      name: account.name,
+      industry: account.industry || '',
+      website: account.website || '',
+      phoneNumber: account.phoneNumber || '',
+      type: account.type,
+    });
+    setOnboardingData({
+      onboardingStatus: (account.onboardingStatus as any) || 'Not Started',
+      onboardingDate: account.onboardingDate ? new Date(account.onboardingDate).toISOString().split('T')[0] : '',
+      onboardingCompletedDate: account.onboardingCompletedDate ? new Date(account.onboardingCompletedDate).toISOString().split('T')[0] : '',
+      onboardingNotes: account.onboardingNotes || '',
+      contractSignedDate: account.contractSignedDate ? new Date(account.contractSignedDate).toISOString().split('T')[0] : '',
+      goLiveDate: account.goLiveDate ? new Date(account.goLiveDate).toISOString().split('T')[0] : '',
+      accountManager: account.accountManager || '',
+      billingContact: account.billingContact || '',
+      technicalContact: account.technicalContact || '',
+    });
+    setTabValue(0);
+    setOpenEdit(true);
   };
+
+  const handleUpdateAccount = async () => {
+    try {
+      await api.updateAccount(editingAccount!.id, {
+        ...formData,
+        ...onboardingData,
+        onboardingDate: onboardingData.onboardingDate ? new Date(onboardingData.onboardingDate) : null,
+        onboardingCompletedDate: onboardingData.onboardingCompletedDate ? new Date(onboardingData.onboardingCompletedDate) : null,
+        contractSignedDate: onboardingData.contractSignedDate ? new Date(onboardingData.contractSignedDate) : null,
+        goLiveDate: onboardingData.goLiveDate ? new Date(onboardingData.goLiveDate) : null,
+      });
+      setOpenEdit(false);
+      setEditingAccount(null);
+      setToast({ msg: 'Account updated', sev: 'success' });
+      fetchAccounts();
+    } catch (error: any) {
+      setToast({ msg: error.response?.data?.error || 'Failed to update account', sev: 'error' });
+    }
+  };
+
+  const columns = [
+    { id: 'name', label: 'Account Name' },
+    { id: 'industry', label: 'Industry' },
+    { id: 'type', label: 'Type' },
+    {
+      id: 'onboardingStatus',
+      label: 'Onboarding',
+      render: (r: Account) => (
+        <Chip
+          label={r.onboardingStatus || 'Not Started'}
+          size="small"
+          color={onboardingStatusColor[r.onboardingStatus || 'Not Started'] || 'default'}
+        />
+      ),
+    },
+    {
+      id: 'actions',
+      label: 'Actions',
+      render: (r: Account) => (
+        <Button size="small" variant="outlined" startIcon={<EditIcon />} onClick={() => handleEditClick(r)}>
+          Edit
+        </Button>
+      ),
+    },
+  ];
 
   return (
     <Layout>
       <Box>
         <DataTable
-          columns={COLUMNS}
+          columns={columns}
           rows={accounts}
           total={total}
           page={page}
@@ -87,11 +192,10 @@ export default function AccountsPage() {
           onPageChange={setPage}
           onPageSizeChange={setPageSize}
           onAddClick={handleAddClick}
-          onRowClick={handleRowClick}
         />
 
         {/* Create Account Dialog */}
-        <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="sm" fullWidth>
+        <Dialog open={openCreate} onClose={() => setOpenCreate(false)} maxWidth="sm" fullWidth>
           <DialogTitle>Create New Account</DialogTitle>
           <DialogContent>
             <Box sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -120,15 +224,168 @@ export default function AccountsPage() {
                 onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
                 fullWidth
               />
+              <TextField
+                label="Type"
+                select
+                value={formData.type}
+                onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
+                fullWidth
+              >
+                <MenuItem value="Prospect">Prospect</MenuItem>
+                <MenuItem value="Customer">Customer</MenuItem>
+                <MenuItem value="Inactive">Inactive</MenuItem>
+              </TextField>
             </Box>
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
+            <Button onClick={() => setOpenCreate(false)}>Cancel</Button>
             <Button onClick={handleCreateAccount} variant="contained">
               Create
             </Button>
           </DialogActions>
         </Dialog>
+
+        {/* Edit Account Dialog (with onboarding) */}
+        <Dialog open={openEdit} onClose={() => setOpenEdit(false)} maxWidth="md" fullWidth>
+          <DialogTitle>Edit Account: {editingAccount?.name}</DialogTitle>
+          <DialogContent>
+            <Tabs value={tabValue} onChange={(e, val) => setTabValue(val)} sx={{ borderBottom: 1, borderColor: 'divider', mt: 1 }}>
+              <Tab label="Company Info" />
+              <Tab label="Onboarding" />
+            </Tabs>
+
+            {/* Company Info Tab */}
+            {tabValue === 0 && (
+              <Box sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <TextField
+                  label="Account Name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  fullWidth
+                />
+                <TextField
+                  label="Industry"
+                  value={formData.industry}
+                  onChange={(e) => setFormData({ ...formData, industry: e.target.value })}
+                  fullWidth
+                />
+                <TextField
+                  label="Website"
+                  value={formData.website}
+                  onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+                  fullWidth
+                />
+                <TextField
+                  label="Phone Number"
+                  value={formData.phoneNumber}
+                  onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
+                  fullWidth
+                />
+                <TextField
+                  label="Type"
+                  select
+                  value={formData.type}
+                  onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
+                  fullWidth
+                >
+                  <MenuItem value="Prospect">Prospect</MenuItem>
+                  <MenuItem value="Customer">Customer</MenuItem>
+                  <MenuItem value="Inactive">Inactive</MenuItem>
+                </TextField>
+              </Box>
+            )}
+
+            {/* Onboarding Tab */}
+            {tabValue === 1 && (
+              <Box sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <TextField
+                  label="Onboarding Status"
+                  select
+                  value={onboardingData.onboardingStatus}
+                  onChange={(e) => setOnboardingData({ ...onboardingData, onboardingStatus: e.target.value as any })}
+                  fullWidth
+                >
+                  <MenuItem value="Not Started">Not Started</MenuItem>
+                  <MenuItem value="In Progress">In Progress</MenuItem>
+                  <MenuItem value="Completed">Completed</MenuItem>
+                  <MenuItem value="On Hold">On Hold</MenuItem>
+                </TextField>
+                <TextField
+                  label="Onboarding Start Date"
+                  type="date"
+                  value={onboardingData.onboardingDate}
+                  onChange={(e) => setOnboardingData({ ...onboardingData, onboardingDate: e.target.value })}
+                  fullWidth
+                  InputLabelProps={{ shrink: true }}
+                />
+                <TextField
+                  label="Onboarding Completed Date"
+                  type="date"
+                  value={onboardingData.onboardingCompletedDate}
+                  onChange={(e) => setOnboardingData({ ...onboardingData, onboardingCompletedDate: e.target.value })}
+                  fullWidth
+                  InputLabelProps={{ shrink: true }}
+                />
+                <TextField
+                  label="Contract Signed Date"
+                  type="date"
+                  value={onboardingData.contractSignedDate}
+                  onChange={(e) => setOnboardingData({ ...onboardingData, contractSignedDate: e.target.value })}
+                  fullWidth
+                  InputLabelProps={{ shrink: true }}
+                />
+                <TextField
+                  label="Go Live Date"
+                  type="date"
+                  value={onboardingData.goLiveDate}
+                  onChange={(e) => setOnboardingData({ ...onboardingData, goLiveDate: e.target.value })}
+                  fullWidth
+                  InputLabelProps={{ shrink: true }}
+                />
+                <TextField
+                  label="Account Manager"
+                  value={onboardingData.accountManager}
+                  onChange={(e) => setOnboardingData({ ...onboardingData, accountManager: e.target.value })}
+                  fullWidth
+                />
+                <TextField
+                  label="Billing Contact"
+                  value={onboardingData.billingContact}
+                  onChange={(e) => setOnboardingData({ ...onboardingData, billingContact: e.target.value })}
+                  fullWidth
+                />
+                <TextField
+                  label="Technical Contact"
+                  value={onboardingData.technicalContact}
+                  onChange={(e) => setOnboardingData({ ...onboardingData, technicalContact: e.target.value })}
+                  fullWidth
+                />
+                <TextField
+                  label="Onboarding Notes"
+                  value={onboardingData.onboardingNotes}
+                  onChange={(e) => setOnboardingData({ ...onboardingData, onboardingNotes: e.target.value })}
+                  fullWidth
+                  multiline
+                  rows={4}
+                />
+              </Box>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setOpenEdit(false)}>Cancel</Button>
+            <Button onClick={handleUpdateAccount} variant="contained">
+              Save
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        <Snackbar open={!!toast} autoHideDuration={3500} onClose={() => setToast(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}>
+          {toast ? (
+            <Alert severity={toast.sev} onClose={() => setToast(null)}>
+              {toast.msg}
+            </Alert>
+          ) : undefined}
+        </Snackbar>
       </Box>
     </Layout>
   );

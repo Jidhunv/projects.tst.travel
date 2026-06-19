@@ -64,6 +64,15 @@ export interface Account {
   contacts: Contact[];
   opportunities: Opportunity[];
   tags?: string;
+  onboardingStatus?: 'Not Started' | 'In Progress' | 'Completed' | 'On Hold';
+  onboardingDate?: Date;
+  onboardingCompletedDate?: Date;
+  onboardingNotes?: string;
+  contractSignedDate?: Date;
+  goLiveDate?: Date;
+  accountManager?: string;
+  billingContact?: string;
+  technicalContact?: string;
   createdAt: Date;
   updatedAt: Date;
 }
