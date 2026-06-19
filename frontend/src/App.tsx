@@ -11,6 +11,9 @@ import LeadsPage from '@pages/LeadsPage';
 import AccountsPage from '@pages/AccountsPage';
 import OpportunitiesPage from '@pages/OpportunitiesPage';
 import ReportsPage from '@pages/ReportsPage';
+import { ContractsPage } from '@pages/ContractsPage';
+import { ProjectsPage } from '@pages/ProjectsPage';
+import { InvoicesPage } from '@pages/InvoicesPage';
 
 const theme = createTheme({
   palette: {
@@ -91,6 +94,30 @@ function App() {
             element={
               <ProtectedRoute>
                 <ReportsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/contracts"
+            element={
+              <ProtectedRoute>
+                <ContractsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/projects"
+            element={
+              <ProtectedRoute>
+                <ProjectsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/invoices"
+            element={
+              <ProtectedRoute>
+                <InvoicesPage />
               </ProtectedRoute>
             }
           />

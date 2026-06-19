@@ -176,3 +176,115 @@ export interface PaginatedResponse<T> extends ApiResponse<T[]> {
     totalPages: number;
   };
 }
+
+export interface Contract {
+  id: string;
+  contractNumber: string;
+  title: string;
+  type: string;
+  value: number;
+  startDate: Date;
+  endDate: Date;
+  renewalDate?: Date;
+  paymentTerms?: string;
+  slaTerms?: string;
+  status: 'Draft' | 'Sent for Approval' | 'Approved' | 'Active' | 'Expired' | 'Terminated';
+  account: Account;
+  opportunity?: Opportunity;
+  projects?: Project[];
+  invoices?: Invoice[];
+  createdBy: User;
+  approvedBy?: User;
+  approvedDate?: Date;
+  documentPath?: string;
+  remarks?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface Project {
+  id: string;
+  projectName: string;
+  status: 'Planning' | 'In Progress' | 'UAT' | 'Deployed' | 'On Hold' | 'Closed';
+  startDate: Date;
+  endDate?: Date;
+  goLiveDate?: Date;
+  budget: number;
+  revenue: number;
+  progressPercent: number;
+  isLoaded?: boolean;
+  loadedDate?: Date;
+  loadedBy?: string;
+  demoConducted?: boolean;
+  demoDate?: Date;
+  conductedBy?: string;
+  clientDemoApproval?: boolean;
+  uatStatus: 'Pending' | 'In Progress' | 'Approved' | 'Rejected';
+  uatStartDate?: Date;
+  uatCompletedDate?: Date;
+  uatSignoffBy?: string;
+  uatRemarks?: string;
+  prodDeploymentStatus: 'Not Started' | 'Scheduled' | 'Deployed' | 'Rolled Back';
+  prodDeploymentDate?: Date;
+  prodDeploymentBy?: string;
+  goLiveApproval?: boolean;
+  projectClosureSigned?: boolean;
+  projectClosureSignDate?: Date;
+  projectClosureSignedBy?: string;
+  closureRemarks?: string;
+  account: Account;
+  contract: Contract;
+  projectManager: User;
+  milestones: ProjectMilestone[];
+  invoices?: Invoice[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ProjectMilestone {
+  id: string;
+  milestoneType: string;
+  milestoneName: string;
+  completedDate?: Date;
+  completedTime?: string;
+  responsibleUser?: User;
+  remarks?: string;
+  approvalStatus: 'Pending' | 'Approved' | 'Rejected';
+  approvedBy?: User;
+  approvedDate?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface Invoice {
+  id: string;
+  invoiceNumber: string;
+  amount: number;
+  tax?: number;
+  totalAmount: number;
+  invoiceDate: Date;
+  dueDate: Date;
+  billingCycle?: 'Monthly' | 'Quarterly' | 'Semi-Annual' | 'Annual' | 'Milestone-Based';
+  status: 'Draft' | 'Sent' | 'Partially Paid' | 'Paid' | 'Overdue' | 'Cancelled';
+  description?: string;
+  notes?: string;
+  documentPath?: string;
+  contract: Contract;
+  project?: Project;
+  account: Account;
+  payments: Payment[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface Payment {
+  id: string;
+  amount: number;
+  paymentDate: Date;
+  paymentMethod: 'Bank Transfer' | 'Check' | 'Credit Card' | 'Wire Transfer' | 'Cash' | 'Other';
+  transactionReference?: string;
+  remarks?: string;
+  invoice: Invoice;
+  createdAt: Date;
+  updatedAt: Date;
+}

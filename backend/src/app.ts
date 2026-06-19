@@ -37,6 +37,9 @@ import activityRoutes from './routes/activities';
 import userRoutes from './routes/users';
 import reportRoutes from './routes/reports';
 import traceRoutes from './routes/traces';
+import contractRoutes from './routes/contracts';
+import projectRoutes from './routes/projects';
+import invoiceRoutes from './routes/invoices';
 
 // Database initialization
 AppDataSource.initialize()
@@ -63,6 +66,9 @@ app.use('/api/activities', activityRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/traces', traceRoutes);
+app.use('/api/contracts', contractRoutes);
+app.use('/api/projects', projectRoutes);
+app.use('/api/invoices', invoiceRoutes);
 
 // Save traces after response completes (for debugging)
 app.use((req: any, res, next) => {

@@ -11,6 +11,8 @@ import {
 import { User } from './User';
 import { Contact } from './Contact';
 import { Opportunity } from './Opportunity';
+import { Contract } from './Contract';
+import { Project } from './Project';
 
 @Entity('accounts')
 export class Account {
@@ -108,6 +110,12 @@ export class Account {
 
   @OneToMany(() => Opportunity, (opp) => opp.account)
   opportunities: Opportunity[];
+
+  @OneToMany(() => Contract, (contract) => contract.account)
+  contracts: Contract[];
+
+  @OneToMany(() => Project, (project) => project.account)
+  projects: Project[];
 
   // Notes & activities are polymorphic; accessed via their own services.
 

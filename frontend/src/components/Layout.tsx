@@ -21,6 +21,9 @@ import {
   Handshake as OpportunityIcon,
   BarChart as ReportsIcon,
   Logout as LogoutIcon,
+  Description as ContractIcon,
+  AssignmentIcon as ProjectIcon,
+  ReceiptIcon as InvoiceIcon,
 } from '@mui/icons-material';
 import useAuth from '@hooks/useAuth';
 
@@ -53,6 +56,9 @@ export default function Layout({ children }: LayoutProps) {
     { text: 'Leads', icon: <PeopleIcon />, path: '/leads' },
     { text: 'Accounts', icon: <BusinessIcon />, path: '/accounts' },
     { text: 'Opportunities', icon: <OpportunityIcon />, path: '/opportunities' },
+    { text: 'Contracts', icon: <ContractIcon />, path: '/contracts' },
+    { text: 'Projects', icon: <ProjectIcon />, path: '/projects' },
+    { text: 'Invoices', icon: <InvoiceIcon />, path: '/invoices' },
     { text: 'Reports', icon: <ReportsIcon />, path: '/reports' },
   ];
 
