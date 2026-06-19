@@ -24,6 +24,9 @@ import {
   Description as ContractIcon,
   AssignmentIcon as ProjectIcon,
   ReceiptIcon as InvoiceIcon,
+  BugReport as TicketIcon,
+  History as AuditIcon,
+  Notifications as NotificationIcon,
 } from '@mui/icons-material';
 import useAuth from '@hooks/useAuth';
 
@@ -59,6 +62,9 @@ export default function Layout({ children }: LayoutProps) {
     { text: 'Contracts', icon: <ContractIcon />, path: '/contracts' },
     { text: 'Projects', icon: <ProjectIcon />, path: '/projects' },
     { text: 'Invoices', icon: <InvoiceIcon />, path: '/invoices' },
+    { text: 'Tickets', icon: <TicketIcon />, path: '/tickets' },
+    { text: 'Notifications', icon: <NotificationIcon />, path: '/notifications' },
+    { text: 'Audit Logs', icon: <AuditIcon />, path: '/audit-logs' },
     { text: 'Reports', icon: <ReportsIcon />, path: '/reports' },
   ];
 

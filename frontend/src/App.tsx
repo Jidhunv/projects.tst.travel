@@ -14,6 +14,9 @@ import ReportsPage from '@pages/ReportsPage';
 import { ContractsPage } from '@pages/ContractsPage';
 import { ProjectsPage } from '@pages/ProjectsPage';
 import { InvoicesPage } from '@pages/InvoicesPage';
+import { TicketsPage } from '@pages/TicketsPage';
+import { AuditLogsPage } from '@pages/AuditLogsPage';
+import { NotificationsPage } from '@pages/NotificationsPage';
 
 const theme = createTheme({
   palette: {
@@ -118,6 +121,30 @@ function App() {
             element={
               <ProtectedRoute>
                 <InvoicesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/tickets"
+            element={
+              <ProtectedRoute>
+                <TicketsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/audit-logs"
+            element={
+              <ProtectedRoute>
+                <AuditLogsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/notifications"
+            element={
+              <ProtectedRoute>
+                <NotificationsPage />
               </ProtectedRoute>
             }
           />

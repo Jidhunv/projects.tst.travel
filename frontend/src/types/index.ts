@@ -288,3 +288,58 @@ export interface Payment {
   createdAt: Date;
   updatedAt: Date;
 }
+
+export interface Ticket {
+  id: string;
+  ticketNumber: string;
+  title: string;
+  description: string;
+  priority: 'Critical' | 'High' | 'Medium' | 'Low';
+  status: 'Open' | 'In Progress' | 'Pending Customer' | 'Resolved' | 'Closed';
+  category?: string;
+  source?: string;
+  account: Account;
+  contact?: Contact;
+  reporter: User;
+  assignee?: User;
+  slaResponseHours?: number;
+  slaResolutionHours?: number;
+  responseDeadline?: Date;
+  resolutionDeadline?: Date;
+  respondedAt?: Date;
+  resolvedAt?: Date;
+  resolutionNotes?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface AuditLog {
+  id: string;
+  entityType: string;
+  entityId: string;
+  action: 'CREATE' | 'UPDATE' | 'DELETE';
+  oldValues?: Record<string, any>;
+  newValues: Record<string, any>;
+  user: User;
+  ipAddress?: string;
+  userAgent?: string;
+  description?: string;
+  createdAt: Date;
+}
+
+export interface Notification {
+  id: string;
+  type: 'ContractExpiry' | 'InvoiceDue' | 'UATApproval' | 'PaymentReminder' | 'ProjectMilestone' | 'TicketUpdate';
+  title: string;
+  message: string;
+  recipient: User;
+  relatedEntityType?: string;
+  relatedEntityId?: string;
+  relatedEntityName?: string;
+  isRead: boolean;
+  readAt?: Date;
+  actionUrl?: string;
+  actionLabel?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}

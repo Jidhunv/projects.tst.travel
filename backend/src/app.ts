@@ -40,6 +40,9 @@ import traceRoutes from './routes/traces';
 import contractRoutes from './routes/contracts';
 import projectRoutes from './routes/projects';
 import invoiceRoutes from './routes/invoices';
+import ticketRoutes from './routes/tickets';
+import auditLogRoutes from './routes/audit-logs';
+import notificationRoutes from './routes/notifications';
 
 // Database initialization
 AppDataSource.initialize()
@@ -69,6 +72,9 @@ app.use('/api/traces', traceRoutes);
 app.use('/api/contracts', contractRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/invoices', invoiceRoutes);
+app.use('/api/tickets', ticketRoutes);
+app.use('/api/audit-logs', auditLogRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Save traces after response completes (for debugging)
 app.use((req: any, res, next) => {
