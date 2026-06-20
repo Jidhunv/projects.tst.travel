@@ -60,6 +60,10 @@ export class Lead {
   @Column({ nullable: true })
   lostReason: string;
 
+  // General remarks on the lead
+  @Column('text', { nullable: true })
+  remark: string;
+
   @ManyToOne(() => User, (user) => user.leads)
   @JoinColumn({ name: 'ownerId' })
   owner: User;

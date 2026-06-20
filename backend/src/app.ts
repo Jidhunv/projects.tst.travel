@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import { AppDataSource } from './config/database';
 import { errorHandler } from './middleware/errorHandler';
 import { tracingMiddleware } from './middleware/tracing';
+import { auditMiddleware } from './middleware/audit';
 import traceService from './services/trace.service';
 import logger from './utils/logger';
 
@@ -26,6 +27,8 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 // Enable tracing for all requests (must be before routes)
 app.use((req: any, res, next) => tracingMiddleware(req, res, next));
+// Enable audit logging for all requests
+app.use((req: any, res, next) => auditMiddleware(req, res, next));
 
 // Import routes
 import authRoutes from './routes/auth';

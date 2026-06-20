@@ -28,7 +28,8 @@ import {
   History as AuditIcon,
   Notifications as NotificationIcon,
   PersonAdd as UserIcon,
-  SecurityIcon,
+  Security as SecurityIcon,
+  Inventory as ProductIcon,
 } from '@mui/icons-material';
 import useAuth from '@hooks/useAuth';
 
@@ -65,6 +66,7 @@ export default function Layout({ children }: LayoutProps) {
     { text: 'Projects', icon: <ProjectIcon />, path: '/projects' },
     { text: 'Invoices', icon: <InvoiceIcon />, path: '/invoices' },
     { text: 'Tickets', icon: <TicketIcon />, path: '/tickets' },
+    { text: 'Products', icon: <ProductIcon />, path: '/products' },
     { text: 'Notifications', icon: <NotificationIcon />, path: '/notifications' },
     { text: 'Audit Logs', icon: <AuditIcon />, path: '/audit-logs' },
     { text: 'Users', icon: <UserIcon />, path: '/users' },

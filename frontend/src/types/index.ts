@@ -44,6 +44,7 @@ export interface Lead {
   productId?: string;
   productName?: string;
   lostReason?: string;
+  remark?: string;
   owner: User;
   account?: Account;
   tags?: string;

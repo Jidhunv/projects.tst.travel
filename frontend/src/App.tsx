@@ -19,6 +19,7 @@ import { AuditLogsPage } from '@pages/AuditLogsPage';
 import { NotificationsPage } from '@pages/NotificationsPage';
 import { UsersPage } from '@pages/UsersPage';
 import { RolesPage } from '@pages/RolesPage';
+import { ProductsPage } from '@pages/ProductsPage';
 
 const theme = createTheme({
   palette: {
@@ -42,6 +43,11 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   }
 
   return <>{children}</>;
+};
+
+const RootRoute: React.FC = () => {
+  const { token } = useAuth();
+  return <Navigate to={token ? "/dashboard" : "/login"} replace />;
 };
 
 function App() {
@@ -166,7 +172,15 @@ function App() {
               </ProtectedRoute>
             }
           />
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route
+            path="/products"
+            element={
+              <ProtectedRoute>
+                <ProductsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/" element={<RootRoute />} />
         </Routes>
       </Router>
     </ThemeProvider>
