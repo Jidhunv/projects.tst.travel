@@ -57,18 +57,18 @@ export class Project {
   @Column()
   accountId: string;
 
-  @ManyToOne(() => Contract)
+  @ManyToOne(() => Contract, { nullable: true })
   @JoinColumn({ name: 'contractId' })
   contract: Contract;
 
-  @Column()
+  @Column({ nullable: true })
   contractId: string;
 
-  @ManyToOne(() => User)
+  @ManyToOne(() => User, { nullable: true })
   @JoinColumn({ name: 'projectManagerId' })
   projectManager: User;
 
-  @Column()
+  @Column({ nullable: true })
   projectManagerId: string;
 
   // Deployment & UAT tracking

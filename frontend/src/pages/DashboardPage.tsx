@@ -29,10 +29,31 @@ export default function DashboardPage() {
     );
   }
 
-  if (error || !mis) {
+  if (error) {
     return (
       <Layout>
-        <Alert severity="error">{error || 'No data available'}</Alert>
+        <Alert severity="warning" sx={{ mb: 3 }}>
+          {error}
+        </Alert>
+        <Typography variant="h4" sx={{ mb: 3 }}>
+          Dashboard
+        </Typography>
+        <Typography color="textSecondary">
+          Please check back in a moment or navigate to other sections of the app.
+        </Typography>
+      </Layout>
+    );
+  }
+
+  if (!mis) {
+    return (
+      <Layout>
+        <Typography variant="h4" sx={{ mb: 3 }}>
+          Dashboard
+        </Typography>
+        <Typography color="textSecondary">
+          No data available
+        </Typography>
       </Layout>
     );
   }

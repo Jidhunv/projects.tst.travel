@@ -27,8 +27,10 @@ import { Contract } from '../types';
 
 export const ContractsPage: React.FC = () => {
   const [contracts, setContracts] = useState<Contract[]>([]);
+  const [accounts, setAccounts] = useState<any[]>([]);
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [formData, setFormData] = useState({
     contractNumber: '',
     title: '',
@@ -39,11 +41,13 @@ export const ContractsPage: React.FC = () => {
     renewalDate: '',
     paymentTerms: '',
     slaTerms: '',
+    status: 'Draft',
     accountId: '',
   });
 
   useEffect(() => {
     fetchContracts();
+    fetchAccounts();
   }, []);
 
   const fetchContracts = async () => {
@@ -52,6 +56,15 @@ export const ContractsPage: React.FC = () => {
       setContracts(response.data.data);
     } catch (error) {
       console.error('Error fetching contracts:', error);
+    }
+  };
+
+  const fetchAccounts = async () => {
+    try {
+      const response = await apiClient.get('/accounts?limit=1000');
+      setAccounts(response.data.data || []);
+    } catch (error) {
+      console.error('Error fetching accounts:', error);
     }
   };
 
@@ -68,6 +81,7 @@ export const ContractsPage: React.FC = () => {
         renewalDate: contract.renewalDate?.toString().split('T')[0] || '',
         paymentTerms: contract.paymentTerms || '',
         slaTerms: contract.slaTerms || '',
+        status: contract.status || 'Draft',
         accountId: contract.account.id,
       });
     } else {
@@ -82,6 +96,7 @@ export const ContractsPage: React.FC = () => {
         renewalDate: '',
         paymentTerms: '',
         slaTerms: '',
+        status: 'Draft',
         accountId: '',
       });
     }
@@ -118,17 +133,6 @@ export const ContractsPage: React.FC = () => {
       } catch (error) {
         console.error('Error deleting contract:', error);
       }
-    }
-  };
-
-  const handleApprove = async (id: string) => {
-    try {
-      const response = await apiClient.patch(`/contracts/${id}/approve`, {
-        approvedBy: 'current-user-id',
-      });
-      setContracts(contracts.map((c) => (c.id === id ? response.data.data : c)));
-    } catch (error) {
-      console.error('Error approving contract:', error);
     }
   };
 
@@ -199,16 +203,6 @@ export const ContractsPage: React.FC = () => {
                     >
                       Edit
                     </Button>
-                    {contract.status === 'Sent for Approval' && (
-                      <Button
-                        size="small"
-                        variant="text"
-                        color="success"
-                        onClick={() => handleApprove(contract.id)}
-                      >
-                        Approve
-                      </Button>
-                    )}
                     <Button
                       size="small"
                       variant="text"
@@ -228,6 +222,22 @@ export const ContractsPage: React.FC = () => {
       <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
         <DialogTitle>{selectedContract ? 'Edit Contract' : 'New Contract'}</DialogTitle>
         <DialogContent sx={{ pt: 2 }}>
+          <TextField
+            fullWidth
+            select
+            label="Company"
+            value={formData.accountId}
+            onChange={(e) => setFormData({ ...formData, accountId: e.target.value })}
+            disabled={!!selectedContract}
+            sx={{ mb: 2 }}
+          >
+            <MenuItem value="">Select Company</MenuItem>
+            {accounts.map((account) => (
+              <MenuItem key={account.id} value={account.id}>
+                {account.name}
+              </MenuItem>
+            ))}
+          </TextField>
           <TextField
             fullWidth
             label="Contract Number"
@@ -299,6 +309,64 @@ export const ContractsPage: React.FC = () => {
             onChange={(e) => setFormData({ ...formData, slaTerms: e.target.value })}
             sx={{ mb: 2 }}
           />
+          <TextField
+            fullWidth
+            select
+            label="Status"
+            value={formData.status}
+            onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+            sx={{ mb: 2 }}
+          >
+            <MenuItem value="Draft">Draft</MenuItem>
+            <MenuItem value="Sent for Approval">Sent for Approval</MenuItem>
+            <MenuItem value="Approved">Approved</MenuItem>
+            <MenuItem value="Active">Active</MenuItem>
+            <MenuItem value="Expired">Expired</MenuItem>
+            <MenuItem value="Terminated">Terminated</MenuItem>
+          </TextField>
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+              Upload Contract Documents
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+              <Button
+                variant="outlined"
+                component="label"
+              >
+                Browse Files
+                <input
+                  type="file"
+                  multiple
+                  hidden
+                  accept=".pdf,.doc,.docx,.xlsx,.xls,.txt"
+                  onChange={(e) => {
+                    if (e.target.files) {
+                      setUploadedFiles([...uploadedFiles, ...Array.from(e.target.files)]);
+                    }
+                  }}
+                />
+              </Button>
+              <Typography variant="body2" color="textSecondary">
+                {uploadedFiles.length} file(s) selected
+              </Typography>
+            </Box>
+            {uploadedFiles.length > 0 && (
+              <Box sx={{ mt: 1 }}>
+                {uploadedFiles.map((file, idx) => (
+                  <Box key={idx} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 0.5, bgcolor: '#f5f5f5', borderRadius: 1, mb: 0.5 }}>
+                    <Typography variant="caption">{file.name}</Typography>
+                    <Button
+                      size="small"
+                      color="error"
+                      onClick={() => setUploadedFiles(uploadedFiles.filter((_, i) => i !== idx))}
+                    >
+                      Remove
+                    </Button>
+                  </Box>
+                ))}
+              </Box>
+            )}
+          </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseDialog}>Cancel</Button>

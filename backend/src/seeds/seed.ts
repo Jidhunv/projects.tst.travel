@@ -15,53 +15,110 @@ async function seed() {
     const userRepository = AppDataSource.getRepository(User);
 
     // Create permissions
-    const permissions = [
+    const permissions: any[] = [
       // Lead permissions
-      { module: 'leads', action: 'create' },
-      { module: 'leads', action: 'read' },
-      { module: 'leads', action: 'update' },
-      { module: 'leads', action: 'delete' },
-      { module: 'leads', action: 'bulk_action' },
+      { module: 'leads', action: 'read', scope: 'all', description: 'View all leads' },
+      { module: 'leads', action: 'read', scope: 'self', description: 'View own leads' },
+      { module: 'leads', action: 'create', scope: 'all', description: 'Create leads' },
+      { module: 'leads', action: 'create', scope: 'self', description: 'Create own leads' },
+      { module: 'leads', action: 'update', scope: 'all', description: 'Update leads' },
+      { module: 'leads', action: 'update', scope: 'self', description: 'Update own leads' },
+      { module: 'leads', action: 'delete', scope: 'all', description: 'Delete leads' },
+      { module: 'leads', action: 'delete', scope: 'self', description: 'Delete own leads' },
 
       // Account permissions
-      { module: 'accounts', action: 'create' },
-      { module: 'accounts', action: 'read' },
-      { module: 'accounts', action: 'update' },
-      { module: 'accounts', action: 'delete' },
-      { module: 'accounts', action: 'bulk_action' },
+      { module: 'accounts', action: 'read', scope: 'all', description: 'View all accounts' },
+      { module: 'accounts', action: 'read', scope: 'self', description: 'View own accounts' },
+      { module: 'accounts', action: 'create', scope: 'all', description: 'Create accounts' },
+      { module: 'accounts', action: 'create', scope: 'self', description: 'Create own accounts' },
+      { module: 'accounts', action: 'update', scope: 'all', description: 'Update accounts' },
+      { module: 'accounts', action: 'update', scope: 'self', description: 'Update own accounts' },
+      { module: 'accounts', action: 'delete', scope: 'all', description: 'Delete accounts' },
+      { module: 'accounts', action: 'delete', scope: 'self', description: 'Delete own accounts' },
 
       // Opportunity permissions
-      { module: 'opportunities', action: 'create' },
-      { module: 'opportunities', action: 'read' },
-      { module: 'opportunities', action: 'update' },
-      { module: 'opportunities', action: 'delete' },
-      { module: 'opportunities', action: 'bulk_action' },
+      { module: 'opportunities', action: 'read', scope: 'all', description: 'View all opportunities' },
+      { module: 'opportunities', action: 'read', scope: 'self', description: 'View own opportunities' },
+      { module: 'opportunities', action: 'create', scope: 'all', description: 'Create opportunities' },
+      { module: 'opportunities', action: 'create', scope: 'self', description: 'Create own opportunities' },
+      { module: 'opportunities', action: 'update', scope: 'all', description: 'Update opportunities' },
+      { module: 'opportunities', action: 'update', scope: 'self', description: 'Update own opportunities' },
+      { module: 'opportunities', action: 'delete', scope: 'all', description: 'Delete opportunities' },
+      { module: 'opportunities', action: 'delete', scope: 'self', description: 'Delete own opportunities' },
 
-      // Contact permissions
-      { module: 'contacts', action: 'create' },
-      { module: 'contacts', action: 'read' },
-      { module: 'contacts', action: 'update' },
-      { module: 'contacts', action: 'delete' },
+      // Contacts permissions
+      { module: 'contacts', action: 'read', scope: 'all', description: 'View all contacts' },
+      { module: 'contacts', action: 'read', scope: 'self', description: 'View own contacts' },
+      { module: 'contacts', action: 'create', scope: 'all', description: 'Create contacts' },
+      { module: 'contacts', action: 'create', scope: 'self', description: 'Create own contacts' },
+      { module: 'contacts', action: 'update', scope: 'all', description: 'Update contacts' },
+      { module: 'contacts', action: 'update', scope: 'self', description: 'Update own contacts' },
+      { module: 'contacts', action: 'delete', scope: 'all', description: 'Delete contacts' },
+      { module: 'contacts', action: 'delete', scope: 'self', description: 'Delete own contacts' },
+
+      // Contracts permissions
+      { module: 'contracts', action: 'read', scope: 'all', description: 'View all contracts' },
+      { module: 'contracts', action: 'read', scope: 'self', description: 'View own contracts' },
+      { module: 'contracts', action: 'create', scope: 'all', description: 'Create contracts' },
+      { module: 'contracts', action: 'create', scope: 'self', description: 'Create own contracts' },
+      { module: 'contracts', action: 'update', scope: 'all', description: 'Update contracts' },
+      { module: 'contracts', action: 'update', scope: 'self', description: 'Update own contracts' },
+      { module: 'contracts', action: 'delete', scope: 'all', description: 'Delete contracts' },
+      { module: 'contracts', action: 'delete', scope: 'self', description: 'Delete own contracts' },
+
+      // Projects permissions
+      { module: 'projects', action: 'read', scope: 'all', description: 'View all projects' },
+      { module: 'projects', action: 'read', scope: 'self', description: 'View own projects' },
+      { module: 'projects', action: 'create', scope: 'all', description: 'Create projects' },
+      { module: 'projects', action: 'create', scope: 'self', description: 'Create own projects' },
+      { module: 'projects', action: 'update', scope: 'all', description: 'Update projects' },
+      { module: 'projects', action: 'update', scope: 'self', description: 'Update own projects' },
+      { module: 'projects', action: 'delete', scope: 'all', description: 'Delete projects' },
+      { module: 'projects', action: 'delete', scope: 'self', description: 'Delete own projects' },
+
+      // Tickets permissions
+      { module: 'tickets', action: 'read', scope: 'all', description: 'View all tickets' },
+      { module: 'tickets', action: 'read', scope: 'self', description: 'View own tickets' },
+      { module: 'tickets', action: 'create', scope: 'all', description: 'Create tickets' },
+      { module: 'tickets', action: 'create', scope: 'self', description: 'Create own tickets' },
+      { module: 'tickets', action: 'update', scope: 'all', description: 'Update tickets' },
+      { module: 'tickets', action: 'update', scope: 'self', description: 'Update own tickets' },
+      { module: 'tickets', action: 'delete', scope: 'all', description: 'Delete tickets' },
+      { module: 'tickets', action: 'delete', scope: 'self', description: 'Delete own tickets' },
+
+      // Audit Log permissions
+      { module: 'audit_log', action: 'read', scope: 'all', description: 'View all audit logs' },
+      { module: 'audit_log', action: 'read', scope: 'self', description: 'View own audit logs' },
+
+      // Users permissions
+      { module: 'users', action: 'read', scope: 'all', description: 'View all users' },
+      { module: 'users', action: 'read', scope: 'self', description: 'View own profile' },
+      { module: 'users', action: 'create', scope: 'all', description: 'Create users' },
+      { module: 'users', action: 'update', scope: 'all', description: 'Update users' },
+      { module: 'users', action: 'delete', scope: 'all', description: 'Delete users' },
 
       // Reports permissions
-      { module: 'reports', action: 'read' },
+      { module: 'reports', action: 'read', scope: 'all', description: 'View all reports' },
+      { module: 'reports', action: 'read', scope: 'self', description: 'View own reports' },
 
       // Admin permissions
-      { module: 'admin', action: 'manage_users' },
-      { module: 'admin', action: 'manage_roles' },
-      { module: 'admin', action: 'manage_settings' },
-      { module: 'admin', action: 'view_audit_log' },
+      { module: 'admin', action: 'manage_users', scope: 'all', description: 'Manage users' },
+      { module: 'admin', action: 'manage_roles', scope: 'all', description: 'Manage roles' },
+      { module: 'admin', action: 'manage_settings', scope: 'all', description: 'Manage settings' },
+      { module: 'admin', action: 'view_audit_log', scope: 'all', description: 'View audit logs' },
     ];
 
     for (const perm of permissions) {
       const existing = await permissionRepository.findOne({
-        where: { module: perm.module, action: perm.action },
+        where: { module: perm.module, action: perm.action, scope: perm.scope },
       });
       if (!existing) {
         await permissionRepository.save(
           permissionRepository.create({
             module: perm.module,
             action: perm.action,
+            scope: perm.scope,
+            description: perm.description,
           })
         );
       }
@@ -101,6 +158,27 @@ async function seed() {
       await roleRepository.save(managerRole);
     }
 
+    // Deal Stage Manager role - can only update lead status and opportunity stages/probability
+    let dealManagerRole = await roleRepository.findOne({
+      where: { name: 'Deal Stage Manager' },
+    });
+    if (!dealManagerRole) {
+      const dealManagerPerms = allPermissions.filter((p) => {
+        // Can read leads and opportunities, update read permissions
+        return (p.module === 'leads' && p.action === 'read') ||
+               (p.module === 'opportunities' && p.action === 'read') ||
+               (p.module === 'contacts' && p.action === 'read') ||
+               (p.module === 'accounts' && p.action === 'read') ||
+               (p.module === 'reports' && p.action === 'read');
+      });
+      dealManagerRole = roleRepository.create({
+        name: 'Deal Stage Manager',
+        description: 'Can update lead status and opportunity stages/probability',
+        permissions: dealManagerPerms,
+      });
+      await roleRepository.save(dealManagerRole);
+    }
+
     // Sales Rep role - basic permissions
     let repRole = await roleRepository.findOne({
       where: { name: 'Sales Rep' },
@@ -125,7 +203,7 @@ async function seed() {
       where: { email: 'admin@crm.local' },
     });
     if (!adminUser) {
-      const hashedPassword = await bcrypt.hash('admin123', 10);
+      const hashedPassword = await bcrypt.hash('SecureAdmin@2026!', 10);
       await userRepository.save(
         userRepository.create({
           email: 'admin@crm.local',
@@ -138,10 +216,10 @@ async function seed() {
       );
     }
 
-    const demoUser = await userRepository.findOne({
+    const salesRepUser = await userRepository.findOne({
       where: { email: 'sales@crm.local' },
     });
-    if (!demoUser) {
+    if (!salesRepUser) {
       const hashedPassword = await bcrypt.hash('sales123', 10);
       await userRepository.save(
         userRepository.create({
@@ -156,7 +234,255 @@ async function seed() {
       );
     }
 
+    const stageManagerUser = await userRepository.findOne({
+      where: { email: 'manager@crm.local' },
+    });
+    if (!stageManagerUser) {
+      const hashedPassword = await bcrypt.hash('Manager@2026!', 10);
+      await userRepository.save(
+        userRepository.create({
+          email: 'manager@crm.local',
+          password: hashedPassword,
+          firstName: 'Sarah',
+          lastName: 'Johnson',
+          phoneNumber: '+1-555-0101',
+          role: dealManagerRole,
+          isActive: true,
+        })
+      );
+    }
+
     logger.info('Demo users created');
+
+    // Seed sample tickets
+    const ticketRepository = AppDataSource.getRepository(require('../models/Ticket').Ticket);
+    const accountRepository = AppDataSource.getRepository(require('../models/Account').Account);
+
+    const ticketReporter = await userRepository.findOne({ where: { email: 'admin@crm.local' } });
+    const accounts = await accountRepository.find({ take: 2 });
+
+    if (accounts.length > 0 && ticketReporter) {
+      const sampleTickets = [
+        {
+          ticketNumber: 'TKT-000001',
+          title: 'Login issues on mobile app',
+          description: 'Users unable to login on iOS app after latest update',
+          priority: 'Critical',
+          status: 'Open',
+          category: 'Technical Support',
+          account: accounts[0],
+          reporter: ticketReporter,
+          slaResponseHours: 1,
+          slaResolutionHours: 4,
+        },
+        {
+          ticketNumber: 'TKT-000002',
+          title: 'Missing invoice for last month',
+          description: 'Invoice for November 2026 not received',
+          priority: 'High',
+          status: 'In Progress',
+          category: 'Billing',
+          account: accounts[0],
+          reporter: ticketReporter,
+          slaResponseHours: 2,
+          slaResolutionHours: 8,
+        },
+        {
+          ticketNumber: 'TKT-000003',
+          title: 'Feature request: Dark mode',
+          description: 'Request to add dark mode theme to the dashboard',
+          priority: 'Low',
+          status: 'Open',
+          category: 'Feature Request',
+          account: accounts[1] || accounts[0],
+          reporter: ticketReporter,
+          slaResponseHours: 4,
+          slaResolutionHours: 48,
+        },
+        {
+          ticketNumber: 'TKT-000004',
+          title: 'API rate limit exceeded',
+          description: 'Getting 429 errors when integrating with third-party system',
+          priority: 'High',
+          status: 'Pending Customer',
+          category: 'Technical Support',
+          account: accounts[1] || accounts[0],
+          reporter: ticketReporter,
+          slaResponseHours: 2,
+          slaResolutionHours: 12,
+        },
+        {
+          ticketNumber: 'TKT-000005',
+          title: 'Data export not working',
+          description: 'CSV export feature returns empty file',
+          priority: 'Medium',
+          status: 'Resolved',
+          category: 'Bug',
+          account: accounts[0],
+          reporter: ticketReporter,
+          slaResponseHours: 3,
+          slaResolutionHours: 12,
+          resolvedAt: new Date(),
+        },
+      ];
+
+      for (const ticket of sampleTickets) {
+        const existing = await ticketRepository.findOne({ where: { ticketNumber: ticket.ticketNumber } });
+        if (!existing) {
+          await ticketRepository.save(ticketRepository.create(ticket));
+        }
+      }
+      logger.info('Sample tickets created');
+    }
+
+    // Seed sample projects
+    const projectRepository = AppDataSource.getRepository(require('../models/Project').Project);
+
+    if (accounts.length > 0 && ticketReporter) {
+      const sampleProjects = [
+        {
+          projectName: 'Platform Migration to Cloud',
+          status: 'In Progress',
+          startDate: new Date('2026-05-01'),
+          endDate: new Date('2026-08-30'),
+          goLiveDate: new Date('2026-08-30'),
+          budget: 150000,
+          revenue: 150000,
+          progressPercent: 65,
+          description: 'Migrate legacy system to AWS cloud infrastructure',
+          account: accounts[0],
+          owner: ticketReporter,
+        },
+        {
+          projectName: 'Mobile App Redesign',
+          status: 'Planning',
+          startDate: new Date('2026-07-01'),
+          endDate: new Date('2026-10-31'),
+          goLiveDate: new Date('2026-10-31'),
+          budget: 85000,
+          revenue: 85000,
+          progressPercent: 15,
+          description: 'Complete redesign of mobile application UI/UX',
+          account: accounts[1] || accounts[0],
+          owner: ticketReporter,
+        },
+        {
+          projectName: 'Data Analytics Dashboard',
+          status: 'Completed',
+          startDate: new Date('2026-03-15'),
+          endDate: new Date('2026-05-30'),
+          goLiveDate: new Date('2026-05-30'),
+          budget: 45000,
+          revenue: 45000,
+          progressPercent: 100,
+          description: 'Build comprehensive analytics dashboard with real-time reporting',
+          account: accounts[0],
+          owner: ticketReporter,
+        },
+        {
+          projectName: 'Security Audit & Compliance',
+          status: 'On Hold',
+          startDate: new Date('2026-06-01'),
+          endDate: new Date('2026-07-31'),
+          goLiveDate: null,
+          budget: 35000,
+          revenue: 35000,
+          progressPercent: 30,
+          description: 'Complete security audit and implement SOC 2 compliance',
+          account: accounts[1] || accounts[0],
+          owner: ticketReporter,
+        },
+      ];
+
+      for (const project of sampleProjects) {
+        const existing = await projectRepository.findOne({ where: { projectName: project.projectName } });
+        if (!existing) {
+          await projectRepository.save(projectRepository.create(project));
+        }
+      }
+      logger.info('Sample projects created');
+    }
+
+    // Seed sample contracts
+    const contractRepository = AppDataSource.getRepository(require('../models/Contract').Contract);
+
+    if (accounts.length > 0) {
+      const sampleContracts = [
+        {
+          contractNumber: 'CTR-2026-001',
+          title: 'Annual SaaS Subscription Agreement',
+          type: 'SaaS Subscription',
+          value: 50000,
+          startDate: new Date('2026-01-01'),
+          endDate: new Date('2027-01-01'),
+          renewalDate: new Date('2026-11-01'),
+          status: 'Active',
+          paymentTerms: 'Net 30',
+          slaTerms: '99.9% uptime SLA',
+          account: accounts[0],
+        },
+        {
+          contractNumber: 'CTR-2026-002',
+          title: 'Professional Services - Implementation',
+          type: 'Professional Services',
+          value: 75000,
+          startDate: new Date('2026-05-01'),
+          endDate: new Date('2026-08-31'),
+          renewalDate: null,
+          status: 'Active',
+          paymentTerms: 'Milestone based',
+          slaTerms: '48-hour response time',
+          account: accounts[1] || accounts[0],
+        },
+        {
+          contractNumber: 'CTR-2026-003',
+          title: 'Support & Maintenance Contract',
+          type: 'Support',
+          value: 25000,
+          startDate: new Date('2026-02-01'),
+          endDate: new Date('2027-02-01'),
+          renewalDate: new Date('2027-01-01'),
+          status: 'Active',
+          paymentTerms: 'Net 15',
+          slaTerms: '24-hour response, 4-hour critical',
+          account: accounts[0],
+        },
+        {
+          contractNumber: 'CTR-2026-004',
+          title: 'Data Migration Services',
+          type: 'Services',
+          value: 35000,
+          startDate: new Date('2026-04-01'),
+          endDate: new Date('2026-06-30'),
+          renewalDate: null,
+          status: 'Sent for Approval',
+          paymentTerms: 'Fixed price',
+          slaTerms: 'Project completion within 90 days',
+          account: accounts[1] || accounts[0],
+        },
+        {
+          contractNumber: 'CTR-2026-005',
+          title: 'Annual Licensing Agreement',
+          type: 'License',
+          value: 120000,
+          startDate: new Date('2026-01-15'),
+          endDate: new Date('2027-01-15'),
+          renewalDate: new Date('2026-12-15'),
+          status: 'Approved',
+          paymentTerms: 'Quarterly',
+          slaTerms: 'Enterprise support included',
+          account: accounts[0],
+        },
+      ];
+
+      for (const contract of sampleContracts) {
+        const existing = await contractRepository.findOne({ where: { contractNumber: contract.contractNumber } });
+        if (!existing) {
+          await contractRepository.save(contractRepository.create(contract));
+        }
+      }
+      logger.info('Sample contracts created');
+    }
 
     // Seed a small product catalog
     const productRepository = AppDataSource.getRepository(Product);

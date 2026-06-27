@@ -1,7 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import userService from '../services/user.service';
-import { generateToken } from '../middleware/auth';
+import { generateToken, AuthRequest } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
+import PasswordValidator from '../utils/passwordValidator';
 import logger from '../utils/logger';
 
 export class AuthController {
@@ -18,16 +19,28 @@ export class AuthController {
 
       logger.info(`User logged in: ${user.email}`);
 
+      // Set token in HTTPOnly cookie to prevent XSS attacks
+      // Note: secure flag should be true in production, but can be false in local development
+      const isProduction = process.env.NODE_ENV === 'production';
+      res.cookie('authToken', token, {
+        httpOnly: true,
+        secure: isProduction || process.env.FORCE_HTTPS === 'true',
+        sameSite: 'strict',
+        maxAge: 60 * 60 * 1000, // 1 hour (matches JWT_EXPIRATION)
+        path: '/',
+      });
+
       return res.json({
         success: true,
         data: {
-          token,
           user: {
             id: user.id,
             email: user.email,
             firstName: user.firstName,
             lastName: user.lastName,
             role: user.role?.name,
+            hasChangedPasswordOnFirstLogin: user.hasChangedPasswordOnFirstLogin,
+            requiresPasswordChange: !user.hasChangedPasswordOnFirstLogin,
           },
         },
       });
@@ -56,16 +69,13 @@ export class AuthController {
         throw new AppError(400, 'Email is required');
       }
 
-      const resetToken = await userService.createPasswordResetToken(email);
+      await userService.createPasswordResetToken(email);
       logger.info(`Password reset requested for: ${email}`);
 
-      // In production this token would be emailed, not returned in the response.
-      // For local/self-hosted use we return it so the reset can be completed.
       return res.json({
         success: true,
         data: {
-          message: 'Password reset token generated',
-          resetToken,
+          message: 'Password reset email has been sent if an account exists with this email',
         },
       });
     } catch (error) {
@@ -81,12 +91,107 @@ export class AuthController {
         throw new AppError(400, 'Token and new password are required');
       }
 
+      const validation = PasswordValidator.validatePasswordComplexity(newPassword);
+      if (!validation.valid) {
+        throw new AppError(400, validation.errors.join(', '));
+      }
+
       await userService.resetPasswordWithToken(token, newPassword);
       logger.info('Password reset confirmed');
 
       return res.json({
         success: true,
         data: { message: 'Password reset successfully' },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async changePasswordOnFirstLogin(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const { newPassword } = req.body;
+      const userId = req.user?.id;
+
+      if (!userId) {
+        throw new AppError(401, 'Unauthorized');
+      }
+
+      if (!newPassword) {
+        throw new AppError(400, 'New password is required');
+      }
+
+      const validation = PasswordValidator.validatePasswordComplexity(newPassword);
+      if (!validation.valid) {
+        throw new AppError(400, validation.errors.join(', '));
+      }
+
+      await userService.changePasswordOnFirstLogin(userId, newPassword);
+      logger.info(`User ${userId} changed password on first login`);
+
+      return res.json({
+        success: true,
+        data: { message: 'Password changed successfully' },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async changePassword(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const { currentPassword, newPassword } = req.body;
+      const userId = req.user?.id;
+
+      if (!userId) {
+        throw new AppError(401, 'Unauthorized');
+      }
+
+      if (!currentPassword || !newPassword) {
+        throw new AppError(400, 'Current and new passwords are required');
+      }
+
+      const validation = PasswordValidator.validatePasswordComplexity(newPassword);
+      if (!validation.valid) {
+        throw new AppError(400, validation.errors.join(', '));
+      }
+
+      await userService.changePassword(userId, currentPassword, newPassword);
+      logger.info(`User ${userId} changed password`);
+
+      return res.json({
+        success: true,
+        data: { message: 'Password changed successfully' },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async setUserPassword(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const { userId, newPassword } = req.body;
+
+      // Only admins can set user passwords
+      if (req.user?.role !== 'Admin') {
+        throw new AppError(403, 'Only admins can set user passwords');
+      }
+
+      if (!userId || !newPassword) {
+        throw new AppError(400, 'User ID and password are required');
+      }
+
+      const validation = PasswordValidator.validatePasswordComplexity(newPassword);
+      if (!validation.valid) {
+        throw new AppError(400, validation.errors.join(', '));
+      }
+
+      await userService.setUserPassword(userId, newPassword);
+      logger.info(`Admin ${req.user?.id} set password for user ${userId}`);
+
+      return res.json({
+        success: true,
+        data: { message: 'Password set successfully' },
       });
     } catch (error) {
       next(error);

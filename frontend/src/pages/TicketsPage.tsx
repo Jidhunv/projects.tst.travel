@@ -19,19 +19,33 @@ import {
   Card,
   CardContent,
   Typography,
+  ToggleButton,
+  ToggleButtonGroup,
+  OutlinedInput,
+  InputAdornment,
 } from '@mui/material';
+import { Search as SearchIcon, ViewAgendaOutlined as ListIcon, ViewWeekOutlined as KanbanIcon } from '@mui/icons-material';
 import Layout from '@components/Layout';
 import { apiClient } from '../services/api';
+import useAuth from '../hooks/useAuth';
 
 export const TicketsPage: React.FC = () => {
+  const { user } = useAuth();
   const [tickets, setTickets] = useState<any[]>([]);
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<any>(null);
+  const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list');
+  const [search, setSearch] = useState('');
+  const [priorityFilter, setPriorityFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [fromDateFilter, setFromDateFilter] = useState('');
+  const [toDateFilter, setToDateFilter] = useState('');
   const [formData, setFormData] = useState({
     ticketNumber: '',
     title: '',
     description: '',
     priority: 'Medium',
+    status: 'Open',
     category: '',
     accountId: '',
     slaResponseHours: '',
@@ -59,6 +73,7 @@ export const TicketsPage: React.FC = () => {
         title: ticket.title,
         description: ticket.description,
         priority: ticket.priority,
+        status: ticket.status,
         category: ticket.category || '',
         accountId: ticket.account.id,
         slaResponseHours: ticket.slaResponseHours?.toString() || '',
@@ -71,6 +86,7 @@ export const TicketsPage: React.FC = () => {
         title: '',
         description: '',
         priority: 'Medium',
+        status: 'Open',
         category: '',
         accountId: '',
         slaResponseHours: '',
@@ -116,6 +132,15 @@ export const TicketsPage: React.FC = () => {
     }
   };
 
+  const handleDelete = async (ticketId: string) => {
+    try {
+      await apiClient.delete(`/tickets/${ticketId}`);
+      setTickets(tickets.filter((t) => t.id !== ticketId));
+    } catch (error) {
+      console.error('Error deleting ticket:', error);
+    }
+  };
+
   const getPriorityColor = (priority: string) => {
     const colors: Record<string, 'error' | 'warning' | 'info' | 'default' | 'success'> = {
       Critical: 'error',
@@ -137,23 +162,119 @@ export const TicketsPage: React.FC = () => {
     return colors[status] || 'default';
   };
 
+  // Filter tickets
+  const filteredTickets = tickets.filter(ticket => {
+    const ticketDate = new Date(ticket.createdAt);
+    const fromDate = fromDateFilter ? new Date(fromDateFilter) : null;
+    const toDate = toDateFilter ? new Date(toDateFilter) : null;
+
+    return (
+      (ticket.title.toLowerCase().includes(search.toLowerCase()) ||
+       ticket.ticketNumber.toLowerCase().includes(search.toLowerCase())) &&
+      (!priorityFilter || ticket.priority === priorityFilter) &&
+      (!statusFilter || ticket.status === statusFilter) &&
+      (!fromDate || ticketDate >= fromDate) &&
+      (!toDate || ticketDate <= new Date(toDate.getTime() + 86400000)) // Add 1 day to include entire date
+    );
+  });
+
   return (
     <Layout>
       <Box sx={{ p: 3 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
           <Typography variant="h4">Support Tickets</Typography>
-          <Button variant="contained" onClick={() => handleOpenDialog()}>
-            New Ticket
-          </Button>
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+            <ToggleButtonGroup
+              value={viewMode}
+              exclusive
+              onChange={(_, newMode) => {
+                if (newMode !== null) setViewMode(newMode);
+              }}
+              size="small"
+            >
+              <ToggleButton value="list" aria-label="list view">
+                <ListIcon sx={{ mr: 0.5 }} />
+                List
+              </ToggleButton>
+              <ToggleButton value="kanban" aria-label="kanban view">
+                <KanbanIcon sx={{ mr: 0.5 }} />
+                Kanban
+              </ToggleButton>
+            </ToggleButtonGroup>
+            <Button variant="contained" onClick={() => handleOpenDialog()}>
+              New Ticket
+            </Button>
+          </Box>
         </Box>
 
-        {tickets.length === 0 ? (
+        {/* Filters */}
+        <Card sx={{ mb: 2, p: 2 }}>
+          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+            <OutlinedInput
+              placeholder="Search by title or ticket #"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              startAdornment={<InputAdornment position="start"><SearchIcon /></InputAdornment>}
+              size="small"
+              sx={{ minWidth: 250 }}
+            />
+            <TextField
+              select
+              label="Priority"
+              value={priorityFilter}
+              onChange={(e) => setPriorityFilter(e.target.value)}
+              size="small"
+              sx={{ minWidth: 120 }}
+            >
+              <MenuItem value="">All Priorities</MenuItem>
+              <MenuItem value="Critical">Critical</MenuItem>
+              <MenuItem value="High">High</MenuItem>
+              <MenuItem value="Medium">Medium</MenuItem>
+              <MenuItem value="Low">Low</MenuItem>
+            </TextField>
+            <TextField
+              select
+              label="Status"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              size="small"
+              sx={{ minWidth: 120 }}
+            >
+              <MenuItem value="">All Statuses</MenuItem>
+              <MenuItem value="Open">Open</MenuItem>
+              <MenuItem value="In Progress">In Progress</MenuItem>
+              <MenuItem value="Pending Customer">Pending Customer</MenuItem>
+              <MenuItem value="Resolved">Resolved</MenuItem>
+              <MenuItem value="Closed">Closed</MenuItem>
+            </TextField>
+            <TextField
+              type="date"
+              label="From Date"
+              value={fromDateFilter}
+              onChange={(e) => setFromDateFilter(e.target.value)}
+              size="small"
+              sx={{ minWidth: 140 }}
+              InputLabelProps={{ shrink: true }}
+            />
+            <TextField
+              type="date"
+              label="To Date"
+              value={toDateFilter}
+              onChange={(e) => setToDateFilter(e.target.value)}
+              size="small"
+              sx={{ minWidth: 140 }}
+              InputLabelProps={{ shrink: true }}
+            />
+          </Box>
+        </Card>
+
+        {filteredTickets.length === 0 ? (
           <Card>
             <CardContent>
               <Typography color="textSecondary">No tickets yet</Typography>
             </CardContent>
           </Card>
-        ) : (
+        ) : viewMode === 'list' ? (
           <TableContainer component={Paper}>
             <Table>
               <TableHead sx={{ backgroundColor: '#f5f5f5' }}>
@@ -169,7 +290,7 @@ export const TicketsPage: React.FC = () => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {tickets.map((ticket) => (
+                {filteredTickets.map((ticket) => (
                   <TableRow key={ticket.id}>
                     <TableCell sx={{ fontWeight: 'bold' }}>{ticket.ticketNumber}</TableCell>
                     <TableCell>{ticket.title}</TableCell>
@@ -196,12 +317,89 @@ export const TicketsPage: React.FC = () => {
                           Close
                         </Button>
                       )}
+                      {(user?.role?.name === 'Admin' || user?.role?.name === 'Manager') && (
+                        <Button
+                          size="small"
+                          variant="text"
+                          color="error"
+                          onClick={() => {
+                            if (window.confirm('Delete this ticket?')) {
+                              handleDelete(ticket.id);
+                            }
+                          }}
+                        >
+                          Delete
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
           </TableContainer>
+        ) : (
+          <Box sx={{ display: 'flex', gap: 2, overflowX: 'auto', pb: 2 }}>
+            {['Open', 'In Progress', 'Pending Customer', 'Resolved', 'Closed'].map((status) => {
+              const statusTickets = filteredTickets.filter((ticket) => ticket.status === status);
+              return (
+                <Box
+                  key={status}
+                  sx={{
+                    flex: '0 0 320px',
+                    bgcolor: '#f5f5f5',
+                    borderRadius: 2,
+                    p: 2,
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                    <Chip
+                      label={status}
+                      color={getStatusColor(status) as any}
+                      size="small"
+                    />
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      {statusTickets.length}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    {statusTickets.map((ticket) => (
+                      <Card
+                        key={ticket.id}
+                        sx={{
+                          cursor: 'pointer',
+                          '&:hover': { boxShadow: 3 },
+                        }}
+                        onClick={() => handleOpenDialog(ticket)}
+                      >
+                        <CardContent sx={{ pb: 1 }}>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1, mb: 1 }}>
+                            <Typography sx={{ fontWeight: 600 }} noWrap>
+                              {ticket.ticketNumber}
+                            </Typography>
+                            <Chip label={ticket.priority} color={getPriorityColor(ticket.priority)} size="small" />
+                          </Box>
+                          <Typography variant="body2" noWrap sx={{ mb: 1 }}>
+                            {ticket.title}
+                          </Typography>
+                          <Typography variant="caption" color="textSecondary" noWrap sx={{ display: 'block', mb: 1 }}>
+                            {ticket.account.name}
+                          </Typography>
+                          <Box sx={{ pt: 1, borderTop: '1px solid #eee', display: 'flex', justifyContent: 'space-between' }}>
+                            <Typography variant="caption" color="textSecondary">
+                              {ticket.assignee?.firstName || 'Unassigned'}
+                            </Typography>
+                            <Typography variant="caption" color="textSecondary">
+                              {new Date(ticket.createdAt).toLocaleDateString()}
+                            </Typography>
+                          </Box>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </Box>
+                </Box>
+              );
+            })}
+          </Box>
         )}
 
         <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="sm" fullWidth>
@@ -211,9 +409,9 @@ export const TicketsPage: React.FC = () => {
               fullWidth
               label="Ticket Number"
               value={formData.ticketNumber}
-              onChange={(e) => setFormData({ ...formData, ticketNumber: e.target.value })}
-              disabled={!!selectedTicket}
+              disabled
               sx={{ mb: 2 }}
+              helperText={selectedTicket ? 'Auto-generated' : 'Will be auto-generated'}
             />
             <TextField
               fullWidth
@@ -243,6 +441,20 @@ export const TicketsPage: React.FC = () => {
               <MenuItem value="High">High</MenuItem>
               <MenuItem value="Medium">Medium</MenuItem>
               <MenuItem value="Low">Low</MenuItem>
+            </TextField>
+            <TextField
+              fullWidth
+              label="Status"
+              select
+              value={formData.status}
+              onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+              sx={{ mb: 2 }}
+            >
+              <MenuItem value="Open">Open</MenuItem>
+              <MenuItem value="In Progress">In Progress</MenuItem>
+              <MenuItem value="Pending Customer">Pending Customer</MenuItem>
+              <MenuItem value="Resolved">Resolved</MenuItem>
+              <MenuItem value="Closed">Closed</MenuItem>
             </TextField>
             <TextField
               fullWidth

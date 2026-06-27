@@ -1,12 +1,17 @@
 import { Request, Response, NextFunction } from 'express';
 import leadService from '../services/lead.service';
-import { AuthRequest, getOwnerScope, canAccessRecord } from '../middleware/auth';
+import { AuthRequest, getOwnerScope, canAccessRecord, canPerformAction } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
 import logger from '../utils/logger';
 
 export class LeadController {
   async createLead(req: AuthRequest, res: Response, next: NextFunction) {
     try {
+      // Check if user has permission to create leads
+      if (!canPerformAction(req.user, 'leads', 'create')) {
+        throw new AppError(403, 'You do not have permission to create leads');
+      }
+
       const {
         firstName,
         lastName,
@@ -19,6 +24,9 @@ export class LeadController {
         expectedCloseDate,
         productId,
         productName,
+        productIds,
+        productNames,
+        remark,
       } = req.body;
 
       if (!firstName || !lastName || !email) {
@@ -37,6 +45,9 @@ export class LeadController {
         expectedCloseDate: expectedCloseDate ? new Date(expectedCloseDate) : undefined,
         productId,
         productName,
+        productIds,
+        productNames,
+        remark,
         ownerId: req.user!.id,
       });
 
@@ -53,7 +64,7 @@ export class LeadController {
 
   async getLeads(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const { page = 1, limit = 20, status, source, ownerId, search } = req.query;
+      const { page = 1, limit = 20, status, source, ownerId, search, fromDate, toDate } = req.query;
 
       // Sales Reps are restricted to their own leads; Admin/Manager see all.
       const scope = getOwnerScope(req.user);
@@ -67,6 +78,8 @@ export class LeadController {
           source: source as string,
           ownerId: effectiveOwnerId,
           search: search as string,
+          fromDate: fromDate as string,
+          toDate: toDate as string,
         },
         req.traceId
       );
@@ -107,15 +120,31 @@ export class LeadController {
   async updateLead(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      const updates = req.body;
+      let updates = req.body;
 
-      const lead = await leadService.updateLead(id, updates);
+      const lead = await leadService.getLeadById(id);
 
-      logger.info(`Lead updated: ${lead.id} by ${req.user!.email}`);
+      if (!canAccessRecord(req.user, lead.ownerId)) {
+        throw new AppError(403, 'You can only update your own leads');
+      }
+
+      // Deal Stage Manager can only update status via dedicated endpoint
+      if (req.user?.role === 'Deal Stage Manager') {
+        throw new AppError(403, 'Deal Stage Manager can only update status via /status endpoint');
+      }
+
+      // Check if user has permission to update leads
+      if (!canPerformAction(req.user, 'leads', 'update')) {
+        throw new AppError(403, 'You do not have permission to update leads');
+      }
+
+      const updatedLead = await leadService.updateLead(id, updates);
+
+      logger.info(`Lead updated: ${updatedLead.id} by ${req.user!.email}`);
 
       return res.json({
         success: true,
-        data: lead,
+        data: updatedLead,
       });
     } catch (error) {
       next(error);
@@ -125,6 +154,18 @@ export class LeadController {
   async deleteLead(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
+
+      const lead = await leadService.getLeadById(id);
+
+      if (!canAccessRecord(req.user, lead.ownerId)) {
+        throw new AppError(403, 'You can only delete your own leads');
+      }
+
+      // Check if user has permission to delete leads
+      if (!canPerformAction(req.user, 'leads', 'delete')) {
+        throw new AppError(403, 'You do not have permission to delete leads');
+      }
+
       await leadService.deleteLead(id);
 
       logger.info(`Lead deleted: ${id} by ${req.user!.email}`);
@@ -147,13 +188,19 @@ export class LeadController {
         throw new AppError(400, 'Status is required');
       }
 
-      const lead = await leadService.updateLeadStatus(id, status);
+      const lead = await leadService.getLeadById(id);
+
+      if (!canAccessRecord(req.user, lead.ownerId)) {
+        throw new AppError(403, 'You can only update your own leads');
+      }
+
+      const updatedLead = await leadService.updateLeadStatus(id, status);
 
       logger.info(`Lead status updated to ${status}: ${id}`);
 
       return res.json({
         success: true,
-        data: lead,
+        data: updatedLead,
       });
     } catch (error) {
       next(error);
@@ -163,6 +210,12 @@ export class LeadController {
   async convertLeadToAccount(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
+
+      const lead = await leadService.getLeadById(id);
+
+      if (!canAccessRecord(req.user, lead.ownerId)) {
+        throw new AppError(403, 'You can only convert your own leads');
+      }
 
       const account = await leadService.convertLeadToAccount(id);
 

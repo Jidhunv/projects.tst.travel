@@ -53,8 +53,11 @@ export default function AccountsPage() {
     industry: '',
     website: '',
     phoneNumber: '',
+    alternatePhoneNumber: '',
     type: 'Prospect' as 'Prospect' | 'Customer' | 'Inactive',
   });
+
+  const [duplicateWarning, setDuplicateWarning] = React.useState('');
 
   const [onboardingData, setOnboardingData] = React.useState({
     onboardingStatus: 'Not Started' as const,
@@ -87,14 +90,35 @@ export default function AccountsPage() {
     fetchAccounts();
   }, [fetchAccounts]);
 
+  const checkDuplicate = React.useCallback((name: string) => {
+    if (!name.trim()) {
+      setDuplicateWarning('');
+      return;
+    }
+
+    const isDuplicate = accounts.some(
+      (acc) =>
+        acc.name.toLowerCase() === name.toLowerCase() &&
+        (!editingAccount || acc.id !== editingAccount.id)
+    );
+
+    if (isDuplicate) {
+      setDuplicateWarning(`Account "${name}" already exists`);
+    } else {
+      setDuplicateWarning('');
+    }
+  }, [accounts, editingAccount]);
+
   const handleAddClick = () => {
     setFormData({
       name: '',
       industry: '',
       website: '',
       phoneNumber: '',
+      alternatePhoneNumber: '',
       type: 'Prospect',
     });
+    setDuplicateWarning('');
     setOpenCreate(true);
   };
 
@@ -116,6 +140,7 @@ export default function AccountsPage() {
       industry: account.industry || '',
       website: account.website || '',
       phoneNumber: account.phoneNumber || '',
+      alternatePhoneNumber: (account as any).alternatePhoneNumber || '',
       type: account.type,
     });
     setOnboardingData({
@@ -156,6 +181,7 @@ export default function AccountsPage() {
     { id: 'name', label: 'Account Name' },
     { id: 'industry', label: 'Industry' },
     { id: 'type', label: 'Type' },
+    { id: 'phoneNumber', label: 'Phone' },
     {
       id: 'onboardingStatus',
       label: 'Onboarding',
@@ -202,9 +228,14 @@ export default function AccountsPage() {
               <TextField
                 label="Account Name"
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                onChange={(e) => {
+                  setFormData({ ...formData, name: e.target.value });
+                  checkDuplicate(e.target.value);
+                }}
                 fullWidth
                 required
+                error={!!duplicateWarning}
+                helperText={duplicateWarning}
               />
               <TextField
                 label="Industry"
@@ -225,6 +256,12 @@ export default function AccountsPage() {
                 fullWidth
               />
               <TextField
+                label="Alternate Phone Number"
+                value={formData.alternatePhoneNumber}
+                onChange={(e) => setFormData({ ...formData, alternatePhoneNumber: e.target.value })}
+                fullWidth
+              />
+              <TextField
                 label="Type"
                 select
                 value={formData.type}
@@ -239,7 +276,11 @@ export default function AccountsPage() {
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setOpenCreate(false)}>Cancel</Button>
-            <Button onClick={handleCreateAccount} variant="contained">
+            <Button
+              onClick={handleCreateAccount}
+              variant="contained"
+              disabled={!formData.name.trim() || !!duplicateWarning}
+            >
               Create
             </Button>
           </DialogActions>
@@ -260,8 +301,13 @@ export default function AccountsPage() {
                 <TextField
                   label="Account Name"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, name: e.target.value });
+                    checkDuplicate(e.target.value);
+                  }}
                   fullWidth
+                  error={!!duplicateWarning}
+                  helperText={duplicateWarning}
                 />
                 <TextField
                   label="Industry"
@@ -279,6 +325,12 @@ export default function AccountsPage() {
                   label="Phone Number"
                   value={formData.phoneNumber}
                   onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
+                  fullWidth
+                />
+                <TextField
+                  label="Alternate Phone Number"
+                  value={formData.alternatePhoneNumber}
+                  onChange={(e) => setFormData({ ...formData, alternatePhoneNumber: e.target.value })}
                   fullWidth
                 />
                 <TextField
@@ -373,7 +425,11 @@ export default function AccountsPage() {
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setOpenEdit(false)}>Cancel</Button>
-            <Button onClick={handleUpdateAccount} variant="contained">
+            <Button
+              onClick={handleUpdateAccount}
+              variant="contained"
+              disabled={!formData.name.trim() || !!duplicateWarning}
+            >
               Save
             </Button>
           </DialogActions>

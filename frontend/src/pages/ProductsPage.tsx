@@ -31,7 +31,6 @@ export const ProductsPage: React.FC = () => {
     description: '',
     category: '',
     price: '',
-    sku: '',
   });
 
   useEffect(() => {
@@ -55,7 +54,6 @@ export const ProductsPage: React.FC = () => {
         description: product.description || '',
         category: product.category || '',
         price: product.price?.toString() || '',
-        sku: product.sku || '',
       });
     } else {
       setSelectedProduct(null);
@@ -64,7 +62,6 @@ export const ProductsPage: React.FC = () => {
         description: '',
         category: '',
         price: '',
-        sku: '',
       });
     }
     setOpenDialog(true);
@@ -119,7 +116,6 @@ export const ProductsPage: React.FC = () => {
                 <TableRow>
                   <TableCell>Product Name</TableCell>
                   <TableCell>Category</TableCell>
-                  <TableCell>SKU</TableCell>
                   <TableCell align="right">Price</TableCell>
                   <TableCell>Description</TableCell>
                   <TableCell>Actions</TableCell>
@@ -130,9 +126,6 @@ export const ProductsPage: React.FC = () => {
                   <TableRow key={product.id}>
                     <TableCell sx={{ fontWeight: 'bold' }}>{product.name}</TableCell>
                     <TableCell>{product.category || '-'}</TableCell>
-                    <TableCell>
-                      <Chip label={product.sku} size="small" variant="outlined" />
-                    </TableCell>
                     <TableCell align="right">${product.price ? parseFloat(product.price).toFixed(2) : '0.00'}</TableCell>
                     <TableCell>{product.description || '-'}</TableCell>
                     <TableCell>
@@ -160,13 +153,6 @@ export const ProductsPage: React.FC = () => {
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               sx={{ mb: 2 }}
               required
-            />
-            <TextField
-              fullWidth
-              label="SKU"
-              value={formData.sku}
-              onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-              sx={{ mb: 2 }}
             />
             <TextField
               fullWidth

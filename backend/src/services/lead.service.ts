@@ -14,6 +14,8 @@ interface LeadFilters {
   page?: number;
   limit?: number;
   search?: string;
+  fromDate?: string;
+  toDate?: string;
 }
 
 export class LeadService {
@@ -35,6 +37,9 @@ export class LeadService {
     expectedCloseDate?: Date;
     productId?: string;
     productName?: string;
+    productIds?: string[];
+    productNames?: string[];
+    remark?: string;
   }): Promise<Lead> {
     const existingLead = await this.leadRepository.findOne({
       where: { email: data.email },
@@ -49,6 +54,8 @@ export class LeadService {
       value: data.value ?? 0,
       status: 'Open',
       score: 0,
+      productIds: data.productIds || [],
+      productNames: data.productNames || [],
     });
 
     return await this.leadRepository.save(lead);
@@ -68,7 +75,7 @@ export class LeadService {
   }
 
   async getLeads(filters: LeadFilters = {}, traceId?: string): Promise<{ data: Lead[]; total: number }> {
-    const { page = 1, limit = 20, search, ...where } = filters;
+    const { page = 1, limit = 20, search, fromDate, toDate, ...where } = filters;
     const skip = (page - 1) * limit;
 
     let dbSpan: any;
@@ -103,6 +110,15 @@ export class LeadService {
       }
       if (where.ownerId) {
         query.andWhere('lead.ownerId = :ownerId', { ownerId: where.ownerId });
+      }
+
+      if (fromDate) {
+        query.andWhere('lead.createdAt >= :fromDate', { fromDate: new Date(fromDate) });
+      }
+      if (toDate) {
+        const toDateObj = new Date(toDate);
+        toDateObj.setHours(23, 59, 59, 999);
+        query.andWhere('lead.createdAt <= :toDate', { toDate: toDateObj });
       }
 
       const [data, total] = await query

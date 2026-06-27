@@ -43,6 +43,12 @@ export class User {
   @Column({ type: 'timestamp', nullable: true })
   resetTokenExpiry: Date;
 
+  @Column({ default: false })
+  hasChangedPasswordOnFirstLogin: boolean;
+
+  @Column({ type: 'timestamp', nullable: true })
+  passwordChangedAt: Date;
+
   @ManyToOne(() => Role, (role) => role.users)
   @JoinColumn({ name: 'roleId' })
   role: Role;

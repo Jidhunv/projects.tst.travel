@@ -5,14 +5,14 @@ import { AppError } from '../middleware/errorHandler';
 class TicketService {
   private repository = AppDataSource.getRepository(Ticket);
 
-  async createTicket(data: Partial<Ticket> & { ticketNumber: string; accountId: string; reporterId: string }) {
-    const existingTicket = await this.repository.findOne({ where: { ticketNumber: data.ticketNumber } });
-    if (existingTicket) {
-      throw new AppError(400, 'Ticket number already exists');
-    }
+  async createTicket(data: Partial<Ticket> & { accountId: string; reporterId: string }) {
+    // Auto-generate ticket number
+    const ticketCount = await this.repository.count();
+    const ticketNumber = `TKT-${String(ticketCount + 1).padStart(6, '0')}`;
 
     const ticket = this.repository.create({
       ...data,
+      ticketNumber,
       account: { id: data.accountId },
       reporter: { id: data.reporterId },
       responseDeadline: data.slaResponseHours

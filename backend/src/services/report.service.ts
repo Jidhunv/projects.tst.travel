@@ -188,15 +188,16 @@ export class ReportService {
 
   // --- Consolidated MIS dashboard ---
   async getMIS(ownerId?: string): Promise<any> {
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const quarter = Math.floor(now.getMonth() / 3);
-    const startOfQuarter = new Date(now.getFullYear(), quarter * 3, 1);
+    try {
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const quarter = Math.floor(now.getMonth() / 3);
+      const startOfQuarter = new Date(now.getFullYear(), quarter * 3, 1);
 
-    const pipeline = await this.getPipelineReport(ownerId);
-    const salesAllTime = await this.getSalesReport(ownerId);
-    const wonThisMonth = await this.wonInPeriod(startOfMonth, ownerId);
-    const wonThisQuarter = await this.wonInPeriod(startOfQuarter, ownerId);
+      const pipeline = await this.getPipelineReport(ownerId);
+      const salesAllTime = await this.getSalesReport(ownerId);
+      const wonThisMonth = await this.wonInPeriod(startOfMonth, ownerId);
+      const wonThisQuarter = await this.wonInPeriod(startOfQuarter, ownerId);
 
     // Leads by status
     const leadQuery = this.leadRepository
@@ -240,12 +241,40 @@ export class ReportService {
       lossReasons: salesAllTime.lossReasons,
     };
 
-    // Manager/Admin view (no ownerId scope) also gets per-rep performance.
-    if (!ownerId) {
-      result.salesByOwner = await this.getSalesByOwner();
-    }
+      // Manager/Admin view (no ownerId scope) also gets per-rep performance.
+      if (!ownerId) {
+        result.salesByOwner = await this.getSalesByOwner();
+      }
 
-    return result;
+      return result;
+    } catch (error) {
+      console.error('Error in getMIS:', error);
+      // Return empty dashboard structure if query fails
+      return {
+        pipeline: {
+          byStage: [],
+          totalOpenValue: 0,
+          totalWeightedValue: 0,
+          openCount: 0,
+        },
+        sales: {
+          wonCount: 0,
+          wonValue: 0,
+          lostCount: 0,
+          lostValue: 0,
+          winRate: 0,
+          avgDealSize: 0,
+        },
+        wonThisMonth: { count: 0, value: 0 },
+        wonThisQuarter: { count: 0, value: 0 },
+        leads: {
+          byStatus: [],
+          total: 0,
+          conversionRate: 0,
+        },
+        lossReasons: [],
+      };
+    }
   }
 
   private async wonInPeriod(

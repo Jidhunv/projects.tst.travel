@@ -110,13 +110,29 @@ export const RolesPage: React.FC = () => {
 
   const handleSavePermissions = async () => {
     try {
+      if (!selectedRole) {
+        alert('No role selected');
+        return;
+      }
+
+      const permissionIds = Array.from(selectedPermissions);
+      console.log('Saving permissions for role:', selectedRole.id, 'Permissions:', permissionIds);
+
       const response = await apiClient.patch(`/roles/${selectedRole.id}/permissions`, {
-        permissionIds: Array.from(selectedPermissions),
+        permissionIds,
       });
-      setRoles(roles.map((r) => (r.id === selectedRole.id ? response.data.data : r)));
-      setOpenPermissionDialog(false);
-    } catch (error) {
+
+      if (response.data.success) {
+        alert('Permissions saved successfully!');
+        setRoles(roles.map((r) => (r.id === selectedRole.id ? response.data.data : r)));
+        setOpenPermissionDialog(false);
+      } else {
+        alert('Failed to save permissions: ' + (response.data.error || 'Unknown error'));
+      }
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.error || error.message || 'Unknown error';
       console.error('Error saving permissions:', error);
+      alert('Error saving permissions: ' + errorMessage);
     }
   };
 
@@ -241,31 +257,64 @@ export const RolesPage: React.FC = () => {
           </DialogActions>
         </Dialog>
 
-        <Dialog open={openPermissionDialog} onClose={() => setOpenPermissionDialog(false)} maxWidth="sm" fullWidth>
+        <Dialog open={openPermissionDialog} onClose={() => setOpenPermissionDialog(false)} maxWidth="lg" fullWidth>
           <DialogTitle>Manage Permissions - {selectedRole?.name}</DialogTitle>
-          <DialogContent sx={{ pt: 2, maxHeight: 400, overflow: 'auto' }}>
-            <Stack spacing={2}>
-              {Object.entries(groupPermissions()).map(([module, perms]) => (
-                <Box key={module}>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1, color: '#666' }}>
-                    {module}
-                  </Typography>
-                  <Stack sx={{ ml: 2 }}>
-                    {perms.map((perm: any) => (
-                      <FormControlLabel
-                        key={perm.id}
-                        control={
-                          <Checkbox
-                            checked={selectedPermissions.has(perm.id)}
-                            onChange={(e) => handlePermissionChange(perm.id, e.target.checked)}
-                          />
-                        }
-                        label={perm.action}
-                      />
-                    ))}
-                  </Stack>
-                </Box>
-              ))}
+          <DialogContent sx={{ pt: 2, maxHeight: 600, overflow: 'auto' }}>
+            <Stack spacing={3}>
+              {Object.entries(groupPermissions()).map(([module, perms]) => {
+                // Create matrix: rows are actions (View, Add, Update, Delete, Bulk Update)
+                // columns are scopes (Self, All)
+                const actions = ['read', 'create', 'update', 'delete'];
+                const actionLabels: { [key: string]: string } = {
+                  read: 'View',
+                  create: 'Add',
+                  update: 'Update',
+                  delete: 'Delete',
+                };
+
+                return (
+                  <Box key={module}>
+                    <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2, textTransform: 'uppercase', color: '#1976d2' }}>
+                      {module}
+                    </Typography>
+                    <TableContainer component={Paper} variant="outlined">
+                      <Table size="small" sx={{ backgroundColor: '#fafafa' }}>
+                        <TableHead>
+                          <TableRow sx={{ backgroundColor: '#e3f2fd' }}>
+                            <TableCell sx={{ fontWeight: 'bold', width: '150px' }}>Action</TableCell>
+                            <TableCell align="center" sx={{ fontWeight: 'bold' }}>Self</TableCell>
+                            <TableCell align="center" sx={{ fontWeight: 'bold' }}>All</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {actions.map((action) => (
+                            <TableRow key={`${module}-${action}`}>
+                              <TableCell sx={{ fontWeight: 500 }}>
+                                {actionLabels[action]}
+                              </TableCell>
+                              {['self', 'all'].map((scope) => {
+                                const perm = perms.find((p: any) => p.action === action && p.scope === scope);
+                                return (
+                                  <TableCell align="center" key={`${module}-${action}-${scope}`}>
+                                    {perm ? (
+                                      <Checkbox
+                                        checked={selectedPermissions.has(perm.id)}
+                                        onChange={(e) => handlePermissionChange(perm.id, e.target.checked)}
+                                      />
+                                    ) : (
+                                      <Typography variant="caption" color="textSecondary">-</Typography>
+                                    )}
+                                  </TableCell>
+                                );
+                              })}
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  </Box>
+                );
+              })}
             </Stack>
           </DialogContent>
           <DialogActions>

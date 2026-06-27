@@ -3,6 +3,7 @@ import userService from '../services/user.service';
 import { AuthRequest } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
 import logger from '../utils/logger';
+import { PasswordValidator } from '../utils/passwordValidator';
 
 export class UserController {
   async createUser(req: AuthRequest, res: Response, next: NextFunction) {
@@ -141,8 +142,9 @@ export class UserController {
         throw new AppError(400, 'currentPassword and newPassword are required');
       }
 
-      if (newPassword.length < 6) {
-        throw new AppError(400, 'Password must be at least 6 characters');
+      const validation = PasswordValidator.validatePasswordComplexity(newPassword);
+      if (!validation.valid) {
+        throw new AppError(400, validation.errors.join('; '));
       }
 
       const user = await userService.changePassword(req.params.id, currentPassword, newPassword);
@@ -159,6 +161,35 @@ export class UserController {
       await userService.deleteUser(req.params.id);
       logger.info(`User deleted: ${user.email} by ${req.user!.email}`);
       return res.json({ success: true, data: { message: 'User deleted successfully' } });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getSelf(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      if (!req.user) {
+        throw new AppError(401, 'Not authenticated');
+      }
+
+      const user = await userService.getUserById(req.user.id);
+
+      return res.json({
+        success: true,
+        data: {
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          phoneNumber: user.phoneNumber,
+          role: user.role ? {
+            id: user.role.id,
+            name: user.role.name,
+            description: user.role.description,
+          } : null,
+          isActive: user.isActive,
+        },
+      });
     } catch (error) {
       next(error);
     }

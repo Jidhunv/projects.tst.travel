@@ -25,10 +25,14 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
+      console.log('Attempting login with:', email);
       await login(email, password);
+      console.log('Login successful, navigating to dashboard');
       navigate('/dashboard');
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Login failed');
+      console.error('Login error:', err);
+      const errorMessage = err.response?.data?.error || err.message || 'Login failed';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -97,12 +101,6 @@ export default function LoginPage() {
               {loading ? <CircularProgress size={24} /> : 'Login'}
             </Button>
           </form>
-
-          <Typography variant="body2" align="center" sx={{ mt: 2, color: 'text.secondary' }}>
-            Demo credentials:<br />
-            Email: admin@crm.local<br />
-            Password: admin123
-          </Typography>
         </Box>
       </Box>
     </Container>

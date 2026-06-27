@@ -17,7 +17,10 @@ export class Permission {
   module: string; // leads, accounts, opportunities, contacts, reports, admin
 
   @Column()
-  action: string; // create, read, update, delete, bulk_action
+  action: string; // read, view, create, update, delete, bulk_action
+
+  @Column({ default: 'all', nullable: true })
+  scope: string; // all, self (for view/read actions)
 
   @Column({ nullable: true })
   description: string;

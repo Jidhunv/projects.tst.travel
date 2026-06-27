@@ -6,6 +6,10 @@ import { ROLES_CAN_MANAGE_USERS } from '../utils/constants';
 const router = Router();
 
 router.use(verifyToken);
+
+// Public endpoint - users can view their own profile
+router.get('/me', (req, res, next) => UserController.getSelf(req, res, next));
+
 // All user management is restricted to Admin/Manager
 router.use(requireRole(...ROLES_CAN_MANAGE_USERS));
 

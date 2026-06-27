@@ -1,43 +1,52 @@
 import axios, { AxiosInstance } from 'axios';
 import type { ApiResponse, PaginatedResponse } from '../types';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:3001/api';
 
 export const apiClient: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true, // Include cookies with all requests
 });
 
-// Add token to requests
-apiClient.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
+// Get CSRF token from response header and set it in request headers for subsequent requests
+let csrfToken: string | null = null;
 
-// Handle responses
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Capture CSRF token from response header for next request
+    const newCsrfToken = response.headers['x-csrf-token'];
+    if (newCsrfToken) {
+      csrfToken = newCsrfToken;
+    }
+    return response;
+  },
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('token');
+      localStorage.removeItem('user');
       window.location.href = '/login';
     }
     return Promise.reject(error);
   }
 );
 
+// Add CSRF token to requests
+apiClient.interceptors.request.use(
+  (config) => {
+    if (csrfToken) {
+      config.headers['X-CSRF-Token'] = csrfToken;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
 export const api = {
   // Auth
   login: (email: string, password: string) =>
-    apiClient.post<ApiResponse<{ token: string }>>('/auth/login', { email, password }),
+    apiClient.post<ApiResponse<{ user: any; requiresPasswordChange: boolean }>>('/auth/login', { email, password }),
 
   logout: () =>
     apiClient.post<ApiResponse<void>>('/auth/logout'),

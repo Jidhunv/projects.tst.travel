@@ -56,6 +56,14 @@ export class Lead {
   @Column({ nullable: true })
   productName: string;
 
+  // Multiple products (JSON array of IDs)
+  @Column('simple-array', { nullable: true, default: null })
+  productIds: string[];
+
+  // Multiple product names (JSON array of names)
+  @Column('simple-array', { nullable: true, default: null })
+  productNames: string[];
+
   // Reason captured when a lead is closed as lost
   @Column({ nullable: true })
   lostReason: string;

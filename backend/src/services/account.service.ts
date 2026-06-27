@@ -25,12 +25,14 @@ export class AccountService {
     type?: string;
     ownerId: string;
   }): Promise<Account> {
-    const existingAccount = await this.accountRepository.findOne({
-      where: { name: data.name },
-    });
+    // Check for duplicate account name (case-insensitive)
+    const existingAccount = await this.accountRepository
+      .createQueryBuilder('account')
+      .where('LOWER(account.name) = LOWER(:name)', { name: data.name })
+      .getOne();
 
     if (existingAccount) {
-      throw new AppError(409, 'Account with this name already exists');
+      throw new AppError(409, `Account "${data.name}" already exists`);
     }
 
     const account = this.accountRepository.create({
@@ -92,6 +94,20 @@ export class AccountService {
 
   async updateAccount(id: string, data: Partial<Account>): Promise<Account> {
     const account = await this.getAccountById(id);
+
+    // Check for duplicate account name (case-insensitive) if name is being changed
+    if (data.name && data.name.toLowerCase() !== account.name.toLowerCase()) {
+      const existingAccount = await this.accountRepository
+        .createQueryBuilder('account')
+        .where('LOWER(account.name) = LOWER(:name)', { name: data.name })
+        .andWhere('account.id != :id', { id })
+        .getOne();
+
+      if (existingAccount) {
+        throw new AppError(409, `Account "${data.name}" already exists`);
+      }
+    }
+
     Object.assign(account, data);
     return await this.accountRepository.save(account);
   }

@@ -1,43 +1,70 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  Button,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  Button,
   TextField,
   MenuItem,
   Chip,
-  Stack,
-  Snackbar,
-  Alert,
+  Card,
+  CardContent,
+  Typography,
+  Grid,
+  OutlinedInput,
+  InputAdornment,
+  ToggleButton,
+  ToggleButtonGroup,
 } from '@mui/material';
+import { Search as SearchIcon, ViewAgendaOutlined as ListIcon, ViewWeekOutlined as KanbanIcon } from '@mui/icons-material';
 import Layout from '@components/Layout';
-import DataTable from '@components/DataTable';
-import { api } from '@services/api';
+import { apiClient } from '../services/api';
 import { Lead } from '../types';
 import { formatCurrency } from '@utils/format';
 
-const statusColor: Record<string, any> = {
+const statusColor: Record<string, 'info' | 'primary' | 'success' | 'error' | 'warning'> = {
   Open: 'info',
-  Qualified: 'primary',
-  Converted: 'success',
+  Qualified: 'success',
   Disqualified: 'error',
 };
 
-export default function LeadsPage() {
-  const [leads, setLeads] = React.useState<Lead[]>([]);
-  const [total, setTotal] = React.useState(0);
-  const [page, setPage] = React.useState(1);
-  const [pageSize, setPageSize] = React.useState(20);
-  const [loading, setLoading] = React.useState(false);
-  const [products, setProducts] = React.useState<any[]>([]);
-  const [rejectionReasons, setRejectionReasons] = React.useState<string[]>([]);
-  const [toast, setToast] = React.useState<{ msg: string; sev: 'success' | 'error' } | null>(null);
+const statusDisplay: Record<string, string> = {
+  Open: 'Open',
+  Qualified: 'Qualified',
+  Converted: 'Converted',
+  Disqualified: 'Disqualified',
+};
 
-  const [openCreate, setOpenCreate] = React.useState(false);
-  const [form, setForm] = React.useState({
+export default function LeadsPage() {
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [loading, setLoading] = useState(false);
+  const [products, setProducts] = useState<any[]>([]);
+  const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list');
+
+  // Filters
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [sourceFilter, setSourceFilter] = useState('');
+  const [dateFromFilter, setDateFromFilter] = useState('');
+  const [dateToFilter, setDateToFilter] = useState('');
+
+  // Dialogs
+  const [openCreate, setOpenCreate] = useState(false);
+  const [openEdit, setOpenEdit] = useState<Lead | null>(null);
+
+  const [form, setForm] = useState({
     firstName: '',
     lastName: '',
     email: '',
@@ -45,40 +72,46 @@ export default function LeadsPage() {
     phoneNumber: '',
     value: '',
     expectedCloseDate: '',
-    productId: '',
-  });
-
-  const [lostDialog, setLostDialog] = React.useState<{ lead: Lead | null; reason: string }>({
-    lead: null,
-    reason: '',
+    productIds: [] as string[],
+    remark: '',
+    source: '',
+    status: '',
   });
 
   const fetchLeads = React.useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.getLeads(page, pageSize);
-      if (res.data.success) {
-        setLeads(res.data.data || []);
-        setTotal(res.data.meta?.total || 0);
-      }
+      const params: any = { page, limit: pageSize };
+      if (search) params.search = search;
+      if (statusFilter) params.status = statusFilter;
+      if (sourceFilter) params.source = sourceFilter;
+      if (dateFromFilter) params.fromDate = dateFromFilter;
+      if (dateToFilter) params.toDate = dateToFilter;
+
+      const response = await apiClient.get('/leads', { params });
+      setLeads(response.data.data || []);
+      setTotal(response.data.meta?.total || 0);
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize]);
+  }, [page, pageSize, search, statusFilter, sourceFilter, dateFromFilter, dateToFilter]);
 
-  React.useEffect(() => {
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter, sourceFilter, dateFromFilter, dateToFilter]);
+
+  useEffect(() => {
     fetchLeads();
   }, [fetchLeads]);
 
-  React.useEffect(() => {
-    api.getProducts().then((r) => r.data.success && setProducts(r.data.data || []));
-    api.getRejectionReasons().then((r) => r.data.success && setRejectionReasons(r.data.data || []));
+  useEffect(() => {
+    apiClient.get('/products').then((r) => setProducts(r.data.data || []));
   }, []);
 
   const handleCreate = async () => {
     try {
-      const product = products.find((p) => p.id === form.productId);
-      await api.createLead({
+      const productNames = form.productIds.map((id) => products.find((p) => p.id === id)?.name).filter(Boolean);
+      await apiClient.post('/leads', {
         firstName: form.firstName,
         lastName: form.lastName,
         email: form.email,
@@ -86,172 +119,472 @@ export default function LeadsPage() {
         phoneNumber: form.phoneNumber,
         value: form.value ? Number(form.value) : 0,
         expectedCloseDate: form.expectedCloseDate || undefined,
-        productId: form.productId || undefined,
-        productName: product?.name,
+        source: form.source || undefined,
+        productIds: form.productIds,
+        productNames: productNames,
+        remark: form.remark,
       });
       setOpenCreate(false);
-      setForm({ firstName: '', lastName: '', email: '', company: '', phoneNumber: '', value: '', expectedCloseDate: '', productId: '' });
-      setToast({ msg: 'Lead created', sev: 'success' });
+      setForm({
+        firstName: '',
+        lastName: '',
+        email: '',
+        company: '',
+        phoneNumber: '',
+        value: '',
+        expectedCloseDate: '',
+        productIds: [],
+        remark: '',
+        source: '',
+        status: '',
+      });
       fetchLeads();
-    } catch (e: any) {
-      setToast({ msg: e.response?.data?.error || 'Failed to create lead', sev: 'error' });
+    } catch (error) {
+      console.error('Error creating lead:', error);
+    }
+  };
+
+  const handleUpdate = async () => {
+    if (!openEdit) return;
+    try {
+      const productNames = form.productIds.map((id) => products.find((p) => p.id === id)?.name).filter(Boolean);
+
+      // If status changed to Qualified, convert to opportunity
+      if (form.status === 'Qualified' && openEdit.status !== 'Qualified') {
+        await apiClient.post(`/leads/${openEdit.id}/convert-to-opportunity`, {});
+        alert('Lead qualified! An opportunity has been created.');
+        setOpenEdit(null);
+        fetchLeads();
+        return;
+      }
+
+      // Otherwise, update lead normally
+      await apiClient.patch(`/leads/${openEdit.id}`, {
+        firstName: form.firstName,
+        lastName: form.lastName,
+        email: form.email,
+        company: form.company,
+        phoneNumber: form.phoneNumber,
+        value: form.value ? Number(form.value) : 0,
+        expectedCloseDate: form.expectedCloseDate || undefined,
+        source: form.source || undefined,
+        status: form.status || undefined,
+        productIds: form.productIds,
+        productNames: productNames,
+        remark: form.remark,
+      });
+      setOpenEdit(null);
+      fetchLeads();
+    } catch (error) {
+      console.error('Error updating lead:', error);
     }
   };
 
   const handleConvert = async (lead: Lead) => {
     try {
-      await api.convertLeadToOpportunity(lead.id);
-      setToast({ msg: `Converted "${lead.firstName}" to an opportunity`, sev: 'success' });
+      await apiClient.post(`/leads/${lead.id}/convert-to-account`, {});
       fetchLeads();
-    } catch (e: any) {
-      setToast({ msg: e.response?.data?.error || 'Conversion failed', sev: 'error' });
+    } catch (error) {
+      console.error('Error converting lead:', error);
     }
   };
 
-  const handleMarkLost = async () => {
-    if (!lostDialog.lead || !lostDialog.reason) return;
-    try {
-      await api.markLeadLost(lostDialog.lead.id, lostDialog.reason);
-      setToast({ msg: 'Lead closed as lost', sev: 'success' });
-      setLostDialog({ lead: null, reason: '' });
-      fetchLeads();
-    } catch (e: any) {
-      setToast({ msg: e.response?.data?.error || 'Failed', sev: 'error' });
+  const handleDelete = async (leadId: string) => {
+    if (window.confirm('Are you sure you want to delete this lead?')) {
+      try {
+        await apiClient.delete(`/leads/${leadId}`);
+        fetchLeads();
+      } catch (error) {
+        console.error('Error deleting lead:', error);
+      }
     }
   };
 
-  const columns = [
-    { id: 'firstName', label: 'Name', render: (r: Lead) => `${r.firstName} ${r.lastName}` },
-    { id: 'company', label: 'Company' },
-    { id: 'productName', label: 'Product', render: (r: Lead) => r.productName || '-' },
-    {
-      id: 'value',
-      label: 'Value',
-      align: 'right' as const,
-      render: (r: Lead) => formatCurrency(r.value),
-    },
-    {
-      id: 'expectedCloseDate',
-      label: 'Expected Close',
-      render: (r: Lead) =>
-        r.expectedCloseDate ? new Date(r.expectedCloseDate).toLocaleDateString() : '-',
-    },
-    {
-      id: 'status',
-      label: 'Status',
-      render: (r: Lead) => (
-        <Chip label={r.status} size="small" color={statusColor[r.status] || 'default'} />
-      ),
-    },
-    {
-      id: 'actions',
-      label: 'Actions',
-      render: (r: Lead) => {
-        const closed = r.status === 'Converted' || r.status === 'Disqualified';
-        if (closed) {
-          return r.lostReason ? (
-            <Chip label={r.lostReason} size="small" variant="outlined" color="error" />
-          ) : (
-            <span>-</span>
-          );
-        }
-        return (
-          <Stack direction="row" spacing={1}>
-            <Button size="small" variant="contained" onClick={() => handleConvert(r)}>
-              Convert
-            </Button>
-            <Button
-              size="small"
-              variant="outlined"
-              color="error"
-              onClick={() => setLostDialog({ lead: r, reason: '' })}
-            >
-              Lost
-            </Button>
-          </Stack>
-        );
-      },
-    },
-  ];
+  const handleOpenEdit = (lead: Lead) => {
+    setOpenEdit(lead);
+    setForm({
+      firstName: lead.firstName,
+      lastName: lead.lastName,
+      email: lead.email,
+      company: lead.company || '',
+      phoneNumber: lead.phoneNumber || '',
+      value: lead.value.toString(),
+      expectedCloseDate: lead.expectedCloseDate ? lead.expectedCloseDate.toString().split('T')[0] : '',
+      source: lead.source || '',
+      status: lead.status || '',
+      productIds: (lead as any).productIds && (lead as any).productIds.length > 0
+        ? (lead as any).productIds
+        : lead.productId ? [lead.productId] : [],
+      remark: lead.remark || '',
+    });
+  };
 
   return (
     <Layout>
-      <Box>
-        <DataTable
-          columns={columns}
-          rows={leads}
-          total={total}
-          page={page}
-          pageSize={pageSize}
-          loading={loading}
-          title="Leads"
-          onPageChange={setPage}
-          onPageSizeChange={setPageSize}
-          onAddClick={() => setOpenCreate(true)}
-        />
+      <Box sx={{ p: 3 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+          <Typography variant="h4">
+            Leads Management
+          </Typography>
+          <ToggleButtonGroup
+            value={viewMode}
+            exclusive
+            onChange={(_, newMode) => {
+              if (newMode !== null) setViewMode(newMode);
+            }}
+            size="small"
+          >
+            <ToggleButton value="list" aria-label="list view">
+              <ListIcon sx={{ mr: 0.5 }} />
+              List
+            </ToggleButton>
+            <ToggleButton value="kanban" aria-label="kanban view">
+              <KanbanIcon sx={{ mr: 0.5 }} />
+              Kanban
+            </ToggleButton>
+          </ToggleButtonGroup>
+        </Box>
 
-        {/* Create lead */}
-        <Dialog open={openCreate} onClose={() => setOpenCreate(false)} maxWidth="sm" fullWidth>
-          <DialogTitle>Create New Lead</DialogTitle>
-          <DialogContent>
-            <Box sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <TextField label="First Name" value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} fullWidth required />
-              <TextField label="Last Name" value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} fullWidth required />
-              <TextField label="Email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} fullWidth required />
-              <TextField label="Company" value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} fullWidth />
-              <TextField label="Phone" value={form.phoneNumber} onChange={(e) => setForm({ ...form, phoneNumber: e.target.value })} fullWidth />
-              <TextField label="Estimated Value ($)" type="number" value={form.value} onChange={(e) => setForm({ ...form, value: e.target.value })} fullWidth />
-              <TextField label="Expected Close Date" type="date" value={form.expectedCloseDate} onChange={(e) => setForm({ ...form, expectedCloseDate: e.target.value })} fullWidth InputLabelProps={{ shrink: true }} />
-              <TextField label="Product of Interest" select value={form.productId} onChange={(e) => setForm({ ...form, productId: e.target.value })} fullWidth>
-                <MenuItem value="">None</MenuItem>
-                {products.map((p) => (
-                  <MenuItem key={p.id} value={p.id}>
-                    {p.name} ({formatCurrency(p.unitPrice)})
-                  </MenuItem>
+        {/* Filters */}
+        <Card sx={{ mb: 3 }}>
+          <CardContent>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6} md={3}>
+                <OutlinedInput
+                  fullWidth
+                  placeholder="Search by name, email, company..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  startAdornment={
+                    <InputAdornment position="start">
+                      <SearchIcon />
+                    </InputAdornment>
+                  }
+                  size="small"
+                />
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <TextField
+                  fullWidth
+                  select
+                  label="Status"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  size="small"
+                >
+                  <MenuItem value="">All Status</MenuItem>
+                  <MenuItem value="Open">Open</MenuItem>
+                  <MenuItem value="Qualified">Qualified</MenuItem>
+                  <MenuItem value="Disqualified">Disqualified</MenuItem>
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <TextField
+                  fullWidth
+                  select
+                  label="Source"
+                  value={sourceFilter}
+                  onChange={(e) => setSourceFilter(e.target.value)}
+                  size="small"
+                >
+                  <MenuItem value="">All Sources</MenuItem>
+                  <MenuItem value="inbound">Inbound</MenuItem>
+                  <MenuItem value="referral">Referral</MenuItem>
+                  <MenuItem value="cold outreach">Cold Outreach</MenuItem>
+                  <MenuItem value="website">Website</MenuItem>
+                  <MenuItem value="event">Event</MenuItem>
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <Button variant="contained" fullWidth onClick={() => setOpenCreate(true)}>
+                  Add Lead
+                </Button>
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <TextField
+                  fullWidth
+                  label="From Date"
+                  type="date"
+                  value={dateFromFilter}
+                  onChange={(e) => setDateFromFilter(e.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                  size="small"
+                />
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <TextField
+                  fullWidth
+                  label="To Date"
+                  type="date"
+                  value={dateToFilter}
+                  onChange={(e) => setDateToFilter(e.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                  size="small"
+                />
+              </Grid>
+            </Grid>
+          </CardContent>
+        </Card>
+
+        {/* List View */}
+        {viewMode === 'list' && (
+          <TableContainer component={Paper}>
+            <Table>
+              <TableHead sx={{ backgroundColor: '#f5f5f5' }}>
+                <TableRow>
+                  <TableCell>Name</TableCell>
+                  <TableCell>Email</TableCell>
+                  <TableCell>Company</TableCell>
+                  <TableCell>Value</TableCell>
+                  <TableCell>Status</TableCell>
+                  <TableCell>Product</TableCell>
+                  <TableCell>Created</TableCell>
+                  <TableCell>Actions</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {leads.map((lead) => (
+                  <TableRow key={lead.id}>
+                    <TableCell sx={{ fontWeight: 'bold' }}>
+                      {lead.firstName} {lead.lastName}
+                    </TableCell>
+                    <TableCell>{lead.email}</TableCell>
+                    <TableCell>{lead.company || '-'}</TableCell>
+                    <TableCell>{formatCurrency(lead.value)}</TableCell>
+                    <TableCell>
+                      <Chip label={statusDisplay[lead.status] || lead.status} color={statusColor[lead.status] || 'default'} size="small" />
+                    </TableCell>
+                    <TableCell>
+                      {(lead as any).productNames && (lead as any).productNames.length > 0
+                        ? (lead as any).productNames.join(', ')
+                        : lead.productName || '-'}
+                    </TableCell>
+                    <TableCell>{new Date(lead.createdAt).toLocaleDateString()}</TableCell>
+                    <TableCell>
+                      <Button size="small" variant="text" onClick={() => handleOpenEdit(lead)}>
+                        Edit
+                      </Button>
+                      <Button size="small" variant="text" color="error" onClick={() => handleDelete(lead.id)}>
+                        Delete
+                      </Button>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </TextField>
-            </Box>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setOpenCreate(false)}>Cancel</Button>
-            <Button onClick={handleCreate} variant="contained">Create</Button>
-          </DialogActions>
-        </Dialog>
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
 
-        {/* Close as lost */}
-        <Dialog open={!!lostDialog.lead} onClose={() => setLostDialog({ lead: null, reason: '' })} maxWidth="xs" fullWidth>
-          <DialogTitle>Close Lead as Lost</DialogTitle>
-          <DialogContent>
+        {/* Kanban View */}
+        {viewMode === 'kanban' && (
+          <Box sx={{ display: 'flex', gap: 2, overflowX: 'auto', pb: 2 }}>
+            {[
+              { key: 'Open', statuses: ['Open'], label: 'Open' },
+              { key: 'Converted', statuses: ['Qualified', 'Converted'], label: 'Converted' },
+              { key: 'Disqualified', statuses: ['Disqualified'], label: 'Disqualified' }
+            ].map((column) => {
+              const statusLeads = leads.filter((lead) => column.statuses.includes(lead.status));
+              return (
+                <Box
+                  key={column.key}
+                  sx={{
+                    flex: '0 0 320px',
+                    bgcolor: '#f5f5f5',
+                    borderRadius: 2,
+                    p: 2,
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                    <Chip
+                      label={column.label}
+                      color={statusColor[column.key] || 'default'}
+                      size="small"
+                    />
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      {statusLeads.length}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    {statusLeads.map((lead) => (
+                      <Card
+                        key={lead.id}
+                        sx={{
+                          cursor: 'pointer',
+                          '&:hover': { boxShadow: 3 },
+                        }}
+                        onClick={() => handleOpenEdit(lead)}
+                      >
+                        <CardContent sx={{ pb: 1 }}>
+                          <Typography sx={{ fontWeight: 600, mb: 1 }} noWrap>
+                            {lead.firstName} {lead.lastName}
+                          </Typography>
+                          <Typography variant="body2" color="textSecondary" noWrap>
+                            {lead.email}
+                          </Typography>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
+                            <Typography variant="body2" color="textSecondary">
+                              Value
+                            </Typography>
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                              {formatCurrency(lead.value)}
+                            </Typography>
+                          </Box>
+                          {((lead as any).productNames && (lead as any).productNames.length > 0 || lead.productName) && (
+                            <Box sx={{ mt: 1, pt: 1, borderTop: '1px solid #eee' }}>
+                              <Typography variant="caption" color="textSecondary">
+                                {(lead as any).productNames && (lead as any).productNames.length > 0
+                                  ? (lead as any).productNames.join(', ')
+                                  : lead.productName}
+                              </Typography>
+                            </Box>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </Box>
+                </Box>
+              );
+            })}
+          </Box>
+        )}
+
+        {/* Create/Edit Dialog */}
+        <Dialog open={openCreate || !!openEdit} onClose={() => { setOpenCreate(false); setOpenEdit(null); }} maxWidth="sm" fullWidth>
+          <DialogTitle>{openEdit ? 'Edit Lead' : 'Add New Lead'}</DialogTitle>
+          <DialogContent sx={{ pt: 2 }}>
             <TextField
-              label="Reason"
-              select
-              value={lostDialog.reason}
-              onChange={(e) => setLostDialog({ ...lostDialog, reason: e.target.value })}
               fullWidth
-              sx={{ mt: 2 }}
+              label="First Name"
+              value={form.firstName}
+              onChange={(e) => setForm({ ...form, firstName: e.target.value })}
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              fullWidth
+              label="Last Name"
+              value={form.lastName}
+              onChange={(e) => setForm({ ...form, lastName: e.target.value })}
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              fullWidth
+              label="Email"
+              type="email"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              fullWidth
+              label="Company"
+              value={form.company}
+              onChange={(e) => setForm({ ...form, company: e.target.value })}
+              disabled={!!openEdit}
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              fullWidth
+              label="Phone"
+              value={form.phoneNumber}
+              onChange={(e) => setForm({ ...form, phoneNumber: e.target.value })}
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              fullWidth
+              label="Value"
+              type="number"
+              value={form.value}
+              onChange={(e) => setForm({ ...form, value: e.target.value })}
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              fullWidth
+              label="Expected Close Date"
+              type="date"
+              value={form.expectedCloseDate}
+              onChange={(e) => setForm({ ...form, expectedCloseDate: e.target.value })}
+              InputLabelProps={{ shrink: true }}
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              fullWidth
+              select
+              label="Source"
+              value={form.source}
+              onChange={(e) => setForm({ ...form, source: e.target.value })}
+              sx={{ mb: 2 }}
             >
-              {rejectionReasons.map((r) => (
-                <MenuItem key={r} value={r}>
-                  {r}
+              <MenuItem value="">Select Source</MenuItem>
+              <MenuItem value="inbound">Inbound</MenuItem>
+              <MenuItem value="referral">Referral</MenuItem>
+              <MenuItem value="cold outreach">Cold Outreach</MenuItem>
+              <MenuItem value="website">Website</MenuItem>
+              <MenuItem value="event">Event</MenuItem>
+            </TextField>
+            <TextField
+              fullWidth
+              select
+              label="Status"
+              value={form.status}
+              onChange={(e) => setForm({ ...form, status: e.target.value })}
+              sx={{ mb: 2 }}
+            >
+              <MenuItem value="">Select Status</MenuItem>
+              <MenuItem value="Open">Open</MenuItem>
+              <MenuItem value="Qualified">Qualified (creates opportunity)</MenuItem>
+              <MenuItem value="Disqualified">Disqualified</MenuItem>
+            </TextField>
+            <TextField
+              fullWidth
+              select
+              label="Products (Multi-Select)"
+              value={form.productIds}
+              onChange={(e) => setForm({ ...form, productIds: typeof e.target.value === 'string' ? [e.target.value] : e.target.value })}
+              SelectProps={{ multiple: true }}
+              sx={{ mb: 1 }}
+            >
+              {products.map((product) => (
+                <MenuItem key={product.id} value={product.id}>
+                  {product.name}
                 </MenuItem>
               ))}
             </TextField>
+            {form.productIds.length > 0 && (
+              <Box sx={{ mb: 2, p: 1, bgcolor: '#f5f5f5', borderRadius: 1 }}>
+                <Typography variant="caption" sx={{ display: 'block', mb: 1, fontWeight: 600 }}>
+                  Selected Products:
+                </Typography>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                  {form.productIds.map((productId) => {
+                    const product = products.find((p) => p.id === productId);
+                    return (
+                      <Chip
+                        key={productId}
+                        label={product?.name || productId}
+                        onDelete={() => setForm({ ...form, productIds: form.productIds.filter((id) => id !== productId) })}
+                        size="small"
+                      />
+                    );
+                  })}
+                </Box>
+              </Box>
+            )}
+            <TextField
+              fullWidth
+              label="Remark"
+              multiline
+              rows={3}
+              value={form.remark}
+              onChange={(e) => setForm({ ...form, remark: e.target.value })}
+            />
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setLostDialog({ lead: null, reason: '' })}>Cancel</Button>
-            <Button onClick={handleMarkLost} variant="contained" color="error" disabled={!lostDialog.reason}>
-              Mark Lost
+            <Button onClick={() => { setOpenCreate(false); setOpenEdit(null); }}>Cancel</Button>
+            <Button onClick={openEdit ? handleUpdate : handleCreate} variant="contained">
+              {openEdit ? 'Update' : 'Create'}
             </Button>
           </DialogActions>
         </Dialog>
-
-        <Snackbar open={!!toast} autoHideDuration={3500} onClose={() => setToast(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}>
-          {toast ? (
-            <Alert severity={toast.sev} onClose={() => setToast(null)}>
-              {toast.msg}
-            </Alert>
-          ) : undefined}
-        </Snackbar>
       </Box>
     </Layout>
   );

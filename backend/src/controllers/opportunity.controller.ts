@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import opportunityService from '../services/opportunity.service';
-import { AuthRequest, getOwnerScope, canAccessRecord } from '../middleware/auth';
+import { AuthRequest, getOwnerScope, canAccessRecord, canPerformAction } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
 import { REJECTION_REASONS } from '../utils/constants';
 import logger from '../utils/logger';
@@ -8,6 +8,11 @@ import logger from '../utils/logger';
 export class OpportunityController {
   async createOpportunity(req: AuthRequest, res: Response, next: NextFunction) {
     try {
+      // Check if user has permission to create opportunities
+      if (!canPerformAction(req.user, 'opportunities', 'create')) {
+        throw new AppError(403, 'You do not have permission to create opportunities');
+      }
+
       const {
         name,
         amount,
@@ -49,7 +54,7 @@ export class OpportunityController {
 
   async getOpportunities(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const { page = 1, limit = 20, stage, status, ownerId, accountId, search } = req.query;
+      const { page = 1, limit = 20, stage, status, ownerId, accountId, search, fromDate, toDate, amountFrom, amountTo } = req.query;
 
       // Sales Reps see only their own opportunities; Admin/Manager see all.
       const scope = getOwnerScope(req.user);
@@ -63,6 +68,10 @@ export class OpportunityController {
         ownerId: effectiveOwnerId,
         accountId: accountId as string,
         search: search as string,
+        fromDate: fromDate as string,
+        toDate: toDate as string,
+        amountFrom: amountFrom ? Number(amountFrom) : undefined,
+        amountTo: amountTo ? Number(amountTo) : undefined,
       });
 
       return res.json({
@@ -103,13 +112,29 @@ export class OpportunityController {
       const { id } = req.params;
       const updates = req.body;
 
-      const opp = await opportunityService.updateOpportunity(id, updates);
+      const opp = await opportunityService.getOpportunityById(id);
 
-      logger.info(`Opportunity updated: ${opp.id} by ${req.user!.email}`);
+      if (!canAccessRecord(req.user, opp.ownerId)) {
+        throw new AppError(403, 'You can only update your own opportunities');
+      }
+
+      // Deal Stage Manager can only update stage/probability via dedicated endpoints
+      if (req.user?.role === 'Deal Stage Manager') {
+        throw new AppError(403, 'Deal Stage Manager can only update stage via /stage endpoint');
+      }
+
+      // Check if user has permission to update opportunities
+      if (!canPerformAction(req.user, 'opportunities', 'update')) {
+        throw new AppError(403, 'You do not have permission to update opportunities');
+      }
+
+      const updatedOpp = await opportunityService.updateOpportunity(id, updates);
+
+      logger.info(`Opportunity updated: ${updatedOpp.id} by ${req.user!.email}`);
 
       return res.json({
         success: true,
-        data: opp,
+        data: updatedOpp,
       });
     } catch (error) {
       next(error);
@@ -125,13 +150,19 @@ export class OpportunityController {
         throw new AppError(400, 'Stage is required');
       }
 
-      const opp = await opportunityService.updateStage(id, stage);
+      const opp = await opportunityService.getOpportunityById(id);
 
-      logger.info(`Opportunity stage updated to ${stage}: ${opp.id}`);
+      if (!canAccessRecord(req.user, opp.ownerId)) {
+        throw new AppError(403, 'You can only update your own opportunities');
+      }
+
+      const updatedOpp = await opportunityService.updateStage(id, stage);
+
+      logger.info(`Opportunity stage updated to ${stage}: ${updatedOpp.id}`);
 
       return res.json({
         success: true,
-        data: opp,
+        data: updatedOpp,
       });
     } catch (error) {
       next(error);
@@ -157,13 +188,19 @@ export class OpportunityController {
         }
       }
 
-      const opp = await opportunityService.closeOpportunity(id, outcome, rejectionReason);
+      const opp = await opportunityService.getOpportunityById(id);
 
-      logger.info(`Opportunity closed as ${outcome}: ${opp.id} by ${req.user!.email}`);
+      if (!canAccessRecord(req.user, opp.ownerId)) {
+        throw new AppError(403, 'You can only close your own opportunities');
+      }
+
+      const closedOpp = await opportunityService.closeOpportunity(id, outcome, rejectionReason);
+
+      logger.info(`Opportunity closed as ${outcome}: ${closedOpp.id} by ${req.user!.email}`);
 
       return res.json({
         success: true,
-        data: opp,
+        data: closedOpp,
       });
     } catch (error) {
       next(error);
@@ -182,6 +219,13 @@ export class OpportunityController {
   async deleteOpportunity(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
+
+      const opp = await opportunityService.getOpportunityById(id);
+
+      if (!canAccessRecord(req.user, opp.ownerId)) {
+        throw new AppError(403, 'You can only delete your own opportunities');
+      }
+
       await opportunityService.deleteOpportunity(id);
 
       logger.info(`Opportunity deleted: ${id} by ${req.user!.email}`);

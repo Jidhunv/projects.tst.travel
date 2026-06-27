@@ -13,19 +13,42 @@ export interface AuthRequest extends Request {
   traceId?: string;
 }
 
+function getCookieValue(req: Request, name: string): string | undefined {
+  const cookies = req.headers.cookie?.split(';');
+  if (!cookies) return undefined;
+
+  for (const cookie of cookies) {
+    const [key, value] = cookie.trim().split('=');
+    if (key === name) {
+      return decodeURIComponent(value);
+    }
+  }
+
+  return undefined;
+}
+
 export const verifyToken = (
   req: AuthRequest,
   res: Response,
   next: NextFunction
 ) => {
-  const token = req.headers.authorization?.split(' ')[1];
+  // Try to get token from Authorization header first, then from HTTPOnly cookie
+  let token = req.headers.authorization?.split(' ')[1];
+
+  if (!token) {
+    token = getCookieValue(req, 'authToken');
+  }
 
   if (!token) {
     return res.status(401).json({ success: false, error: 'No token provided' });
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+      return res.status(500).json({ success: false, error: 'JWT_SECRET not configured' });
+    }
+    const decoded = jwt.verify(token, secret);
     req.user = decoded as AuthUser;
     next();
   } catch (error) {
@@ -64,8 +87,54 @@ export const canAccessRecord = (user: AuthUser | undefined, ownerId: string): bo
 };
 
 export const generateToken = (id: string, email: string, role: string): string => {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error('JWT_SECRET not configured');
+  }
   const options: SignOptions = {
-    expiresIn: (process.env.JWT_EXPIRATION || '7d') as SignOptions['expiresIn'],
+    expiresIn: (process.env.JWT_EXPIRATION || '24h') as SignOptions['expiresIn'],
   };
-  return jwt.sign({ id, email, role }, process.env.JWT_SECRET || 'secret', options);
+  return jwt.sign({ id, email, role }, secret, options);
+};
+
+// Role-based action restrictions
+const ROLE_ACTION_RESTRICTIONS: Record<string, { [module: string]: string[] }> = {
+  'Deal Stage Manager': {
+    'leads': ['read', 'status_only'],  // Can only read and update status
+    'opportunities': ['read', 'stage_probability_only'],  // Can only read and update stage/probability
+    'accounts': ['read'],
+    'contacts': ['read'],
+  },
+  'Sales Rep': {
+    'leads': ['create', 'read', 'update', 'delete', 'bulk_action'],
+    'opportunities': ['create', 'read', 'update', 'delete', 'bulk_action'],
+    'accounts': ['create', 'read', 'update', 'delete', 'bulk_action'],
+    'contacts': ['create', 'read', 'update', 'delete', 'bulk_action'],
+  },
+  'Manager': {
+    'leads': ['create', 'read', 'update', 'delete', 'bulk_action'],
+    'opportunities': ['create', 'read', 'update', 'delete', 'bulk_action'],
+    'accounts': ['create', 'read', 'update', 'delete', 'bulk_action'],
+    'contacts': ['create', 'read', 'update', 'delete', 'bulk_action'],
+    'users': ['create', 'read', 'update', 'delete'],
+  },
+  'Admin': {
+    'all': ['all'],
+  },
+};
+
+// Check if user has permission for an action on a module
+export const canPerformAction = (
+  user: AuthUser | undefined,
+  module: string,
+  action: string
+): boolean => {
+  if (!user) return false;
+  if (user.role === 'Admin') return true;
+
+  const roleRestrictions = ROLE_ACTION_RESTRICTIONS[user.role];
+  if (!roleRestrictions) return false;
+
+  const allowedActions = roleRestrictions[module] || [];
+  return allowedActions.includes(action);
 };

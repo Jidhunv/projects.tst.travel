@@ -7,14 +7,13 @@ import logger from '../utils/logger';
 export class TicketController {
   async createTicket(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const { ticketNumber, title, description, priority, category, accountId, contactId, slaResponseHours, slaResolutionHours } = req.body;
+      const { title, description, priority, category, accountId, contactId, slaResponseHours, slaResolutionHours } = req.body;
 
-      if (!ticketNumber || !title || !description || !accountId) {
-        throw new AppError(400, 'Required fields: ticketNumber, title, description, accountId');
+      if (!title || !description || !accountId) {
+        throw new AppError(400, 'Required fields: title, description, accountId');
       }
 
       const ticketData: any = {
-        ticketNumber,
         title,
         description,
         priority: priority || 'Medium',

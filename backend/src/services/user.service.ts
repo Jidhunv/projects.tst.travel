@@ -100,18 +100,6 @@ export class UserService {
     return user;
   }
 
-  async changePassword(id: string, currentPassword: string, newPassword: string): Promise<User> {
-    const user = await this.getUserById(id);
-
-    const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
-    if (!isPasswordValid) {
-      throw new AppError(401, 'Current password is incorrect');
-    }
-
-    user.password = await bcrypt.hash(newPassword, 10);
-    return await this.userRepository.save(user);
-  }
-
   async getAllUsers(): Promise<User[]> {
     return await this.userRepository.find({
       relations: ['role', 'role.permissions'],
@@ -217,7 +205,44 @@ export class UserService {
     user.password = await bcrypt.hash(newPassword, 10);
     user.resetToken = null as unknown as string;
     user.resetTokenExpiry = null as unknown as Date;
+    user.hasChangedPasswordOnFirstLogin = true;
+    user.passwordChangedAt = new Date();
     await this.userRepository.save(user);
+  }
+
+  async changePasswordOnFirstLogin(userId: string, newPassword: string): Promise<User> {
+    const user = await this.getUserById(userId);
+
+    if (user.hasChangedPasswordOnFirstLogin) {
+      throw new AppError(400, 'Password has already been changed on first login');
+    }
+
+    user.password = await bcrypt.hash(newPassword, 10);
+    user.hasChangedPasswordOnFirstLogin = true;
+    user.passwordChangedAt = new Date();
+    return await this.userRepository.save(user);
+  }
+
+  async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<User> {
+    const user = await this.getUserById(userId);
+
+    const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
+    if (!isPasswordValid) {
+      throw new AppError(401, 'Current password is incorrect');
+    }
+
+    user.password = await bcrypt.hash(newPassword, 10);
+    user.passwordChangedAt = new Date();
+    return await this.userRepository.save(user);
+  }
+
+  async setUserPassword(userId: string, newPassword: string): Promise<User> {
+    const user = await this.getUserById(userId);
+
+    user.password = await bcrypt.hash(newPassword, 10);
+    user.hasChangedPasswordOnFirstLogin = false;
+    user.passwordChangedAt = new Date();
+    return await this.userRepository.save(user);
   }
 }
 

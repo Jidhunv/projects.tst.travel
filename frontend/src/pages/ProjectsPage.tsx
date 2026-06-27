@@ -23,9 +23,15 @@ import {
   Typography,
   Tab,
   Tabs,
+  ToggleButton,
+  ToggleButtonGroup,
+  OutlinedInput,
+  InputAdornment,
 } from '@mui/material';
+import { ViewAgendaOutlined as ListIcon, ViewWeekOutlined as KanbanIcon, Search as SearchIcon } from '@mui/icons-material';
 import Layout from '@components/Layout';
 import { apiClient } from '../services/api';
+import useAuth from '../hooks/useAuth';
 import { Project, ProjectMilestone } from '../types';
 
 interface TabPanelProps {
@@ -44,12 +50,20 @@ function TabPanel(props: TabPanelProps) {
 }
 
 export const ProjectsPage: React.FC = () => {
+  const { user } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
+  const [accounts, setAccounts] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
   const [openDialog, setOpenDialog] = useState(false);
   const [openMilestoneDialog, setOpenMilestoneDialog] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [tabValue, setTabValue] = useState(0);
   const [milestones, setMilestones] = useState<ProjectMilestone[]>([]);
+  const [viewMode, setViewMode] = useState<'card' | 'list' | 'kanban'>('card');
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [fromDateFilter, setFromDateFilter] = useState('');
+  const [toDateFilter, setToDateFilter] = useState('');
   const [formData, setFormData] = useState({
     projectName: '',
     status: 'Planning',
@@ -61,6 +75,7 @@ export const ProjectsPage: React.FC = () => {
     progressPercent: '',
     contractId: '',
     accountId: '',
+    productIds: [] as string[],
   });
   const [milestoneData, setMilestoneData] = useState({
     milestoneType: '',
@@ -71,6 +86,8 @@ export const ProjectsPage: React.FC = () => {
 
   useEffect(() => {
     fetchProjects();
+    fetchAccounts();
+    fetchProducts();
   }, []);
 
   const fetchProjects = async () => {
@@ -79,6 +96,24 @@ export const ProjectsPage: React.FC = () => {
       setProjects(response.data.data);
     } catch (error) {
       console.error('Error fetching projects:', error);
+    }
+  };
+
+  const fetchAccounts = async () => {
+    try {
+      const response = await apiClient.get('/accounts');
+      setAccounts(response.data.data || []);
+    } catch (error) {
+      console.error('Error fetching accounts:', error);
+    }
+  };
+
+  const fetchProducts = async () => {
+    try {
+      const response = await apiClient.get('/products');
+      setProducts(response.data.data || []);
+    } catch (error) {
+      console.error('Error fetching products:', error);
     }
   };
 
@@ -105,6 +140,7 @@ export const ProjectsPage: React.FC = () => {
         progressPercent: project.progressPercent.toString(),
         contractId: project.contract.id,
         accountId: project.account.id,
+        productIds: [],
       });
       fetchMilestones(project.id);
     } else {
@@ -120,6 +156,7 @@ export const ProjectsPage: React.FC = () => {
         progressPercent: '',
         contractId: '',
         accountId: '',
+        productIds: [],
       });
     }
     setTabValue(0);
@@ -199,25 +236,109 @@ export const ProjectsPage: React.FC = () => {
     return colors[status] || 'default';
   };
 
+  // Filter projects
+  const filteredProjects = projects.filter(project => {
+    const projectDate = new Date(project.startDate);
+    const fromDate = fromDateFilter ? new Date(fromDateFilter) : null;
+    const toDate = toDateFilter ? new Date(toDateFilter) : null;
+
+    return (
+      project.projectName.toLowerCase().includes(search.toLowerCase()) &&
+      (!statusFilter || project.status === statusFilter) &&
+      (!fromDate || projectDate >= fromDate) &&
+      (!toDate || projectDate <= new Date(toDate.getTime() + 86400000))
+    );
+  });
+
   return (
     <Layout>
       <Box sx={{ p: 3 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
           <Typography variant="h4">Projects</Typography>
-        <Button variant="contained" onClick={() => handleOpenDialog()}>
-          New Project
-        </Button>
-      </Box>
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+            <ToggleButtonGroup
+              value={viewMode}
+              exclusive
+              onChange={(_, newMode) => {
+                if (newMode !== null) setViewMode(newMode);
+              }}
+              size="small"
+            >
+              <ToggleButton value="card" aria-label="card view">
+                <ListIcon sx={{ mr: 0.5 }} />
+                Cards
+              </ToggleButton>
+              <ToggleButton value="list" aria-label="list view">
+                <ListIcon sx={{ mr: 0.5 }} />
+                List
+              </ToggleButton>
+              <ToggleButton value="kanban" aria-label="kanban view">
+                <KanbanIcon sx={{ mr: 0.5 }} />
+                Kanban
+              </ToggleButton>
+            </ToggleButtonGroup>
+            <Button variant="contained" onClick={() => handleOpenDialog()}>
+              New Project
+            </Button>
+          </Box>
+        </Box>
 
-      {projects.length === 0 ? (
-        <Card>
-          <CardContent>
-            <Typography color="textSecondary">No projects yet</Typography>
-          </CardContent>
+        {/* Filters */}
+        <Card sx={{ mb: 2, p: 2 }}>
+          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+            <OutlinedInput
+              placeholder="Search by project name"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              startAdornment={<InputAdornment position="start"><SearchIcon /></InputAdornment>}
+              size="small"
+              sx={{ minWidth: 250 }}
+            />
+            <TextField
+              select
+              label="Status"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              size="small"
+              sx={{ minWidth: 120 }}
+            >
+              <MenuItem value="">All Statuses</MenuItem>
+              <MenuItem value="Planning">Planning</MenuItem>
+              <MenuItem value="In Progress">In Progress</MenuItem>
+              <MenuItem value="On Hold">On Hold</MenuItem>
+              <MenuItem value="Completed">Completed</MenuItem>
+              <MenuItem value="Cancelled">Cancelled</MenuItem>
+            </TextField>
+            <TextField
+              type="date"
+              label="From Date"
+              value={fromDateFilter}
+              onChange={(e) => setFromDateFilter(e.target.value)}
+              size="small"
+              sx={{ minWidth: 140 }}
+              InputLabelProps={{ shrink: true }}
+            />
+            <TextField
+              type="date"
+              label="To Date"
+              value={toDateFilter}
+              onChange={(e) => setToDateFilter(e.target.value)}
+              size="small"
+              sx={{ minWidth: 140 }}
+              InputLabelProps={{ shrink: true }}
+            />
+          </Box>
         </Card>
-      ) : (
-        <Grid container spacing={2}>
-          {projects.map((project) => (
+
+        {filteredProjects.length === 0 ? (
+          <Card>
+            <CardContent>
+              <Typography color="textSecondary">No projects yet</Typography>
+            </CardContent>
+          </Card>
+        ) : viewMode === 'card' ? (
+          <Grid container spacing={2}>
+          {filteredProjects.map((project) => (
             <Grid item xs={12} md={6} key={project.id}>
               <Card>
                 <CardContent>
@@ -239,16 +360,133 @@ export const ProjectsPage: React.FC = () => {
                     <Button size="small" variant="text" onClick={() => handleOpenDialog(project)}>
                       Edit
                     </Button>
-                    <Button size="small" variant="text" color="error" onClick={() => handleDelete(project.id)}>
-                      Delete
-                    </Button>
+                    {(user?.role?.name === 'Admin' || user?.role?.name === 'Manager') && (
+                      <Button size="small" variant="text" color="error" onClick={() => handleDelete(project.id)}>
+                        Delete
+                      </Button>
+                    )}
                   </Box>
                 </CardContent>
               </Card>
             </Grid>
           ))}
-        </Grid>
-      )}
+          </Grid>
+        ) : viewMode === 'list' ? (
+          <TableContainer component={Paper}>
+            <Table>
+              <TableHead sx={{ backgroundColor: '#f5f5f5' }}>
+                <TableRow>
+                  <TableCell>Project Name</TableCell>
+                  <TableCell>Account</TableCell>
+                  <TableCell>Status</TableCell>
+                  <TableCell>Budget</TableCell>
+                  <TableCell>Progress</TableCell>
+                  <TableCell>Start Date</TableCell>
+                  <TableCell>End Date</TableCell>
+                  <TableCell>Actions</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {filteredProjects.map((project) => (
+                  <TableRow key={project.id}>
+                    <TableCell sx={{ fontWeight: 'bold' }}>{project.projectName}</TableCell>
+                    <TableCell>{project.account.name}</TableCell>
+                    <TableCell>
+                      <Chip label={project.status} color={getStatusColor(project.status)} size="small" />
+                    </TableCell>
+                    <TableCell>${project.budget.toLocaleString()}</TableCell>
+                    <TableCell>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <LinearProgress variant="determinate" value={project.progressPercent} sx={{ flex: 1, minWidth: 100 }} />
+                        <Typography variant="body2">{project.progressPercent}%</Typography>
+                      </Box>
+                    </TableCell>
+                    <TableCell>{new Date(project.startDate).toLocaleDateString()}</TableCell>
+                    <TableCell>{project.endDate ? new Date(project.endDate).toLocaleDateString() : '-'}</TableCell>
+                    <TableCell>
+                      <Button size="small" variant="text" onClick={() => handleOpenDialog(project)}>
+                        Edit
+                      </Button>
+                      {(user?.role?.name === 'Admin' || user?.role?.name === 'Manager') && (
+                        <Button size="small" variant="text" color="error" onClick={() => handleDelete(project.id)}>
+                          Delete
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        ) : (
+          <Box sx={{ display: 'flex', gap: 2, overflowX: 'auto', pb: 2 }}>
+            {['Planning', 'In Progress', 'On Hold', 'Completed', 'Cancelled'].map((status) => {
+              const statusProjects = filteredProjects.filter((project) => project.status === status);
+              return (
+                <Box
+                  key={status}
+                  sx={{
+                    flex: '0 0 320px',
+                    bgcolor: '#f5f5f5',
+                    borderRadius: 2,
+                    p: 2,
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                    <Chip
+                      label={status}
+                      color={getStatusColor(status) as any}
+                      size="small"
+                    />
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      {statusProjects.length}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    {statusProjects.map((project) => (
+                      <Card
+                        key={project.id}
+                        sx={{
+                          cursor: 'pointer',
+                          '&:hover': { boxShadow: 3 },
+                        }}
+                        onClick={() => handleOpenDialog(project)}
+                      >
+                        <CardContent sx={{ pb: 1 }}>
+                          <Typography sx={{ fontWeight: 600, mb: 1 }} noWrap>
+                            {project.projectName}
+                          </Typography>
+                          <Typography variant="body2" color="textSecondary" noWrap sx={{ mb: 1 }}>
+                            {project.account.name}
+                          </Typography>
+                          <Box sx={{ mb: 1 }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                              <Typography variant="caption" color="textSecondary">
+                                Progress
+                              </Typography>
+                              <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                                {project.progressPercent}%
+                              </Typography>
+                            </Box>
+                            <LinearProgress variant="determinate" value={project.progressPercent} sx={{ height: 6, borderRadius: 1 }} />
+                          </Box>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', pt: 1, borderTop: '1px solid #eee' }}>
+                            <Typography variant="caption" color="textSecondary">
+                              Budget
+                            </Typography>
+                            <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                              ${project.budget.toLocaleString()}
+                            </Typography>
+                          </Box>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </Box>
+                </Box>
+              );
+            })}
+          </Box>
+        )}
 
       <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
         <DialogTitle>{selectedProject ? 'Edit Project' : 'New Project'}</DialogTitle>
@@ -316,6 +554,36 @@ export const ProjectsPage: React.FC = () => {
               sx={{ mb: 2 }}
               inputProps={{ min: 0, max: 100 }}
             />
+            <TextField
+              fullWidth
+              select
+              label="Company"
+              value={formData.accountId}
+              onChange={(e) => setFormData({ ...formData, accountId: e.target.value })}
+              sx={{ mb: 2 }}
+            >
+              <MenuItem value="">Select Company</MenuItem>
+              {accounts.map((account) => (
+                <MenuItem key={account.id} value={account.id}>
+                  {account.name}
+                </MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              fullWidth
+              select
+              label="Products"
+              value={formData.productIds}
+              onChange={(e) => setFormData({ ...formData, productIds: typeof e.target.value === 'string' ? [e.target.value] : e.target.value })}
+              SelectProps={{ multiple: true }}
+              sx={{ mb: 2 }}
+            >
+              {products.map((product) => (
+                <MenuItem key={product.id} value={product.id}>
+                  {product.name}
+                </MenuItem>
+              ))}
+            </TextField>
           </TabPanel>
 
           <TabPanel value={tabValue} index={1}>

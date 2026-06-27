@@ -11,6 +11,10 @@ interface OpportunityFilters {
   page?: number;
   limit?: number;
   search?: string;
+  fromDate?: string;
+  toDate?: string;
+  amountFrom?: number;
+  amountTo?: number;
 }
 
 export class OpportunityService {
@@ -66,7 +70,7 @@ export class OpportunityService {
     data: Opportunity[];
     total: number;
   }> {
-    const { page = 1, limit = 20, search, ...where } = filters;
+    const { page = 1, limit = 20, search, fromDate, toDate, amountFrom, amountTo, ...where } = filters;
     const skip = (page - 1) * limit;
 
     const query = this.oppRepository
@@ -92,6 +96,22 @@ export class OpportunityService {
       query.andWhere('opp.accountId = :accountId', { accountId: where.accountId });
     }
 
+    if (fromDate) {
+      query.andWhere('opp.forecastedCloseDate >= :fromDate', { fromDate: new Date(fromDate) });
+    }
+    if (toDate) {
+      const toDateObj = new Date(toDate);
+      toDateObj.setHours(23, 59, 59, 999);
+      query.andWhere('opp.forecastedCloseDate <= :toDate', { toDate: toDateObj });
+    }
+
+    if (amountFrom !== undefined && amountFrom !== null) {
+      query.andWhere('opp.amount >= :amountFrom', { amountFrom: Number(amountFrom) });
+    }
+    if (amountTo !== undefined && amountTo !== null) {
+      query.andWhere('opp.amount <= :amountTo', { amountTo: Number(amountTo) });
+    }
+
     const [data, total] = await query
       .orderBy('opp.forecastedCloseDate', 'ASC')
       .skip(skip)
@@ -115,6 +135,23 @@ export class OpportunityService {
       ];
       if (!validStages.includes(data.stage)) {
         throw new AppError(400, 'Invalid opportunity stage');
+      }
+    }
+
+    if (data.status) {
+      const validStatuses = ['Open', 'Won', 'Lost'];
+      if (!validStatuses.includes(data.status)) {
+        throw new AppError(400, 'Invalid opportunity status');
+      }
+
+      if (data.status === 'Won') {
+        data.stage = 'Closed-Won';
+        data.probability = 100;
+        data.closedAt = new Date();
+      } else if (data.status === 'Lost') {
+        data.stage = 'Closed-Lost';
+        data.probability = 0;
+        data.closedAt = new Date();
       }
     }
 

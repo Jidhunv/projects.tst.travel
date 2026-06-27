@@ -6,6 +6,7 @@ import { AppDataSource } from './config/database';
 import { errorHandler } from './middleware/errorHandler';
 import { tracingMiddleware } from './middleware/tracing';
 import { auditMiddleware } from './middleware/audit';
+import { generateCsrfToken, verifyCsrfToken } from './middleware/csrf';
 import traceService from './services/trace.service';
 import logger from './utils/logger';
 
@@ -19,12 +20,38 @@ const app: Express = express();
 const PORT = process.env.PORT || 3001;
 
 // Middleware
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
+      imgSrc: ["'self'", 'data:', 'https:'],
+    },
+  },
+  hsts: {
+    maxAge: 31536000, // 1 year
+    includeSubDomains: true,
+    preload: true,
+  },
+  frameguard: { action: 'deny' },
+  xssFilter: true,
+  noSniff: true,
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+}));
 app.use(cors({
   origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'X-Session-ID'],
+  exposedHeaders: ['X-CSRF-Token'],
 }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Limit request payload size to prevent DOS
+app.use(express.json({ limit: '10kb' }));
+app.use(express.urlencoded({ extended: true, limit: '10kb' }));
+// Enable CSRF protection
+app.use(generateCsrfToken);
+app.use(verifyCsrfToken);
 // Enable tracing for all requests (must be before routes)
 app.use((req: any, res, next) => tracingMiddleware(req, res, next));
 // Enable audit logging for all requests
