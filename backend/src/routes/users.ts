@@ -22,6 +22,8 @@ router.patch('/:id/deactivate', (req, res, next) =>
   UserController.deactivateUser(req, res, next)
 );
 router.patch('/:id/change-password', (req, res, next) => UserController.changePassword(req, res, next));
+router.post('/:id/reset-password', (req, res, next) => UserController.resetPassword(req, res, next));
+router.post('/:id/send-invite', (req, res, next) => UserController.sendInviteEmail(req, res, next));
 router.delete('/:id', (req, res, next) => UserController.deleteUser(req, res, next));
 
 export default router;

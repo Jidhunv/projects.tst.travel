@@ -101,6 +101,17 @@ export default function LoginPage() {
               {loading ? <CircularProgress size={24} /> : 'Login'}
             </Button>
           </form>
+
+          <Box sx={{ textAlign: 'center', mt: 2 }}>
+            <Button
+              variant="text"
+              size="small"
+              onClick={() => navigate('/forgot-password')}
+              sx={{ textTransform: 'none' }}
+            >
+              Forgot Password?
+            </Button>
+          </Box>
         </Box>
       </Box>
     </Container>

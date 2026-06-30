@@ -49,6 +49,18 @@ export class User {
   @Column({ type: 'timestamp', nullable: true })
   passwordChangedAt: Date;
 
+  @Column({ default: true })
+  emailNotificationsEnabled: boolean;
+
+  @Column({ type: 'simple-json', default: '{}' })
+  emailNotificationPreferences: {
+    leads?: boolean;
+    opportunities?: boolean;
+    tickets?: boolean;
+    contracts?: boolean;
+    account?: boolean;
+  };
+
   @ManyToOne(() => Role, (role) => role.users)
   @JoinColumn({ name: 'roleId' })
   role: Role;

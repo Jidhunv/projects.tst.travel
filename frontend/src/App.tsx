@@ -1,8 +1,9 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import useAuth from '@hooks/useAuth';
+import FirstLoginPasswordChangeDialog from '@components/FirstLoginPasswordChangeDialog';
 
 // Pages
 import LoginPage from '@pages/LoginPage';
@@ -20,6 +21,9 @@ import { NotificationsPage } from '@pages/NotificationsPage';
 import { UsersPage } from '@pages/UsersPage';
 import { RolesPage } from '@pages/RolesPage';
 import { ProductsPage } from '@pages/ProductsPage';
+import { SettingsPage } from '@pages/SettingsPage';
+import { ForgotPasswordPage } from '@pages/ForgotPasswordPage';
+import { ResetPasswordPage } from '@pages/ResetPasswordPage';
 
 const theme = createTheme({
   palette: {
@@ -36,9 +40,9 @@ const theme = createTheme({
 });
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { token } = useAuth();
+  const { user } = useAuth();
 
-  if (!token) {
+  if (!user) {
     return <Navigate to="/login" replace />;
   }
 
@@ -46,20 +50,35 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 };
 
 const RootRoute: React.FC = () => {
-  const { token } = useAuth();
-  return <Navigate to={token ? "/dashboard" : "/login"} replace />;
+  const { user } = useAuth();
+  return <Navigate to={user ? "/dashboard" : "/login"} replace />;
 };
 
 function App() {
-  const { loadUser } = useAuth();
+  const { loadUser, requiresPasswordChange, clearPasswordChangeRequirement } = useAuth();
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
 
   useEffect(() => {
     loadUser();
   }, [loadUser]);
 
+  useEffect(() => {
+    if (requiresPasswordChange) {
+      setShowPasswordDialog(true);
+    }
+  }, [requiresPasswordChange]);
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
+      <FirstLoginPasswordChangeDialog
+        open={showPasswordDialog}
+        onClose={() => setShowPasswordDialog(false)}
+        onPasswordChanged={() => {
+          setShowPasswordDialog(false);
+          clearPasswordChangeRequirement();
+        }}
+      />
       <Router
         future={{
           v7_startTransition: true,
@@ -177,6 +196,16 @@ function App() {
             element={
               <ProtectedRoute>
                 <ProductsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <SettingsPage />
               </ProtectedRoute>
             }
           />

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background: #4caf50; color: white; padding: 20px; text-align: center; border-radius: 5px 5px 0 0; }
+    .content { background: #f9f9f9; padding: 20px; border: 1px solid #ddd; border-radius: 0 0 5px 5px; }
+    .success { background: #e8f5e9; border-left: 4px solid #4caf50; padding: 15px; margin: 15px 0; }
+    .footer { margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 12px; color: #666; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>✅ Email Configuration Successful!</h1>
+    </div>
+    <div class="content">
+      <p>Hi {{userName}},</p>
+
+      <div class="success">
+        <p><strong>Your email configuration is working correctly!</strong></p>
+        <p>This is a test email sent from the CRM System at {{timestamp}}</p>
+      </div>
+
+      <p>If you received this email, your SMTP settings are properly configured and your system can send notifications to users.</p>
+
+      <p>You can now:</p>
+      <ul>
+        <li>Send password reset emails to users</li>
+        <li>Send event notifications (leads, opportunities, tickets, etc.)</li>
+        <li>Invite new team members via email</li>
+      </ul>
+
+      <div class="footer">
+        <p>© {{year}} CRM System. All rights reserved.</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background: #1976d2; color: white; padding: 20px; text-align: center; border-radius: 5px 5px 0 0; }
+    .content { background: #f9f9f9; padding: 20px; border: 1px solid #ddd; border-radius: 0 0 5px 5px; }
+    .welcome-box { background: #e3f2fd; border: 1px solid #1976d2; padding: 15px; margin: 15px 0; border-radius: 5px; }
+    .password-box { background: white; border: 2px solid #1976d2; padding: 15px; margin: 20px 0; border-radius: 5px; text-align: center; }
+    .password-box .label { font-size: 12px; color: #666; text-transform: uppercase; }
+    .password-box .password { font-size: 24px; font-weight: bold; color: #1976d2; font-family: monospace; letter-spacing: 2px; }
+    .button { display: inline-block; background: #1976d2; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+    .footer { margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 12px; color: #666; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🎉 Welcome to CRM System!</h1>
+    </div>
+    <div class="content">
+      <p>Hi {{userName}},</p>
+
+      <p>{{invitedByName}} has invited you to join the CRM team!</p>
+
+      <div class="welcome-box">
+        <p>Account Information:</p>
+        <p><strong>Email:</strong> {{email}}</p>
+      </div>
+
+      <p>Here's your temporary password to get started:</p>
+
+      <div class="password-box">
+        <div class="label">Temporary Password</div>
+        <div class="password">{{tempPassword}}</div>
+      </div>
+
+      <a href="{{loginUrl}}" class="button">Log In to CRM</a>
+
+      <p><strong>Next Steps:</strong></p>
+      <ol>
+        <li>Click the button above to log in</li>
+        <li>Enter your email: <strong>{{email}}</strong></li>
+        <li>Use the temporary password shown above</li>
+        <li>Create a new secure password</li>
+        <li>Start managing your leads and opportunities!</li>
+      </ol>
+
+      <div class="footer">
+        <p>Questions? Contact {{invitedByName}} or your IT support team.</p>
+        <p>© {{year}} CRM System. All rights reserved.</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

@@ -166,6 +166,49 @@ export class UserController {
     }
   }
 
+  async resetPassword(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const user = await userService.getUserById(req.params.id);
+      const tempPassword = userService.generateTemporaryPassword();
+      await userService.setUserPassword(req.params.id, tempPassword);
+      logger.info(`Password reset for user: ${user.email} by ${req.user!.email}`);
+      return res.json({
+        success: true,
+        data: {
+          message: 'Password reset successfully',
+          tempPassword,
+          userId: user.id,
+          email: user.email,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async sendInviteEmail(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const user = await userService.getUserById(req.params.id);
+      const tempPassword = userService.generateTemporaryPassword();
+      await userService.setUserPassword(req.params.id, tempPassword);
+
+      // Send invite email
+      const emailService = await import('../services/email.service');
+      await emailService.default.sendUserCreatedEmail(user, tempPassword, req.user! as any);
+
+      logger.info(`Invite email sent to: ${user.email} by ${req.user!.email}`);
+      return res.json({
+        success: true,
+        data: {
+          message: 'Invite email sent successfully',
+          email: user.email,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async getSelf(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       if (!req.user) {

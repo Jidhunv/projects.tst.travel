@@ -39,8 +39,21 @@ app.use(helmet({
   noSniff: true,
   referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
 }));
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+  'http://localhost:3001',
+  'http://127.0.0.1:3001',
+];
+
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'X-Session-ID'],
@@ -74,6 +87,7 @@ import ticketRoutes from './routes/tickets';
 import auditLogRoutes from './routes/audit-logs';
 import notificationRoutes from './routes/notifications';
 import roleRoutes from './routes/roles';
+import emailSettingsRoutes from './routes/email-settings';
 
 // Database initialization
 AppDataSource.initialize()
@@ -107,6 +121,7 @@ app.use('/api/tickets', ticketRoutes);
 app.use('/api/audit-logs', auditLogRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/roles', roleRoutes);
+app.use('/api/email-settings', emailSettingsRoutes);
 
 // Save traces after response completes (for debugging)
 app.use((req: any, res, next) => {

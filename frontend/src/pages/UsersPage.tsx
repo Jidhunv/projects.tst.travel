@@ -28,7 +28,9 @@ export const UsersPage: React.FC = () => {
   const [users, setUsers] = useState<any[]>([]);
   const [roles, setRoles] = useState<any[]>([]);
   const [openDialog, setOpenDialog] = useState(false);
+  const [openPasswordDialog, setOpenPasswordDialog] = useState(false);
   const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [tempPassword, setTempPassword] = useState('');
   const [formData, setFormData] = useState({
     email: '',
     firstName: '',
@@ -128,6 +130,55 @@ export const UsersPage: React.FC = () => {
     }
   };
 
+  const handleResetPassword = async (user: any) => {
+    setSelectedUser(user);
+    setOpenPasswordDialog(true);
+    try {
+      const response = await apiClient.post(`/users/${user.id}/reset-password`, {});
+      setTempPassword(response.data.data.tempPassword || '');
+    } catch (error) {
+      console.error('Error resetting password:', error);
+      alert('Failed to reset password');
+    }
+  };
+
+  const generatePassword = (): string => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+    let password = '';
+    for (let i = 0; i < 12; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return password;
+  };
+
+  const handleAutoGeneratePassword = () => {
+    const newPassword = generatePassword();
+    setFormData({ ...formData, password: newPassword });
+  };
+
+  const handleCopyPassword = () => {
+    if (formData.password) {
+      navigator.clipboard.writeText(formData.password);
+      alert('Password copied to clipboard!');
+    }
+  };
+
+  const handleCopyResetPassword = () => {
+    navigator.clipboard.writeText(tempPassword);
+    alert('Password copied to clipboard!');
+  };
+
+  const handleSendPasswordEmail = async () => {
+    try {
+      await apiClient.post(`/users/${selectedUser.id}/send-invite`, {});
+      alert('Password reset email sent!');
+      setOpenPasswordDialog(false);
+    } catch (error) {
+      console.error('Error sending password email:', error);
+      alert('Failed to send password email');
+    }
+  };
+
   return (
     <Layout>
       <Box sx={{ p: 3 }}>
@@ -215,6 +266,14 @@ export const UsersPage: React.FC = () => {
                       <Button
                         size="small"
                         variant="text"
+                        color="info"
+                        onClick={() => handleResetPassword(user)}
+                      >
+                        Reset Password
+                      </Button>
+                      <Button
+                        size="small"
+                        variant="text"
                         color={user.isActive ? 'warning' : 'success'}
                         onClick={() => handleToggleActive(user.id, user.isActive)}
                       >
@@ -242,16 +301,35 @@ export const UsersPage: React.FC = () => {
               disabled={!!selectedUser}
               sx={{ mb: 2 }}
             />
-            {!selectedUser && (
+            <Box sx={{ mb: 2 }}>
               <TextField
                 fullWidth
-                label="Password"
-                type="password"
+                label={selectedUser ? "New Password (optional)" : "Password"}
+                type="text"
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                sx={{ mb: 2 }}
+                sx={{ mb: 1 }}
+                placeholder="Enter password or auto-generate"
               />
-            )}
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={handleAutoGeneratePassword}
+                >
+                  🔄 Auto-Generate
+                </Button>
+                {formData.password && (
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={handleCopyPassword}
+                  >
+                    📋 Copy
+                  </Button>
+                )}
+              </Box>
+            </Box>
             <TextField
               fullWidth
               label="First Name"
@@ -292,6 +370,47 @@ export const UsersPage: React.FC = () => {
             <Button onClick={handleSave} variant="contained">
               Save
             </Button>
+          </DialogActions>
+        </Dialog>
+
+        <Dialog open={openPasswordDialog} onClose={() => setOpenPasswordDialog(false)} maxWidth="sm" fullWidth>
+          <DialogTitle>Reset Password - {selectedUser?.firstName} {selectedUser?.lastName}</DialogTitle>
+          <DialogContent sx={{ pt: 2 }}>
+            <Typography variant="body2" sx={{ mb: 2 }}>
+              Temporary password has been generated for this user:
+            </Typography>
+            <Card sx={{ p: 2, backgroundColor: '#f5f5f5', mb: 2 }}>
+              <Typography variant="body1" sx={{ fontFamily: 'monospace', fontSize: '18px', fontWeight: 'bold' }}>
+                {tempPassword || 'Loading...'}
+              </Typography>
+            </Card>
+            <Typography variant="caption" sx={{ color: '#666', display: 'block', mb: 2 }}>
+              The user will be required to change this password when they first log in.
+            </Typography>
+            <Box sx={{ mb: 2, p: 2, backgroundColor: '#e3f2fd', borderRadius: 1 }}>
+              <Typography variant="caption" sx={{ color: '#1976d2' }}>
+                <strong>Next steps:</strong>
+                <br />
+                1. Share the temporary password with the user
+                <br />
+                2. User logs in and changes password
+                <br />
+                3. User gains access to the system
+              </Typography>
+            </Box>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setOpenPasswordDialog(false)}>Close</Button>
+            {tempPassword && (
+              <>
+                <Button variant="outlined" onClick={handleCopyResetPassword}>
+                  📋 Copy Password
+                </Button>
+                <Button variant="contained" color="info" onClick={handleSendPasswordEmail}>
+                  ✉️ Send Email
+                </Button>
+              </>
+            )}
           </DialogActions>
         </Dialog>
       </Box>

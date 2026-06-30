@@ -244,6 +244,18 @@ export class UserService {
     user.passwordChangedAt = new Date();
     return await this.userRepository.save(user);
   }
+
+  generateTemporaryPassword(): string {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+    const passwordLength = 12;
+    let password = '';
+
+    for (let i = 0; i < passwordLength; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+
+    return password;
+  }
 }
 
 export default new UserService();

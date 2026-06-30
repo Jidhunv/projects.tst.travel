@@ -3,6 +3,7 @@ import userService from '../services/user.service';
 import { generateToken, AuthRequest } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
 import PasswordValidator from '../utils/passwordValidator';
+import emailService from '../services/email.service';
 import logger from '../utils/logger';
 
 export class AuthController {
@@ -69,7 +70,19 @@ export class AuthController {
         throw new AppError(400, 'Email is required');
       }
 
-      await userService.createPasswordResetToken(email);
+      const token = await userService.createPasswordResetToken(email);
+
+      // Send password reset email
+      try {
+        const user = await userService.getUserByEmail(email);
+        if (user && token) {
+          await emailService.sendPasswordResetEmail(user, token);
+        }
+      } catch (emailError) {
+        logger.warn(`Failed to send password reset email to ${email}:`, emailError);
+        // Continue even if email fails - user can use the link if they have it
+      }
+
       logger.info(`Password reset requested for: ${email}`);
 
       return res.json({

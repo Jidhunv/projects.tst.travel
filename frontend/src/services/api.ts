@@ -11,16 +11,20 @@ export const apiClient: AxiosInstance = axios.create({
   withCredentials: true, // Include cookies with all requests
 });
 
-// Get CSRF token from response header and set it in request headers for subsequent requests
-let csrfToken: string | null = null;
+// Helper function to get CSRF token from cookie
+function getCsrfTokenFromCookie(): string | null {
+  const cookies = document.cookie.split(';');
+  for (const cookie of cookies) {
+    const [name, value] = cookie.trim().split('=');
+    if (name === 'XSRF-TOKEN') {
+      return decodeURIComponent(value);
+    }
+  }
+  return null;
+}
 
 apiClient.interceptors.response.use(
   (response) => {
-    // Capture CSRF token from response header for next request
-    const newCsrfToken = response.headers['x-csrf-token'];
-    if (newCsrfToken) {
-      csrfToken = newCsrfToken;
-    }
     return response;
   },
   (error) => {
@@ -32,9 +36,10 @@ apiClient.interceptors.response.use(
   }
 );
 
-// Add CSRF token to requests
+// Add CSRF token to all requests (from cookie)
 apiClient.interceptors.request.use(
   (config) => {
+    const csrfToken = getCsrfTokenFromCookie();
     if (csrfToken) {
       config.headers['X-CSRF-Token'] = csrfToken;
     }
