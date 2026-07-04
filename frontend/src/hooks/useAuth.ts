@@ -17,6 +17,7 @@ interface AuthState {
   isAuthenticated: () => boolean;
   hasPermission: (module: string, action: string) => boolean;
   canViewModule: (module: string) => boolean;
+  canReassign: (module: string) => boolean;
 }
 
 const useAuth = create<AuthState>((set, get) => ({
@@ -114,6 +115,14 @@ const useAuth = create<AuthState>((set, get) => ({
 
   // A module is viewable if the user has any read/view permission for it.
   canViewModule: (module: string) => get().hasPermission(module, 'read'),
+
+  // May the user reassign records of this module to another owner?
+  // Needs update at the "all" scope (Admin/Manager), mirroring the backend.
+  canReassign: (module: string) => {
+    const state = get();
+    if (state.user?.role?.name === 'Admin') return true;
+    return (state.permissions || []).includes(`${module}:update:all`);
+  },
 
   clearPasswordChangeRequirement: () => {
     localStorage.removeItem('requiresPasswordChange');

@@ -10,6 +10,7 @@ router.post('/', (req, res, next) => AccountController.createAccount(req, res, n
 router.get('/', (req, res, next) => AccountController.getAccounts(req, res, next));
 router.get('/:id', (req, res, next) => AccountController.getAccount(req, res, next));
 router.patch('/:id', (req, res, next) => AccountController.updateAccount(req, res, next));
+router.patch('/:id/assign', (req, res, next) => AccountController.assignAccount(req, res, next));
 router.delete('/:id', (req, res, next) => AccountController.deleteAccount(req, res, next));
 
 // Contact routes

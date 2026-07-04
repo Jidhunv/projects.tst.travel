@@ -18,6 +18,7 @@ import {
 import { Edit as EditIcon } from '@mui/icons-material';
 import Layout from '@components/Layout';
 import DataTable from '@components/DataTable';
+import AssignOwner from '@components/AssignOwner';
 import { api } from '@services/api';
 import { Account } from '../types';
 import { formatCurrency } from '@utils/format';
@@ -455,6 +456,15 @@ export default function AccountsPage() {
             )}
           </DialogContent>
           <DialogActions>
+            {editingAccount && (
+              <AssignOwner
+                module="accounts"
+                recordId={editingAccount.id}
+                currentOwnerId={(editingAccount as any).ownerId}
+                onAssigned={() => { setOpenEdit(false); fetchAccounts(); }}
+              />
+            )}
+            <Box sx={{ flex: 1 }} />
             <Button onClick={() => setOpenEdit(false)}>Cancel</Button>
             <Button
               onClick={handleUpdateAccount}

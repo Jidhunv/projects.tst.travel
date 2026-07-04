@@ -27,6 +27,7 @@ import {
 } from '@mui/material';
 import { Search as SearchIcon, ViewAgendaOutlined as ListIcon, ViewWeekOutlined as KanbanIcon } from '@mui/icons-material';
 import Layout from '@components/Layout';
+import AssignOwner from '@components/AssignOwner';
 import { apiClient } from '../services/api';
 import { Lead } from '../types';
 import { formatCurrency } from '@utils/format';
@@ -409,6 +410,7 @@ export default function LeadsPage() {
                       <Button size="small" variant="text" onClick={() => handleOpenEdit(lead)}>
                         Edit
                       </Button>
+                      <AssignOwner module="leads" recordId={lead.id} currentOwnerId={(lead as any).ownerId} onAssigned={fetchLeads} />
                       <Button size="small" variant="text" color="error" onClick={() => handleDelete(lead.id)}>
                         Delete
                       </Button>

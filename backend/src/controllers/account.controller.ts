@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import accountService from '../services/account.service';
-import { AuthRequest, getOwnerScope, canAccessRecord, canPerformAction } from '../middleware/auth';
+import { AuthRequest, getOwnerScope, canAccessRecord, canPerformAction, canReassign } from '../middleware/auth';
+import userService from '../services/user.service';
 import { AppError } from '../middleware/errorHandler';
 import logger from '../utils/logger';
 
@@ -126,6 +127,23 @@ export class AccountController {
         success: true,
         data: account,
       });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // Reassign an account to another user (Admin/Manager only).
+  async assignAccount(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      if (!canReassign(req.user, 'accounts')) {
+        throw new AppError(403, 'You do not have permission to reassign accounts');
+      }
+      const { ownerId } = req.body;
+      if (!ownerId) throw new AppError(400, 'ownerId is required');
+      await userService.getUserById(ownerId);
+      const account = await accountService.updateAccount(req.params.id, { ownerId } as any);
+      logger.info(`Account ${account.id} reassigned to ${ownerId} by ${req.user!.email}`);
+      return res.json({ success: true, data: account });
     } catch (error) {
       next(error);
     }

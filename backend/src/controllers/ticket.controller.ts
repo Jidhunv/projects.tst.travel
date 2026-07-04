@@ -1,6 +1,6 @@
 import { Response, NextFunction } from 'express';
 import ticketService from '../services/ticket.service';
-import { AuthRequest } from '../middleware/auth';
+import { AuthRequest, canReassign } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
 import logger from '../utils/logger';
 
@@ -80,6 +80,9 @@ export class TicketController {
 
   async assignTicket(req: AuthRequest, res: Response, next: NextFunction) {
     try {
+      if (!canReassign(req.user, 'tickets')) {
+        throw new AppError(403, 'You do not have permission to assign tickets');
+      }
       const { assigneeId } = req.body;
       if (!assigneeId) {
         throw new AppError(400, 'assigneeId is required');

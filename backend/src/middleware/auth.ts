@@ -158,3 +158,13 @@ export const canPerformAction = (
 ): boolean => {
   return resolvePermission(user, module, action).allowed;
 };
+
+// May the user reassign a record of this module to another owner?
+// Requires update permission at the "all" scope (i.e. Admin/Manager-style roles);
+// a self-scoped user cannot hand records to other people.
+export const canReassign = (user: AuthUser | undefined, module: string): boolean => {
+  return (
+    canPerformAction(user, module, 'update') &&
+    getOwnerScope(user, module) === undefined
+  );
+};

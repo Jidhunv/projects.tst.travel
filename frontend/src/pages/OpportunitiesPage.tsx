@@ -27,6 +27,7 @@ import {
 } from '@mui/material';
 import { Search as SearchIcon, ViewAgendaOutlined as ListIcon, ViewWeekOutlined as KanbanIcon } from '@mui/icons-material';
 import Layout from '@components/Layout';
+import AssignOwner from '@components/AssignOwner';
 import { apiClient } from '../services/api';
 import { Opportunity } from '../types';
 import { formatCurrency } from '@utils/format';
@@ -349,6 +350,7 @@ export default function OpportunitiesPage() {
                       <Button size="small" variant="text" onClick={() => handleOpenEdit(opp)}>
                         Edit
                       </Button>
+                      <AssignOwner module="opportunities" recordId={opp.id} currentOwnerId={(opp as any).ownerId} onAssigned={fetchOpportunities} />
                       <Button size="small" variant="text" color="error" onClick={() => handleDelete(opp.id)}>
                         Delete
                       </Button>

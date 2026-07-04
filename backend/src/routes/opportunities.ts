@@ -16,6 +16,7 @@ router.delete('/:id', (req, res, next) =>
   OpportunityController.deleteOpportunity(req, res, next)
 );
 router.patch('/:id/stage', (req, res, next) => OpportunityController.updateStage(req, res, next));
+router.patch('/:id/assign', (req, res, next) => OpportunityController.assignOpportunity(req, res, next));
 router.post('/:id/close', (req, res, next) =>
   OpportunityController.closeOpportunity(req, res, next)
 );

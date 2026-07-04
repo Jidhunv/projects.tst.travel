@@ -26,6 +26,7 @@ import {
 } from '@mui/material';
 import { Search as SearchIcon, ViewAgendaOutlined as ListIcon, ViewWeekOutlined as KanbanIcon } from '@mui/icons-material';
 import Layout from '@components/Layout';
+import AssignOwner from '@components/AssignOwner';
 import { apiClient } from '../services/api';
 import useAuth from '../hooks/useAuth';
 
@@ -307,6 +308,7 @@ export const TicketsPage: React.FC = () => {
                       <Button size="small" variant="text" onClick={() => handleOpenDialog(ticket)}>
                         Edit
                       </Button>
+                      <AssignOwner module="tickets" recordId={ticket.id} currentOwnerId={(ticket as any).assignee?.id} onAssigned={fetchTickets} />
                       {ticket.status !== 'Resolved' && (
                         <Button size="small" variant="text" color="success" onClick={() => handleResolve(ticket.id)}>
                           Resolve

@@ -109,6 +109,10 @@ export const api = {
   getMe: () =>
     apiClient.get<ApiResponse<any>>('/users/me'),
 
+  // Users list (Admin/Manager only) — used for owner-assignment dropdowns
+  getUsers: (page = 1, limit = 200) =>
+    apiClient.get<ApiResponse<any[]>>('/users', { params: { page, limit } }),
+
   passwordReset: (email: string) =>
     apiClient.post<ApiResponse<void>>('/auth/password-reset', { email }),
 
@@ -140,6 +144,9 @@ export const api = {
   markLeadLost: (id: string, lostReason: string) =>
     apiClient.patch<ApiResponse<any>>(`/leads/${id}/lost`, { lostReason }),
 
+  assignLead: (id: string, ownerId: string) =>
+    apiClient.patch<ApiResponse<any>>(`/leads/${id}/assign`, { ownerId }),
+
   // Products
   getProducts: (page = 1, limit = 100) =>
     apiClient.get<PaginatedResponse<any>>('/products', { params: { page, limit } }),
@@ -163,6 +170,9 @@ export const api = {
 
   deleteAccount: (id: string) =>
     apiClient.delete<ApiResponse<void>>(`/accounts/${id}`),
+
+  assignAccount: (id: string, ownerId: string) =>
+    apiClient.patch<ApiResponse<any>>(`/accounts/${id}/assign`, { ownerId }),
 
   getAccountTimeline: (id: string) =>
     apiClient.get<ApiResponse<any>>(`/accounts/${id}/timeline`),
@@ -198,6 +208,12 @@ export const api = {
 
   updateOpportunityStage: (id: string, stage: string) =>
     apiClient.patch<ApiResponse<any>>(`/opportunities/${id}/stage`, { stage }),
+
+  assignOpportunity: (id: string, ownerId: string) =>
+    apiClient.patch<ApiResponse<any>>(`/opportunities/${id}/assign`, { ownerId }),
+
+  assignTicket: (id: string, assigneeId: string) =>
+    apiClient.patch<ApiResponse<any>>(`/tickets/${id}/assign`, { assigneeId }),
 
   closeOpportunity: (id: string, data: any) =>
     apiClient.post<ApiResponse<any>>(`/opportunities/${id}/close`, data),

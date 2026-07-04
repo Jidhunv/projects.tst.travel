@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import opportunityService from '../services/opportunity.service';
-import { AuthRequest, getOwnerScope, canAccessRecord, canPerformAction } from '../middleware/auth';
+import { AuthRequest, getOwnerScope, canAccessRecord, canPerformAction, canReassign } from '../middleware/auth';
+import userService from '../services/user.service';
 import { AppError } from '../middleware/errorHandler';
 import { REJECTION_REASONS } from '../utils/constants';
 import logger from '../utils/logger';
@@ -213,6 +214,23 @@ export class OpportunityController {
   async getRejectionReasons(_req: AuthRequest, res: Response, next: NextFunction) {
     try {
       return res.json({ success: true, data: REJECTION_REASONS });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // Reassign an opportunity to another user (Admin/Manager only).
+  async assignOpportunity(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      if (!canReassign(req.user, 'opportunities')) {
+        throw new AppError(403, 'You do not have permission to reassign opportunities');
+      }
+      const { ownerId } = req.body;
+      if (!ownerId) throw new AppError(400, 'ownerId is required');
+      await userService.getUserById(ownerId);
+      const opp = await opportunityService.updateOpportunity(req.params.id, { ownerId } as any);
+      logger.info(`Opportunity ${opp.id} reassigned to ${ownerId} by ${req.user!.email}`);
+      return res.json({ success: true, data: opp });
     } catch (error) {
       next(error);
     }

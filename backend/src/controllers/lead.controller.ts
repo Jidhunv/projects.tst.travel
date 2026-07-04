@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import leadService from '../services/lead.service';
-import { AuthRequest, getOwnerScope, canAccessRecord, canPerformAction } from '../middleware/auth';
+import { AuthRequest, getOwnerScope, canAccessRecord, canPerformAction, canReassign } from '../middleware/auth';
+import userService from '../services/user.service';
 import { AppError } from '../middleware/errorHandler';
 import logger from '../utils/logger';
 
@@ -156,6 +157,23 @@ export class LeadController {
         success: true,
         data: updatedLead,
       });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // Reassign a lead to another user (Admin/Manager only).
+  async assignLead(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      if (!canReassign(req.user, 'leads')) {
+        throw new AppError(403, 'You do not have permission to reassign leads');
+      }
+      const { ownerId } = req.body;
+      if (!ownerId) throw new AppError(400, 'ownerId is required');
+      await userService.getUserById(ownerId); // 404 if target user does not exist
+      const lead = await leadService.updateLead(req.params.id, { ownerId } as any);
+      logger.info(`Lead ${lead.id} reassigned to ${ownerId} by ${req.user!.email}`);
+      return res.json({ success: true, data: lead });
     } catch (error) {
       next(error);
     }

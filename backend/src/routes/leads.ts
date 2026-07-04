@@ -12,6 +12,7 @@ router.get('/:id', (req, res, next) => LeadController.getLead(req, res, next));
 router.patch('/:id', (req, res, next) => LeadController.updateLead(req, res, next));
 router.delete('/:id', (req, res, next) => LeadController.deleteLead(req, res, next));
 router.patch('/:id/status', (req, res, next) => LeadController.updateLeadStatus(req, res, next));
+router.patch('/:id/assign', (req, res, next) => LeadController.assignLead(req, res, next));
 router.post('/:id/convert-to-account', (req, res, next) =>
   LeadController.convertLeadToAccount(req, res, next)
 );
