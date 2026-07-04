@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { User } from '../types';
-import { api } from '@services/api';
+import { api, initializeCsrfToken } from '@services/api';
 
 interface AuthState {
   user: User | null;
@@ -36,6 +36,14 @@ const useAuth = create<AuthState>((set, get) => ({
         const user = response.data.data.user;
         const requiresPasswordChange = response.data.data.requiresPasswordChange || false;
         console.log('Login successful, setting user:', user);
+
+        // Initialize CSRF token after successful login
+        try {
+          await initializeCsrfToken();
+        } catch (error) {
+          console.warn('CSRF token initialization failed, continuing:', error);
+        }
+
         // Store user info in localStorage, but NOT the token (it's in HTTPOnly cookie)
         localStorage.setItem('user', JSON.stringify(user));
         localStorage.setItem('requiresPasswordChange', String(requiresPasswordChange));

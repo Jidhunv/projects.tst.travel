@@ -36,19 +36,24 @@ apiClient.interceptors.response.use(
   }
 );
 
-// Initialize CSRF token on first request
+// Initialize CSRF token on first POST/PATCH/DELETE request
 let csrfInitialized = false;
 
 // Add CSRF token to all requests (from cookie)
 apiClient.interceptors.request.use(
   async (config) => {
-    // Initialize CSRF token by making a GET request if not already done
-    if (!csrfInitialized && config.method?.toLowerCase() !== 'get') {
+    const method = config.method?.toLowerCase();
+    const isStateChangingRequest = ['post', 'patch', 'delete', 'put'].includes(method || '');
+
+    // Initialize CSRF token by making a GET request if not already done and this is a state-changing request
+    if (!csrfInitialized && isStateChangingRequest) {
       try {
+        console.log('Initializing CSRF token before state-changing request...');
         await apiClient.get('/users/me');
         csrfInitialized = true;
+        console.log('CSRF token initialized successfully');
       } catch (error) {
-        // Silently fail - token might be generated anyway
+        console.warn('CSRF token initialization failed:', error);
         csrfInitialized = true;
       }
     }
@@ -56,7 +61,11 @@ apiClient.interceptors.request.use(
     const csrfToken = getCsrfTokenFromCookie();
     if (csrfToken) {
       config.headers['X-CSRF-Token'] = csrfToken;
+      console.log('CSRF token added to request header');
+    } else if (isStateChangingRequest) {
+      console.warn('No CSRF token found for state-changing request!');
     }
+
     return config;
   },
   (error) => Promise.reject(error)
