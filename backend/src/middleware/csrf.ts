@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 
-const csrfTokenStore = new Map<string, { token: string; createdAt: number }>();
 const TOKEN_EXPIRY = 24 * 60 * 60 * 1000; // 24 hours
 
 function generateToken(): string {
@@ -13,108 +12,87 @@ function getCookieValue(req: Request, name: string): string | undefined {
   if (!cookies) return undefined;
 
   for (const cookie of cookies) {
-    const [key, value] = cookie.trim().split('=');
+    const [key, ...rest] = cookie.trim().split('=');
     if (key === name) {
-      return decodeURIComponent(value);
+      return decodeURIComponent(rest.join('='));
     }
   }
 
   return undefined;
 }
 
-function getSessionId(req: Request): string {
-  // Use user ID from JWT token as the most stable session identifier
-  // This ensures the same user always has the same session ID
-
-  try {
-    // Get token from cookie or Authorization header
-    let token = getCookieValue(req, 'auth') || getCookieValue(req, 'authToken');
-
-    if (!token) {
-      const authHeader = (req.headers.authorization as string) || '';
-      if (authHeader.startsWith('Bearer ')) {
-        token = authHeader.substring(7);
-      }
-    }
-
-    if (token) {
-      // Decode JWT payload (don't verify - just extract user ID)
-      // JWT format: header.payload.signature
-      const parts = token.split('.');
-      if (parts.length === 3) {
-        const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
-        const userId = payload.sub || payload.id || payload.userId;
-        if (userId) {
-          return `user:${userId}`;
-        }
-      }
-    }
-  } catch (error) {
-    console.error('[CSRF] Error extracting user ID from token:', error);
-  }
-
-  // Fallback if token parsing fails
-  // This should rarely happen, but provide a stable fallback
-  const ip = req.ip || 'unknown';
-  const ua = req.headers['user-agent'] || 'unknown';
-  return `fallback:${ip}:${ua}`;
-}
-
-export function generateCsrfToken(req: Request, res: Response, next: NextFunction): void {
-  const sessionId = getSessionId(req);
-  const token = generateToken();
-
-  csrfTokenStore.set(sessionId, {
-    token,
-    createdAt: Date.now(),
-  });
-
-  // Set token in response header for frontend to use
+function setCsrfCookie(res: Response, token: string): void {
+  // Expose the token in a header so the SPA can pick it up on first load
   res.set('X-CSRF-Token', token);
-  // Store in cookie with SameSite to prevent CSRF
+  // Non-HttpOnly so the frontend JS can read it and echo it back in a header.
+  // SameSite=Strict is what actually blocks cross-site forgery.
   res.cookie('XSRF-TOKEN', token, {
-    httpOnly: false, // Frontend needs to read this
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
-    maxAge: TOKEN_EXPIRY,
-  });
-
-  next();
-}
-
-export function verifyCsrfToken(req: Request, res: Response, next: NextFunction): void {
-  // Skip CSRF verification for GET, HEAD, OPTIONS (safe methods)
-  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
-    next();
-    return;
-  }
-
-  // Skip CSRF for login and password reset (no auth required yet)
-  if (req.path.includes('/auth/login') || req.path.includes('/auth/password-reset')) {
-    next();
-    return;
-  }
-
-  // CSRF PROTECTION DISABLED
-  // The application uses authenticated sessions (JWT tokens in HTTPOnly cookies)
-  // which provide equivalent CSRF protection. Generating CSRF tokens but not
-  // validating them prevents token mismatch errors while maintaining security.
-
-  const sessionId = getSessionId(req);
-
-  // Generate token for next use (don't validate this one)
-  const newToken = generateToken();
-  csrfTokenStore.set(sessionId, {
-    token: newToken,
-    createdAt: Date.now(),
-  });
-  res.set('X-CSRF-Token', newToken);
-  res.cookie('XSRF-TOKEN', newToken, {
     httpOnly: false,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'strict',
     maxAge: TOKEN_EXPIRY,
   });
+}
+
+/**
+ * Ensure a CSRF cookie exists (double-submit cookie pattern).
+ *
+ * The token is issued ONCE and kept stable. We deliberately do NOT rotate it
+ * on every request — rotation combined with the SPA's concurrent requests was
+ * the root cause of the "CSRF token mismatch" errors, because the cookie the
+ * browser held could get overwritten between the time the SPA read it and the
+ * time it submitted a state-changing request.
+ */
+export function generateCsrfToken(req: Request, res: Response, next: NextFunction): void {
+  const existing = getCookieValue(req, 'XSRF-TOKEN');
+  if (existing) {
+    // Keep the same token; just surface it in the header for convenience.
+    res.set('X-CSRF-Token', existing);
+  } else {
+    setCsrfCookie(res, generateToken());
+  }
+  next();
+}
+
+/**
+ * Verify state-changing requests using the double-submit cookie pattern.
+ *
+ * The X-CSRF-Token header must equal the XSRF-TOKEN cookie. A cross-site
+ * attacker can neither read the SameSite=Strict cookie nor set a custom header
+ * on a cross-origin request, so a match proves the request originated from our
+ * own frontend. No server-side token store or session id is needed, which
+ * removes the fragility that previously caused false mismatches.
+ */
+export function verifyCsrfToken(req: Request, res: Response, next: NextFunction): void {
+  // Safe methods never change state.
+  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+    next();
+    return;
+  }
+
+  // Login and password reset happen before a CSRF cookie can exist.
+  if (req.path.includes('/auth/login') || req.path.includes('/auth/password-reset')) {
+    next();
+    return;
+  }
+
+  const cookieToken = getCookieValue(req, 'XSRF-TOKEN');
+  const headerToken =
+    (req.headers['x-csrf-token'] as string) || (req.body?.csrfToken as string);
+
+  const valid =
+    !!cookieToken &&
+    !!headerToken &&
+    cookieToken.length === headerToken.length &&
+    crypto.timingSafeEqual(Buffer.from(cookieToken), Buffer.from(headerToken));
+
+  if (!valid) {
+    res.status(403).json({
+      success: false,
+      error: 'CSRF token mismatch',
+    });
+    return;
+  }
 
   next();
 }
