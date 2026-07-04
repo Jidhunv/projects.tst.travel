@@ -23,8 +23,10 @@ function getCookieValue(req: Request, name: string): string | undefined {
 }
 
 function getSessionId(req: Request): string {
-  // Use custom header for session ID (set by frontend or use a combination of IP + User-Agent)
-  return (req.headers['x-session-id'] as string) || `${req.ip}:${req.headers['user-agent']}`;
+  // Use auth token or session cookie as session identifier (more reliable than IP)
+  const authToken = (req.headers.authorization as string) || '';
+  const sessionCookie = getCookieValue(req, 'authToken') || '';
+  return (req.headers['x-session-id'] as string) || sessionCookie || authToken || `${req.ip}:${req.headers['user-agent']}`;
 }
 
 export function generateCsrfToken(req: Request, res: Response, next: NextFunction): void {
@@ -104,16 +106,10 @@ export function verifyCsrfToken(req: Request, res: Response, next: NextFunction)
   }
 
   // Verify token matches (constant-time comparison)
-  try {
+  const tokensMatch = stored.token.length === csrfToken.length &&
     crypto.timingSafeEqual(Buffer.from(stored.token), Buffer.from(csrfToken));
-  } catch {
-    res.status(403).json({
-      success: false,
-      error: 'CSRF token mismatch',
-    });
-    return;
-  }
-  if (stored.token !== csrfToken) {
+
+  if (!tokensMatch) {
     res.status(403).json({
       success: false,
       error: 'CSRF token mismatch',
