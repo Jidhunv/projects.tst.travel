@@ -23,10 +23,30 @@ function getCookieValue(req: Request, name: string): string | undefined {
 }
 
 function getSessionId(req: Request): string {
-  // Use auth token or session cookie as session identifier (more reliable than IP)
-  const authToken = (req.headers.authorization as string) || '';
-  const sessionCookie = getCookieValue(req, 'authToken') || '';
-  return (req.headers['x-session-id'] as string) || sessionCookie || authToken || `${req.ip}:${req.headers['user-agent']}`;
+  // Use consistent session identifier based on user authentication
+  // Priority: x-session-id header > authToken cookie > Authorization header > IP:User-Agent
+
+  // First check for explicit session ID header
+  const explicitSessionId = req.headers['x-session-id'] as string;
+  if (explicitSessionId) {
+    return explicitSessionId;
+  }
+
+  // Check for auth token in cookies
+  const authTokenCookie = getCookieValue(req, 'authToken');
+  if (authTokenCookie) {
+    return `session:${authTokenCookie}`;
+  }
+
+  // Check for JWT token in Authorization header
+  const authHeader = (req.headers.authorization as string) || '';
+  if (authHeader.startsWith('Bearer ')) {
+    const token = authHeader.substring(7); // Remove "Bearer " prefix
+    return `bearer:${token.substring(0, 20)}`; // Use first 20 chars of token
+  }
+
+  // Fallback to IP + User-Agent (not ideal but better than nothing)
+  return `fallback:${req.ip}:${req.headers['user-agent']}`;
 }
 
 export function generateCsrfToken(req: Request, res: Response, next: NextFunction): void {
@@ -72,11 +92,24 @@ export function verifyCsrfToken(req: Request, res: Response, next: NextFunction)
     csrfToken = getCookieValue(req, 'XSRF-TOKEN');
   }
 
-  console.log(`[CSRF] Verifying token for sessionId: ${sessionId.substring(0, 20)}...`);
-  console.log(`[CSRF] Token received: ${csrfToken?.substring(0, 20)}...`);
+  console.log(`[CSRF] Session ID: ${sessionId}`);
+  console.log(`[CSRF] Token from request: ${csrfToken?.substring(0, 20)}...`);
 
   if (!csrfToken) {
-    console.log('[CSRF] ❌ No token provided');
+    console.log('[CSRF] ❌ CSRF token missing from request');
+    // Generate token for next use
+    const newToken = generateToken();
+    csrfTokenStore.set(sessionId, {
+      token: newToken,
+      createdAt: Date.now(),
+    });
+    res.set('X-CSRF-Token', newToken);
+    res.cookie('XSRF-TOKEN', newToken, {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: TOKEN_EXPIRY,
+    });
     res.status(403).json({
       success: false,
       error: 'CSRF token is missing',
@@ -86,9 +119,10 @@ export function verifyCsrfToken(req: Request, res: Response, next: NextFunction)
 
   const stored = csrfTokenStore.get(sessionId);
   console.log(`[CSRF] Token in store: ${stored?.token.substring(0, 20)}...`);
+  console.log(`[CSRF] Store keys: ${Array.from(csrfTokenStore.keys()).slice(0, 3)}`);
 
   if (!stored) {
-    console.log('[CSRF] ❌ Session token not found in store');
+    console.log('[CSRF] ❌ Session not found in CSRF store - generating new token');
     // Token doesn't exist, generate a new one for this session
     const newToken = generateToken();
     csrfTokenStore.set(sessionId, {
@@ -104,7 +138,7 @@ export function verifyCsrfToken(req: Request, res: Response, next: NextFunction)
 
   // Check token expiration
   if (Date.now() - stored.createdAt > TOKEN_EXPIRY) {
-    console.log('[CSRF] ❌ Token expired');
+    console.log('[CSRF] ❌ CSRF token expired');
     csrfTokenStore.delete(sessionId);
     res.status(403).json({
       success: false,
@@ -118,7 +152,9 @@ export function verifyCsrfToken(req: Request, res: Response, next: NextFunction)
     crypto.timingSafeEqual(Buffer.from(stored.token), Buffer.from(csrfToken));
 
   if (!tokensMatch) {
-    console.log(`[CSRF] ❌ Token mismatch - Expected: ${stored.token.substring(0, 20)}..., Got: ${csrfToken.substring(0, 20)}...`);
+    console.log(`[CSRF] ❌ Token mismatch!`);
+    console.log(`[CSRF] Expected: ${stored.token.substring(0, 20)}...`);
+    console.log(`[CSRF] Got:      ${csrfToken.substring(0, 20)}...`);
     res.status(403).json({
       success: false,
       error: 'CSRF token mismatch',
@@ -126,7 +162,7 @@ export function verifyCsrfToken(req: Request, res: Response, next: NextFunction)
     return;
   }
 
-  console.log('[CSRF] ✅ Token validated successfully');
+  console.log('[CSRF] ✅ Token validation successful');
 
   // Token is valid, regenerate for next use
   const newToken = generateToken();
