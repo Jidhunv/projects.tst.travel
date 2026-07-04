@@ -91,14 +91,22 @@ export const UsersPage: React.FC = () => {
   const handleSave = async () => {
     try {
       if (selectedUser) {
-        const updateData = {
+        const updateData: any = {
           firstName: formData.firstName,
           lastName: formData.lastName,
           phoneNumber: formData.phoneNumber,
           roleId: formData.roleId,
         };
+        // Only send the password when the admin actually set one, so we don't
+        // overwrite the existing password with an empty value.
+        if (formData.password) {
+          updateData.password = formData.password;
+        }
         const response = await apiClient.patch(`/users/${selectedUser.id}`, updateData);
         setUsers(users.map((u) => (u.id === selectedUser.id ? response.data.data : u)));
+        if (formData.password) {
+          alert('Password updated for this user.');
+        }
       } else {
         const response = await apiClient.post('/users', formData);
         setUsers([...users, response.data.data]);
