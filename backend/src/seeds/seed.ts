@@ -203,7 +203,7 @@ async function seed() {
       where: { email: 'admin@tst.travel' },
     });
     if (!adminUser) {
-      const hashedPassword = await bcrypt.hash('SecureAdmin@2026!', 10);
+      const hashedPassword = await bcrypt.hash('SecureAdmin@2026!', 12);
       await userRepository.save(
         userRepository.create({
           email: 'admin@tst.travel',
@@ -220,7 +220,7 @@ async function seed() {
       where: { email: 'sales@tst.travel' },
     });
     if (!salesRepUser) {
-      const hashedPassword = await bcrypt.hash('sales123', 10);
+      const hashedPassword = await bcrypt.hash('sales123', 12);
       await userRepository.save(
         userRepository.create({
           email: 'sales@tst.travel',
@@ -238,7 +238,7 @@ async function seed() {
       where: { email: 'manager@tst.travel' },
     });
     if (!stageManagerUser) {
-      const hashedPassword = await bcrypt.hash('Manager@2026!', 10);
+      const hashedPassword = await bcrypt.hash('Manager@2026!', 12);
       await userRepository.save(
         userRepository.create({
           email: 'manager@tst.travel',

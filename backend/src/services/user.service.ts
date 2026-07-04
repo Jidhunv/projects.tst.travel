@@ -26,7 +26,7 @@ export class UserService {
       throw new AppError(409, 'User with this email already exists');
     }
 
-    const hashedPassword = await bcrypt.hash(data.password, 10);
+    const hashedPassword = await bcrypt.hash(data.password, 12);
     const user = this.userRepository.create({
       ...data,
       password: hashedPassword,
@@ -87,7 +87,7 @@ export class UserService {
     const user = await this.getUserById(id);
 
     if (data.password) {
-      data.password = await bcrypt.hash(data.password, 10);
+      data.password = await bcrypt.hash(data.password, 12);
     }
 
     Object.assign(user, data);
@@ -202,7 +202,7 @@ export class UserService {
       throw new AppError(400, 'Invalid or expired reset token');
     }
 
-    user.password = await bcrypt.hash(newPassword, 10);
+    user.password = await bcrypt.hash(newPassword, 12);
     user.resetToken = null as unknown as string;
     user.resetTokenExpiry = null as unknown as Date;
     user.hasChangedPasswordOnFirstLogin = true;
@@ -217,7 +217,7 @@ export class UserService {
       throw new AppError(400, 'Password has already been changed on first login');
     }
 
-    user.password = await bcrypt.hash(newPassword, 10);
+    user.password = await bcrypt.hash(newPassword, 12);
     user.hasChangedPasswordOnFirstLogin = true;
     user.passwordChangedAt = new Date();
     return await this.userRepository.save(user);
@@ -231,7 +231,7 @@ export class UserService {
       throw new AppError(401, 'Current password is incorrect');
     }
 
-    user.password = await bcrypt.hash(newPassword, 10);
+    user.password = await bcrypt.hash(newPassword, 12);
     user.passwordChangedAt = new Date();
     return await this.userRepository.save(user);
   }
@@ -239,7 +239,7 @@ export class UserService {
   async setUserPassword(userId: string, newPassword: string): Promise<User> {
     const user = await this.getUserById(userId);
 
-    user.password = await bcrypt.hash(newPassword, 10);
+    user.password = await bcrypt.hash(newPassword, 12);
     user.hasChangedPasswordOnFirstLogin = false;
     user.passwordChangedAt = new Date();
     return await this.userRepository.save(user);
