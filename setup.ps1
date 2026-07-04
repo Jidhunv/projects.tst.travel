@@ -154,6 +154,6 @@ Write-Host ""
 Write-Host "Or use: .\start-dev.ps1" -ForegroundColor Green
 Write-Host ""
 Write-Host "Login at http://localhost:3000" -ForegroundColor Yellow
-Write-Host "Email: admin@crm.local" -ForegroundColor Yellow
+Write-Host "Email: admin@tst.travel" -ForegroundColor Yellow
 Write-Host "Password: admin123" -ForegroundColor Yellow
 Write-Host ""

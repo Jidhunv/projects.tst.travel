@@ -127,7 +127,7 @@ EOF
 
 - **Frontend**: http://localhost:3000
 - **Backend API**: http://localhost:3001
-- **Default Login**: admin@crm.local / Admin@12345
+- **Default Login**: admin@tst.travel / Admin@12345
 
 ---
 

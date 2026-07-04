@@ -186,7 +186,7 @@ SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USER=your-email@gmail.com
 SMTP_PASSWORD=your-app-password
-SMTP_FROM_EMAIL=noreply@crm.local
+SMTP_FROM_EMAIL=noreply@tst.travel
 SMTP_FROM_NAME=CRM System
 ENABLE_EMAIL_NOTIFICATIONS=true
 

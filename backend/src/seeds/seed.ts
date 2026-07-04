@@ -200,13 +200,13 @@ async function seed() {
 
     // Create demo users
     const adminUser = await userRepository.findOne({
-      where: { email: 'admin@crm.local' },
+      where: { email: 'admin@tst.travel' },
     });
     if (!adminUser) {
       const hashedPassword = await bcrypt.hash('SecureAdmin@2026!', 10);
       await userRepository.save(
         userRepository.create({
-          email: 'admin@crm.local',
+          email: 'admin@tst.travel',
           password: hashedPassword,
           firstName: 'Admin',
           lastName: 'User',
@@ -217,13 +217,13 @@ async function seed() {
     }
 
     const salesRepUser = await userRepository.findOne({
-      where: { email: 'sales@crm.local' },
+      where: { email: 'sales@tst.travel' },
     });
     if (!salesRepUser) {
       const hashedPassword = await bcrypt.hash('sales123', 10);
       await userRepository.save(
         userRepository.create({
-          email: 'sales@crm.local',
+          email: 'sales@tst.travel',
           password: hashedPassword,
           firstName: 'John',
           lastName: 'Smith',
@@ -235,13 +235,13 @@ async function seed() {
     }
 
     const stageManagerUser = await userRepository.findOne({
-      where: { email: 'manager@crm.local' },
+      where: { email: 'manager@tst.travel' },
     });
     if (!stageManagerUser) {
       const hashedPassword = await bcrypt.hash('Manager@2026!', 10);
       await userRepository.save(
         userRepository.create({
-          email: 'manager@crm.local',
+          email: 'manager@tst.travel',
           password: hashedPassword,
           firstName: 'Sarah',
           lastName: 'Johnson',
@@ -258,7 +258,7 @@ async function seed() {
     const ticketRepository = AppDataSource.getRepository(require('../models/Ticket').Ticket);
     const accountRepository = AppDataSource.getRepository(require('../models/Account').Account);
 
-    const ticketReporter = await userRepository.findOne({ where: { email: 'admin@crm.local' } });
+    const ticketReporter = await userRepository.findOne({ where: { email: 'admin@tst.travel' } });
     const accounts = await accountRepository.find({ take: 2 });
 
     if (accounts.length > 0 && ticketReporter) {

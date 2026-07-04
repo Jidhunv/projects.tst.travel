@@ -103,7 +103,7 @@ docker-compose up -d
 # 4. Access
 # Frontend: http://localhost:3000
 # Backend: http://localhost:3001
-# Admin: admin@crm.local / Admin@12345
+# Admin: admin@tst.travel / Admin@12345
 ```
 **Time**: ~5 minutes | **Complexity**: Low | **Production Ready**: Yes
 

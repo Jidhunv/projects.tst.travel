@@ -67,11 +67,11 @@ Frontend runs on **http://localhost:3000** (opens automatically)
 ## Demo Login
 
 **Admin Account:**
-- Email: `admin@crm.local`
+- Email: `admin@tst.travel`
 - Password: `admin123`
 
 **Sales Rep Account:**
-- Email: `sales@crm.local`
+- Email: `sales@tst.travel`
 - Password: `sales123`
 
 ## What's Included (MVP)
@@ -189,7 +189,7 @@ curl http://localhost:3001/api/health
 # Login
 curl -X POST http://localhost:3001/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"admin@crm.local","password":"admin123"}'
+  -d '{"email":"admin@tst.travel","password":"admin123"}'
 ```
 
 ### Reset Database

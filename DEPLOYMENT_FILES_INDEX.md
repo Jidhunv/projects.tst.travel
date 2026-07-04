@@ -346,7 +346,7 @@ curl http://localhost:3001/api/users
 
 # 5. Access application
 # Frontend: http://localhost:3000
-# Login: admin@crm.local / Admin@12345
+# Login: admin@tst.travel / Admin@12345
 ```
 
 ### For Troubleshooting
@@ -426,7 +426,7 @@ docker-compose ps
 - [ ] Review applicable deployment guide section
 - [ ] Execute deployment commands
 - [ ] Run verification commands
-- [ ] Test login flow (admin@crm.local)
+- [ ] Test login flow (admin@tst.travel)
 - [ ] Test email sending
 - [ ] Setup monitoring/alerts
 - [ ] Setup automated backups

@@ -134,8 +134,8 @@ Complete reset to fresh state:
 .\manage-db.ps1 -Action seed
 ```
 Populates database with:
-- Admin user (admin@crm.local / admin123)
-- Sales Rep user (sales@crm.local / sales123)
+- Admin user (admin@tst.travel / admin123)
+- Sales Rep user (sales@tst.travel / sales123)
 - All roles (Admin, Manager, Sales Rep)
 - All permissions
 

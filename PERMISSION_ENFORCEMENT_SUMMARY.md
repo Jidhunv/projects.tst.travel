@@ -295,7 +295,7 @@ if (req.user?.role === 'Deal Stage Manager') {
 # 1. Login as Deal Stage Manager
 curl -X POST http://127.0.0.1:3001/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"manager@crm.local","password":"manager123"}' \
+  -d '{"email":"manager@tst.travel","password":"manager123"}' \
   -c cookies.txt
 
 # 2. Try to create a lead (should be DENIED)

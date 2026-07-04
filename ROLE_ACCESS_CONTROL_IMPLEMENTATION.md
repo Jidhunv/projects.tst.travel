@@ -14,7 +14,7 @@ GET /api/users/me
   "success": true,
   "data": {
     "id": "user-uuid",
-    "email": "sales@crm.local",
+    "email": "sales@tst.travel",
     "firstName": "John",
     "lastName": "Smith",
     "phoneNumber": "...",
@@ -252,7 +252,7 @@ Authorization: Bearer <salesperson_jwt_token>
 ```bash
 # Login as Sales Rep
 POST /api/auth/login
-Body: { "email": "sales@crm.local", "password": "sales123" }
+Body: { "email": "sales@tst.travel", "password": "sales123" }
 
 # View own profile (should succeed)
 GET /api/users/me
@@ -280,7 +280,7 @@ GET /api/roles
 ```bash
 # Login as Manager
 POST /api/auth/login
-Body: { "email": "manager@crm.local", "password": "..." }
+Body: { "email": "manager@tst.travel", "password": "..." }
 
 # View all leads
 GET /api/leads?page=1&limit=20
@@ -292,7 +292,7 @@ GET /api/leads?page=1&limit=20
 ```bash
 # Login as Admin
 POST /api/auth/login
-Body: { "email": "admin@crm.local", "password": "SecureAdmin@2026!" }
+Body: { "email": "admin@tst.travel", "password": "SecureAdmin@2026!" }
 
 # List all roles (should succeed)
 GET /api/roles

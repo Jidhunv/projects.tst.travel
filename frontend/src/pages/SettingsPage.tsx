@@ -203,7 +203,7 @@ export const SettingsPage: React.FC = () => {
                 label="From Email"
                 value={emailSettings.fromEmail}
                 onChange={(e) => handleSettingChange('fromEmail', e.target.value)}
-                placeholder="noreply@crm.local"
+                placeholder="noreply@tst.travel"
                 sx={{ mb: 2 }}
               />
 
