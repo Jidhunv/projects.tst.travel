@@ -72,7 +72,11 @@ export function verifyCsrfToken(req: Request, res: Response, next: NextFunction)
     csrfToken = getCookieValue(req, 'XSRF-TOKEN');
   }
 
+  console.log(`[CSRF] Verifying token for sessionId: ${sessionId.substring(0, 20)}...`);
+  console.log(`[CSRF] Token received: ${csrfToken?.substring(0, 20)}...`);
+
   if (!csrfToken) {
+    console.log('[CSRF] ❌ No token provided');
     res.status(403).json({
       success: false,
       error: 'CSRF token is missing',
@@ -81,7 +85,10 @@ export function verifyCsrfToken(req: Request, res: Response, next: NextFunction)
   }
 
   const stored = csrfTokenStore.get(sessionId);
+  console.log(`[CSRF] Token in store: ${stored?.token.substring(0, 20)}...`);
+
   if (!stored) {
+    console.log('[CSRF] ❌ Session token not found in store');
     // Token doesn't exist, generate a new one for this session
     const newToken = generateToken();
     csrfTokenStore.set(sessionId, {
@@ -97,6 +104,7 @@ export function verifyCsrfToken(req: Request, res: Response, next: NextFunction)
 
   // Check token expiration
   if (Date.now() - stored.createdAt > TOKEN_EXPIRY) {
+    console.log('[CSRF] ❌ Token expired');
     csrfTokenStore.delete(sessionId);
     res.status(403).json({
       success: false,
@@ -110,12 +118,15 @@ export function verifyCsrfToken(req: Request, res: Response, next: NextFunction)
     crypto.timingSafeEqual(Buffer.from(stored.token), Buffer.from(csrfToken));
 
   if (!tokensMatch) {
+    console.log(`[CSRF] ❌ Token mismatch - Expected: ${stored.token.substring(0, 20)}..., Got: ${csrfToken.substring(0, 20)}...`);
     res.status(403).json({
       success: false,
       error: 'CSRF token mismatch',
     });
     return;
   }
+
+  console.log('[CSRF] ✅ Token validated successfully');
 
   // Token is valid, regenerate for next use
   const newToken = generateToken();
@@ -130,6 +141,8 @@ export function verifyCsrfToken(req: Request, res: Response, next: NextFunction)
     sameSite: 'strict',
     maxAge: TOKEN_EXPIRY,
   });
+
+  console.log(`[CSRF] ✅ New token generated: ${newToken.substring(0, 20)}...`);
 
   next();
 }
