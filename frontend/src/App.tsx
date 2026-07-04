@@ -22,6 +22,9 @@ import { NotificationsPage } from '@pages/NotificationsPage';
 import { UsersPage } from '@pages/UsersPage';
 import { RolesPage } from '@pages/RolesPage';
 import { ProductsPage } from '@pages/ProductsPage';
+import { SuppliersPage } from '@pages/SuppliersPage';
+import { SalesVisitsPage } from '@pages/SalesVisitsPage';
+import { ExpensesPage } from '@pages/ExpensesPage';
 import { SettingsPage } from '@pages/SettingsPage';
 import { ForgotPasswordPage } from '@pages/ForgotPasswordPage';
 import { ResetPasswordPage } from '@pages/ResetPasswordPage';
@@ -247,6 +250,30 @@ function App() {
             element={
               <ProtectedRoute>
                 <ProductsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/suppliers"
+            element={
+              <ProtectedRoute module="suppliers">
+                <SuppliersPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/sales-visits"
+            element={
+              <ProtectedRoute module="sales_visits">
+                <SalesVisitsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/expenses"
+            element={
+              <ProtectedRoute module="expenses">
+                <ExpensesPage />
               </ProtectedRoute>
             }
           />

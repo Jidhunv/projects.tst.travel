@@ -64,6 +64,10 @@ export default function LeadsPage() {
   const [openCreate, setOpenCreate] = useState(false);
   const [openEdit, setOpenEdit] = useState<Lead | null>(null);
 
+  const [suppliers, setSuppliers] = useState<any[]>([]);
+  const [regionFilter, setRegionFilter] = useState('');
+  const [countryFilter, setCountryFilter] = useState('');
+
   const [form, setForm] = useState({
     firstName: '',
     lastName: '',
@@ -76,6 +80,10 @@ export default function LeadsPage() {
     remark: '',
     source: '',
     status: '',
+    businessVolume: '',
+    supplierList: [] as string[],
+    region: '',
+    country: '',
   });
 
   const fetchLeads = React.useCallback(async () => {
@@ -87,6 +95,8 @@ export default function LeadsPage() {
       if (sourceFilter) params.source = sourceFilter;
       if (dateFromFilter) params.fromDate = dateFromFilter;
       if (dateToFilter) params.toDate = dateToFilter;
+      if (regionFilter) params.region = regionFilter;
+      if (countryFilter) params.country = countryFilter;
 
       const response = await apiClient.get('/leads', { params });
       setLeads(response.data.data || []);
@@ -94,11 +104,11 @@ export default function LeadsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, search, statusFilter, sourceFilter, dateFromFilter, dateToFilter]);
+  }, [page, pageSize, search, statusFilter, sourceFilter, dateFromFilter, dateToFilter, regionFilter, countryFilter]);
 
   useEffect(() => {
     setPage(1);
-  }, [search, statusFilter, sourceFilter, dateFromFilter, dateToFilter]);
+  }, [search, statusFilter, sourceFilter, dateFromFilter, dateToFilter, regionFilter, countryFilter]);
 
   useEffect(() => {
     fetchLeads();
@@ -106,6 +116,7 @@ export default function LeadsPage() {
 
   useEffect(() => {
     apiClient.get('/products').then((r) => setProducts(r.data.data || []));
+    apiClient.get('/suppliers').then((r) => setSuppliers(r.data.data || [])).catch(() => {});
   }, []);
 
   const handleCreate = async () => {
@@ -123,6 +134,10 @@ export default function LeadsPage() {
         productIds: form.productIds,
         productNames: productNames,
         remark: form.remark,
+        businessVolume: form.businessVolume ? Number(form.businessVolume) : undefined,
+        supplierList: form.supplierList,
+        region: form.region || undefined,
+        country: form.country || undefined,
       });
       setOpenCreate(false);
       setForm({
@@ -137,6 +152,10 @@ export default function LeadsPage() {
         remark: '',
         source: '',
         status: '',
+        businessVolume: '',
+        supplierList: [],
+        region: '',
+        country: '',
       });
       fetchLeads();
     } catch (error) {
@@ -172,6 +191,10 @@ export default function LeadsPage() {
         productIds: form.productIds,
         productNames: productNames,
         remark: form.remark,
+        businessVolume: form.businessVolume ? Number(form.businessVolume) : undefined,
+        supplierList: form.supplierList,
+        region: form.region || undefined,
+        country: form.country || undefined,
       });
       setOpenEdit(null);
       fetchLeads();
@@ -216,6 +239,10 @@ export default function LeadsPage() {
         ? (lead as any).productIds
         : lead.productId ? [lead.productId] : [],
       remark: lead.remark || '',
+      businessVolume: (lead as any).businessVolume != null ? String((lead as any).businessVolume) : '',
+      supplierList: (lead as any).supplierList || [],
+      region: (lead as any).region || '',
+      country: (lead as any).country || '',
     });
   };
 
@@ -319,6 +346,24 @@ export default function LeadsPage() {
                   value={dateToFilter}
                   onChange={(e) => setDateToFilter(e.target.value)}
                   InputLabelProps={{ shrink: true }}
+                  size="small"
+                />
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <TextField
+                  fullWidth
+                  label="Region"
+                  value={regionFilter}
+                  onChange={(e) => setRegionFilter(e.target.value)}
+                  size="small"
+                />
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <TextField
+                  fullWidth
+                  label="Country"
+                  value={countryFilter}
+                  onChange={(e) => setCountryFilter(e.target.value)}
                   size="small"
                 />
               </Grid>
@@ -569,6 +614,42 @@ export default function LeadsPage() {
                 </Box>
               </Box>
             )}
+            <TextField
+              fullWidth
+              label="Business Volume"
+              type="number"
+              value={form.businessVolume}
+              onChange={(e) => setForm({ ...form, businessVolume: e.target.value })}
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              fullWidth
+              select
+              label="Supplier List (Multi-Select)"
+              value={form.supplierList}
+              onChange={(e) => setForm({ ...form, supplierList: typeof e.target.value === 'string' ? [e.target.value] : e.target.value })}
+              SelectProps={{ multiple: true }}
+              helperText={suppliers.length === 0 ? 'No suppliers yet — add them in Supplier Master' : ''}
+              sx={{ mb: 2 }}
+            >
+              {suppliers.map((s) => (
+                <MenuItem key={s.id} value={s.name}>{s.name}</MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              fullWidth
+              label="Region"
+              value={form.region}
+              onChange={(e) => setForm({ ...form, region: e.target.value })}
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              fullWidth
+              label="Country"
+              value={form.country}
+              onChange={(e) => setForm({ ...form, country: e.target.value })}
+              sx={{ mb: 2 }}
+            />
             <TextField
               fullWidth
               label="Remark"

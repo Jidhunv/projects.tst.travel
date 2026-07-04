@@ -55,7 +55,13 @@ export default function AccountsPage() {
     phoneNumber: '',
     alternatePhoneNumber: '',
     type: 'Prospect' as 'Prospect' | 'Customer' | 'Inactive',
+    contactPerson: '',
+    city: '',
+    region: '',
+    country: '',
   });
+
+  const [acctFilters, setAcctFilters] = React.useState({ search: '', city: '', region: '', country: '' });
 
   const [duplicateWarning, setDuplicateWarning] = React.useState('');
 
@@ -74,7 +80,9 @@ export default function AccountsPage() {
   const fetchAccounts = React.useCallback(async () => {
     setLoading(true);
     try {
-      const response = await api.getAccounts(page, pageSize);
+      const params: any = {};
+      Object.entries(acctFilters).forEach(([k, v]) => { if (v) params[k] = v; });
+      const response = await api.getAccounts(page, pageSize, params);
       if (response.data.success) {
         setAccounts(response.data.data || []);
         setTotal(response.data.meta?.total || 0);
@@ -84,7 +92,7 @@ export default function AccountsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize]);
+  }, [page, pageSize, acctFilters]);
 
   React.useEffect(() => {
     fetchAccounts();
@@ -117,6 +125,10 @@ export default function AccountsPage() {
       phoneNumber: '',
       alternatePhoneNumber: '',
       type: 'Prospect',
+      contactPerson: '',
+      city: '',
+      region: '',
+      country: '',
     });
     setDuplicateWarning('');
     setOpenCreate(true);
@@ -142,6 +154,10 @@ export default function AccountsPage() {
       phoneNumber: account.phoneNumber || '',
       alternatePhoneNumber: (account as any).alternatePhoneNumber || '',
       type: account.type,
+      contactPerson: (account as any).contactPerson || '',
+      city: (account as any).city || '',
+      region: (account as any).region || '',
+      country: (account as any).country || '',
     });
     setOnboardingData({
       onboardingStatus: (account.onboardingStatus as any) || 'Not Started',
@@ -207,6 +223,13 @@ export default function AccountsPage() {
   return (
     <Layout>
       <Box>
+        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 2 }}>
+          <TextField size="small" label="Search" value={acctFilters.search} onChange={(e) => setAcctFilters({ ...acctFilters, search: e.target.value })} />
+          <TextField size="small" label="City" value={acctFilters.city} onChange={(e) => setAcctFilters({ ...acctFilters, city: e.target.value })} />
+          <TextField size="small" label="Region" value={acctFilters.region} onChange={(e) => setAcctFilters({ ...acctFilters, region: e.target.value })} />
+          <TextField size="small" label="Country" value={acctFilters.country} onChange={(e) => setAcctFilters({ ...acctFilters, country: e.target.value })} />
+          <Button onClick={() => setAcctFilters({ search: '', city: '', region: '', country: '' })}>Clear</Button>
+        </Box>
         <DataTable
           columns={columns}
           rows={accounts}
@@ -272,6 +295,10 @@ export default function AccountsPage() {
                 <MenuItem value="Customer">Customer</MenuItem>
                 <MenuItem value="Inactive">Inactive</MenuItem>
               </TextField>
+              <TextField label="Contact Person" value={formData.contactPerson} onChange={(e) => setFormData({ ...formData, contactPerson: e.target.value })} fullWidth />
+              <TextField label="City" value={formData.city} onChange={(e) => setFormData({ ...formData, city: e.target.value })} fullWidth />
+              <TextField label="Region" value={formData.region} onChange={(e) => setFormData({ ...formData, region: e.target.value })} fullWidth />
+              <TextField label="Country" value={formData.country} onChange={(e) => setFormData({ ...formData, country: e.target.value })} fullWidth />
             </Box>
           </DialogContent>
           <DialogActions>
@@ -344,6 +371,10 @@ export default function AccountsPage() {
                   <MenuItem value="Customer">Customer</MenuItem>
                   <MenuItem value="Inactive">Inactive</MenuItem>
                 </TextField>
+                <TextField label="Contact Person" value={formData.contactPerson} onChange={(e) => setFormData({ ...formData, contactPerson: e.target.value })} fullWidth />
+                <TextField label="City" value={formData.city} onChange={(e) => setFormData({ ...formData, city: e.target.value })} fullWidth />
+                <TextField label="Region" value={formData.region} onChange={(e) => setFormData({ ...formData, region: e.target.value })} fullWidth />
+                <TextField label="Country" value={formData.country} onChange={(e) => setFormData({ ...formData, country: e.target.value })} fullWidth />
               </Box>
             )}
 

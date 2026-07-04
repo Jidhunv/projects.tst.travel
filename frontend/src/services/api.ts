@@ -224,6 +224,29 @@ export const api = {
 
   getSalesReport: (filters?: Record<string, any>) =>
     apiClient.get<ApiResponse<any>>('/reports/sales', { params: filters }),
+
+  // Suppliers (master data)
+  getSuppliers: (filters?: Record<string, any>) =>
+    apiClient.get<ApiResponse<any[]>>('/suppliers', { params: filters }),
+  createSupplier: (data: any) => apiClient.post<ApiResponse<any>>('/suppliers', data),
+  updateSupplier: (id: string, data: any) => apiClient.patch<ApiResponse<any>>(`/suppliers/${id}`, data),
+  deleteSupplier: (id: string) => apiClient.delete<ApiResponse<void>>(`/suppliers/${id}`),
+
+  // Sales visits / calls (Sales Report source)
+  getSalesVisits: (filters?: Record<string, any>) =>
+    apiClient.get<ApiResponse<any[]>>('/sales-visits', { params: filters }),
+  createSalesVisit: (data: any) => apiClient.post<ApiResponse<any>>('/sales-visits', data),
+  updateSalesVisit: (id: string, data: any) => apiClient.patch<ApiResponse<any>>(`/sales-visits/${id}`, data),
+  deleteSalesVisit: (id: string) => apiClient.delete<ApiResponse<void>>(`/sales-visits/${id}`),
+
+  // Expense management (with approval workflow)
+  getExpenses: (filters?: Record<string, any>) =>
+    apiClient.get<ApiResponse<any[]>>('/expenses', { params: filters }),
+  createExpense: (data: any) => apiClient.post<ApiResponse<any>>('/expenses', data),
+  updateExpense: (id: string, data: any) => apiClient.patch<ApiResponse<any>>(`/expenses/${id}`, data),
+  decideExpense: (id: string, decision: 'Approved' | 'Rejected', notes?: string) =>
+    apiClient.post<ApiResponse<any>>(`/expenses/${id}/decision`, { decision, notes }),
+  deleteExpense: (id: string) => apiClient.delete<ApiResponse<void>>(`/expenses/${id}`),
 };
 
 export default apiClient;

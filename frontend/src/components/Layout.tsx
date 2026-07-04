@@ -30,6 +30,9 @@ import {
   PersonAdd as UserIcon,
   Security as SecurityIcon,
   Inventory as ProductIcon,
+  LocalShipping as SupplierIcon,
+  EventNote as VisitIcon,
+  RequestQuote as ExpenseIcon,
 } from '@mui/icons-material';
 import useAuth from '@hooks/useAuth';
 
@@ -70,6 +73,9 @@ export default function Layout({ children }: LayoutProps) {
     { text: 'Invoices', icon: <InvoiceIcon />, path: '/invoices', show: true },
     { text: 'Tickets', icon: <TicketIcon />, path: '/tickets', show: canViewModule('tickets') },
     { text: 'Products', icon: <ProductIcon />, path: '/products', show: true },
+    { text: 'Suppliers', icon: <SupplierIcon />, path: '/suppliers', show: canViewModule('suppliers') },
+    { text: 'Sales Report', icon: <VisitIcon />, path: '/sales-visits', show: canViewModule('sales_visits') },
+    { text: 'Expenses', icon: <ExpenseIcon />, path: '/expenses', show: canViewModule('expenses') },
     { text: 'Notifications', icon: <NotificationIcon />, path: '/notifications', show: true },
     { text: 'Audit Logs', icon: <AuditIcon />, path: '/audit-logs', show: canViewModule('audit_log') || hasPermission('admin', 'view_audit_log') },
     { text: 'Users', icon: <UserIcon />, path: '/users', show: canViewModule('users') || hasPermission('admin', 'manage_users') },
