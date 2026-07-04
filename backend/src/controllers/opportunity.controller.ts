@@ -57,7 +57,7 @@ export class OpportunityController {
       const { page = 1, limit = 20, stage, status, ownerId, accountId, search, fromDate, toDate, amountFrom, amountTo } = req.query;
 
       // Sales Reps see only their own opportunities; Admin/Manager see all.
-      const scope = getOwnerScope(req.user);
+      const scope = getOwnerScope(req.user, 'opportunities');
       const effectiveOwnerId = scope ?? (ownerId as string);
 
       const { data, total } = await opportunityService.getOpportunities({
@@ -94,7 +94,7 @@ export class OpportunityController {
       const { id } = req.params;
       const opp = await opportunityService.getOpportunityById(id);
 
-      if (!canAccessRecord(req.user, opp.ownerId)) {
+      if (!canAccessRecord(req.user, 'opportunities', opp.ownerId)) {
         throw new AppError(403, 'You can only view your own opportunities');
       }
 
@@ -114,7 +114,7 @@ export class OpportunityController {
 
       const opp = await opportunityService.getOpportunityById(id);
 
-      if (!canAccessRecord(req.user, opp.ownerId)) {
+      if (!canAccessRecord(req.user, 'opportunities', opp.ownerId, 'update')) {
         throw new AppError(403, 'You can only update your own opportunities');
       }
 
@@ -152,7 +152,7 @@ export class OpportunityController {
 
       const opp = await opportunityService.getOpportunityById(id);
 
-      if (!canAccessRecord(req.user, opp.ownerId)) {
+      if (!canAccessRecord(req.user, 'opportunities', opp.ownerId, 'update')) {
         throw new AppError(403, 'You can only update your own opportunities');
       }
 
@@ -190,7 +190,7 @@ export class OpportunityController {
 
       const opp = await opportunityService.getOpportunityById(id);
 
-      if (!canAccessRecord(req.user, opp.ownerId)) {
+      if (!canAccessRecord(req.user, 'opportunities', opp.ownerId, 'update')) {
         throw new AppError(403, 'You can only close your own opportunities');
       }
 
@@ -222,7 +222,7 @@ export class OpportunityController {
 
       const opp = await opportunityService.getOpportunityById(id);
 
-      if (!canAccessRecord(req.user, opp.ownerId)) {
+      if (!canAccessRecord(req.user, 'opportunities', opp.ownerId, 'delete')) {
         throw new AppError(403, 'You can only delete your own opportunities');
       }
 

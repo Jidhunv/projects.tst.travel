@@ -217,6 +217,12 @@ export class UserController {
 
       const user = await userService.getUserById(req.user.id);
 
+      // Flatten the role's permissions to "module:action:scope" strings so the
+      // frontend can decide which modules/actions to show for this user.
+      const permissions = (user.role?.permissions || []).map(
+        (p) => `${p.module}:${p.action}:${p.scope || 'all'}`
+      );
+
       return res.json({
         success: true,
         data: {
@@ -230,6 +236,7 @@ export class UserController {
             name: user.role.name,
             description: user.role.description,
           } : null,
+          permissions,
           isActive: user.isActive,
         },
       });

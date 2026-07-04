@@ -39,7 +39,7 @@ export class AccountController {
       const { page = 1, limit = 20, status, type, ownerId, search } = req.query;
 
       // Sales Reps see only their own accounts; Admin/Manager see all.
-      const scope = getOwnerScope(req.user);
+      const scope = getOwnerScope(req.user, 'accounts');
       const effectiveOwnerId = scope ?? (ownerId as string);
 
       const { data, total } = await accountService.getAccounts({
@@ -71,7 +71,7 @@ export class AccountController {
       const { id } = req.params;
       const account = await accountService.getAccountById(id);
 
-      if (!canAccessRecord(req.user, account.ownerId)) {
+      if (!canAccessRecord(req.user, 'accounts', account.ownerId)) {
         throw new AppError(403, 'You can only view your own accounts');
       }
 

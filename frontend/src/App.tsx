@@ -40,11 +40,30 @@ const theme = createTheme({
   },
 });
 
-const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user } = useAuth();
+const ProtectedRoute: React.FC<{
+  children: React.ReactNode;
+  module?: string;
+  permission?: [string, string];
+  anyPermission?: [string, string][];
+}> = ({ children, module, permission, anyPermission }) => {
+  const { user, canViewModule, hasPermission } = useAuth();
 
   if (!user) {
     return <Navigate to="/login" replace />;
+  }
+
+  // Module is not viewable for this role -> not reachable by URL either.
+  if (module && !canViewModule(module)) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  if (permission && !hasPermission(permission[0], permission[1])) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  // Reachable if the user has ANY of the listed permissions.
+  if (anyPermission && !anyPermission.some(([m, a]) => hasPermission(m, a))) {
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <>{children}</>;
@@ -56,18 +75,20 @@ const RootRoute: React.FC = () => {
 };
 
 function App() {
-  const { loadUser, logout, requiresPasswordChange, clearPasswordChangeRequirement } = useAuth();
+  const { loadUser, logout, refreshMe, requiresPasswordChange, clearPasswordChangeRequirement } = useAuth();
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   const [isVerifyingSession, setIsVerifyingSession] = useState(true);
 
   useEffect(() => {
     // Verify session and initialize on app load
     const verifySession = async () => {
+      // Restore any cached user immediately for a snappy first paint.
+      loadUser();
       try {
-        // Try to verify session by calling GET /users/me
+        // Ensure the CSRF cookie exists, then load the canonical user +
+        // permissions from the server. If the session is invalid this throws.
         await initializeCsrfToken();
-        // If successful, restore user from localStorage
-        loadUser();
+        await refreshMe();
       } catch (error) {
         // Session is invalid, clear everything
         console.warn('Session verification failed, clearing auth');
@@ -78,7 +99,7 @@ function App() {
     };
 
     verifySession();
-  }, [loadUser, logout]);
+  }, [loadUser, logout, refreshMe]);
 
   useEffect(() => {
     if (requiresPasswordChange) {
@@ -128,7 +149,7 @@ function App() {
           <Route
             path="/leads"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute module="leads">
                 <LeadsPage />
               </ProtectedRoute>
             }
@@ -136,7 +157,7 @@ function App() {
           <Route
             path="/accounts"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute module="accounts">
                 <AccountsPage />
               </ProtectedRoute>
             }
@@ -144,7 +165,7 @@ function App() {
           <Route
             path="/opportunities"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute module="opportunities">
                 <OpportunitiesPage />
               </ProtectedRoute>
             }
@@ -152,7 +173,7 @@ function App() {
           <Route
             path="/reports"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute module="reports">
                 <ReportsPage />
               </ProtectedRoute>
             }
@@ -160,7 +181,7 @@ function App() {
           <Route
             path="/contracts"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute module="contracts">
                 <ContractsPage />
               </ProtectedRoute>
             }
@@ -168,7 +189,7 @@ function App() {
           <Route
             path="/projects"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute module="projects">
                 <ProjectsPage />
               </ProtectedRoute>
             }
@@ -184,7 +205,7 @@ function App() {
           <Route
             path="/tickets"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute module="tickets">
                 <TicketsPage />
               </ProtectedRoute>
             }
@@ -192,7 +213,7 @@ function App() {
           <Route
             path="/audit-logs"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute anyPermission={[['audit_log', 'read'], ['admin', 'view_audit_log']]}>
                 <AuditLogsPage />
               </ProtectedRoute>
             }
@@ -208,7 +229,7 @@ function App() {
           <Route
             path="/users"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute anyPermission={[['users', 'read'], ['admin', 'manage_users']]}>
                 <UsersPage />
               </ProtectedRoute>
             }
@@ -216,7 +237,7 @@ function App() {
           <Route
             path="/roles"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute permission={['admin', 'manage_roles']}>
                 <RolesPage />
               </ProtectedRoute>
             }

@@ -67,7 +67,7 @@ export class LeadController {
       const { page = 1, limit = 20, status, source, ownerId, search, fromDate, toDate } = req.query;
 
       // Sales Reps are restricted to their own leads; Admin/Manager see all.
-      const scope = getOwnerScope(req.user);
+      const scope = getOwnerScope(req.user, 'leads');
       const effectiveOwnerId = scope ?? (ownerId as string);
 
       const { data, total } = await leadService.getLeads(
@@ -104,7 +104,7 @@ export class LeadController {
       const { id } = req.params;
       const lead = await leadService.getLeadById(id);
 
-      if (!canAccessRecord(req.user, lead.ownerId)) {
+      if (!canAccessRecord(req.user, 'leads', lead.ownerId)) {
         throw new AppError(403, 'You can only view your own leads');
       }
 
@@ -124,7 +124,7 @@ export class LeadController {
 
       const lead = await leadService.getLeadById(id);
 
-      if (!canAccessRecord(req.user, lead.ownerId)) {
+      if (!canAccessRecord(req.user, 'leads', lead.ownerId, 'update')) {
         throw new AppError(403, 'You can only update your own leads');
       }
 
@@ -157,7 +157,7 @@ export class LeadController {
 
       const lead = await leadService.getLeadById(id);
 
-      if (!canAccessRecord(req.user, lead.ownerId)) {
+      if (!canAccessRecord(req.user, 'leads', lead.ownerId, 'delete')) {
         throw new AppError(403, 'You can only delete your own leads');
       }
 
@@ -190,7 +190,7 @@ export class LeadController {
 
       const lead = await leadService.getLeadById(id);
 
-      if (!canAccessRecord(req.user, lead.ownerId)) {
+      if (!canAccessRecord(req.user, 'leads', lead.ownerId, 'update')) {
         throw new AppError(403, 'You can only update your own leads');
       }
 
@@ -213,7 +213,7 @@ export class LeadController {
 
       const lead = await leadService.getLeadById(id);
 
-      if (!canAccessRecord(req.user, lead.ownerId)) {
+      if (!canAccessRecord(req.user, 'leads', lead.ownerId, 'update')) {
         throw new AppError(403, 'You can only convert your own leads');
       }
 

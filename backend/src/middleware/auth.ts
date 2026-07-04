@@ -1,11 +1,48 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt, { SignOptions } from 'jsonwebtoken';
-import { ROLES_WITH_FULL_VISIBILITY } from '../utils/constants';
+import { AppDataSource } from '../config/database';
+import { User } from '../models/User';
 
 export interface AuthUser {
   id: string;
   email: string;
   role: string;
+  // Flat list of the user's effective permissions, e.g. "leads:read:all".
+  // Loaded from the DB on each authenticated request so that permission
+  // changes take effect immediately without requiring re-login.
+  permissions?: string[];
+}
+
+// Load the user's configured permissions as "module:action:scope" strings.
+async function loadUserPermissions(userId: string): Promise<string[]> {
+  try {
+    const user = await AppDataSource.getRepository(User).findOne({
+      where: { id: userId },
+      relations: ['role', 'role.permissions'],
+    });
+    if (!user?.role?.permissions) return [];
+    return user.role.permissions.map(
+      (p) => `${p.module}:${p.action}:${p.scope || 'all'}`
+    );
+  } catch {
+    return [];
+  }
+}
+
+// Resolve whether a user may perform an action on a module, and at what scope.
+function resolvePermission(
+  user: AuthUser | undefined,
+  module: string,
+  action: string
+): { allowed: boolean; scope: 'all' | 'self' | null } {
+  if (!user) return { allowed: false, scope: null };
+  // Admin always has full access (safety net against accidental lockout).
+  if (user.role === 'Admin') return { allowed: true, scope: 'all' };
+
+  const perms = user.permissions || [];
+  if (perms.includes(`${module}:${action}:all`)) return { allowed: true, scope: 'all' };
+  if (perms.includes(`${module}:${action}:self`)) return { allowed: true, scope: 'self' };
+  return { allowed: false, scope: null };
 }
 
 export interface AuthRequest extends Request {
@@ -27,7 +64,7 @@ function getCookieValue(req: Request, name: string): string | undefined {
   return undefined;
 }
 
-export const verifyToken = (
+export const verifyToken = async (
   req: AuthRequest,
   res: Response,
   next: NextFunction
@@ -48,8 +85,10 @@ export const verifyToken = (
     if (!secret) {
       return res.status(500).json({ success: false, error: 'JWT_SECRET not configured' });
     }
-    const decoded = jwt.verify(token, secret);
-    req.user = decoded as AuthUser;
+    const decoded = jwt.verify(token, secret) as AuthUser;
+    // Attach the user's live permissions so scoping reflects current config.
+    decoded.permissions = await loadUserPermissions(decoded.id);
+    req.user = decoded;
     next();
   } catch (error) {
     return res.status(401).json({ success: false, error: 'Invalid token' });
@@ -71,19 +110,32 @@ export const requireRole = (...allowedRoles: string[]) => {
   };
 };
 
-// Returns the ownerId a user is restricted to, or undefined if they can see everything.
-// Sales Rep -> their own id. Admin/Manager -> undefined (no restriction).
-export const getOwnerScope = (user?: AuthUser): string | undefined => {
+// Returns the ownerId a user is restricted to for a module, or undefined if
+// they can see every record. Driven by the configured read scope:
+//   read:all  -> undefined (no restriction)
+//   read:self -> the user's own id
+//   (no read) -> the user's own id (most restrictive fallback)
+export const getOwnerScope = (
+  user: AuthUser | undefined,
+  module: string
+): string | undefined => {
   if (!user) return undefined;
-  if (ROLES_WITH_FULL_VISIBILITY.includes(user.role)) return undefined;
-  return user.id;
+  const { scope } = resolvePermission(user, module, 'read');
+  return scope === 'all' ? undefined : user?.id;
 };
 
-// True if the user is allowed to see/edit a record owned by ownerId.
-export const canAccessRecord = (user: AuthUser | undefined, ownerId: string): boolean => {
+// True if the user may access a record owned by ownerId for the given action
+// on a module. "all" scope allows any record; "self" scope only the user's own.
+export const canAccessRecord = (
+  user: AuthUser | undefined,
+  module: string,
+  ownerId: string,
+  action: string = 'read'
+): boolean => {
   if (!user) return false;
-  if (ROLES_WITH_FULL_VISIBILITY.includes(user.role)) return true;
-  return user.id === ownerId;
+  const { allowed, scope } = resolvePermission(user, module, action);
+  if (!allowed) return false;
+  return scope === 'all' ? true : user.id === ownerId;
 };
 
 export const generateToken = (id: string, email: string, role: string): string => {
@@ -97,44 +149,12 @@ export const generateToken = (id: string, email: string, role: string): string =
   return jwt.sign({ id, email, role }, secret, options);
 };
 
-// Role-based action restrictions
-const ROLE_ACTION_RESTRICTIONS: Record<string, { [module: string]: string[] }> = {
-  'Deal Stage Manager': {
-    'leads': ['read', 'status_only'],  // Can only read and update status
-    'opportunities': ['read', 'stage_probability_only'],  // Can only read and update stage/probability
-    'accounts': ['read'],
-    'contacts': ['read'],
-  },
-  'Sales Rep': {
-    'leads': ['create', 'read', 'update', 'delete', 'bulk_action'],
-    'opportunities': ['create', 'read', 'update', 'delete', 'bulk_action'],
-    'accounts': ['create', 'read', 'update', 'delete', 'bulk_action'],
-    'contacts': ['create', 'read', 'update', 'delete', 'bulk_action'],
-  },
-  'Manager': {
-    'leads': ['create', 'read', 'update', 'delete', 'bulk_action'],
-    'opportunities': ['create', 'read', 'update', 'delete', 'bulk_action'],
-    'accounts': ['create', 'read', 'update', 'delete', 'bulk_action'],
-    'contacts': ['create', 'read', 'update', 'delete', 'bulk_action'],
-    'users': ['create', 'read', 'update', 'delete'],
-  },
-  'Admin': {
-    'all': ['all'],
-  },
-};
-
-// Check if user has permission for an action on a module
+// Check if user has permission for an action on a module (either scope).
+// Driven entirely by the role's configured permissions.
 export const canPerformAction = (
   user: AuthUser | undefined,
   module: string,
   action: string
 ): boolean => {
-  if (!user) return false;
-  if (user.role === 'Admin') return true;
-
-  const roleRestrictions = ROLE_ACTION_RESTRICTIONS[user.role];
-  if (!roleRestrictions) return false;
-
-  const allowedActions = roleRestrictions[module] || [];
-  return allowedActions.includes(action);
+  return resolvePermission(user, module, action).allowed;
 };

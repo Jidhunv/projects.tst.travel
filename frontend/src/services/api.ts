@@ -105,6 +105,10 @@ export const api = {
   logout: () =>
     apiClient.post<ApiResponse<void>>('/auth/logout'),
 
+  // Current user including flattened permissions ("module:action:scope")
+  getMe: () =>
+    apiClient.get<ApiResponse<any>>('/users/me'),
+
   passwordReset: (email: string) =>
     apiClient.post<ApiResponse<void>>('/auth/password-reset', { email }),
 
