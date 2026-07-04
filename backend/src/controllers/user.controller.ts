@@ -97,7 +97,32 @@ export class UserController {
 
   async updateUser(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const user = await userService.updateUser(req.params.id, req.body);
+      // Whitelist updatable fields to prevent mass assignment.
+      const allowed = ['firstName', 'lastName', 'phoneNumber', 'email', 'isActive',
+        'emailNotificationsEnabled', 'emailNotificationPreferences'];
+      const updates: any = {};
+      for (const key of allowed) {
+        if (key in req.body) updates[key] = req.body[key];
+      }
+
+      // Only Admins may (re)assign roles — prevents privilege escalation by Managers.
+      if ('roleId' in req.body) {
+        if (req.user?.role !== 'Admin') {
+          throw new AppError(403, 'Only an administrator can change a user\'s role');
+        }
+        updates.roleId = req.body.roleId;
+      }
+
+      // If a new password is provided, enforce the same complexity policy as elsewhere.
+      if (req.body.password) {
+        const validation = PasswordValidator.validatePasswordComplexity(req.body.password);
+        if (!validation.valid) {
+          throw new AppError(400, validation.errors.join('; '));
+        }
+        updates.password = req.body.password;
+      }
+
+      const user = await userService.updateUser(req.params.id, updates);
       logger.info(`User updated: ${user.id} by ${req.user!.email}`);
       return res.json({
         success: true,

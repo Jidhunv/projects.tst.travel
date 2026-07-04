@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import accountService from '../services/account.service';
-import { AuthRequest, getOwnerScope, canAccessRecord } from '../middleware/auth';
+import { AuthRequest, getOwnerScope, canAccessRecord, canPerformAction } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
 import logger from '../utils/logger';
 
@@ -94,7 +94,29 @@ export class AccountController {
   async updateAccount(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      const updates = req.body;
+
+      // Authorization: must have update permission AND be allowed to touch this record.
+      if (!canPerformAction(req.user, 'accounts', 'update')) {
+        throw new AppError(403, 'You do not have permission to update accounts');
+      }
+      const existing = await accountService.getAccountById(id);
+      if (!canAccessRecord(req.user, 'accounts', existing.ownerId, 'update')) {
+        throw new AppError(403, 'You can only update your own accounts');
+      }
+
+      // Whitelist updatable fields to prevent mass assignment (e.g. reassigning ownerId).
+      const allowed = [
+        'name', 'industry', 'size', 'website', 'phoneNumber', 'alternatePhoneNumber', 'type', 'status',
+        'contactPerson', 'city', 'region', 'country',
+        'billingStreet', 'billingCity', 'billingState', 'billingZip', 'billingCountry',
+        'shippingStreet', 'shippingCity', 'shippingState', 'shippingZip', 'shippingCountry',
+        'onboardingStatus', 'onboardingDate', 'onboardingCompletedDate', 'onboardingNotes',
+        'contractSignedDate', 'goLiveDate', 'accountManager', 'billingContact', 'technicalContact', 'tags',
+      ];
+      const updates: any = {};
+      for (const key of allowed) {
+        if (key in req.body) updates[key] = req.body[key];
+      }
 
       const account = await accountService.updateAccount(id, updates);
 
@@ -112,6 +134,15 @@ export class AccountController {
   async deleteAccount(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
+
+      if (!canPerformAction(req.user, 'accounts', 'delete')) {
+        throw new AppError(403, 'You do not have permission to delete accounts');
+      }
+      const existing = await accountService.getAccountById(id);
+      if (!canAccessRecord(req.user, 'accounts', existing.ownerId, 'delete')) {
+        throw new AppError(403, 'You can only delete your own accounts');
+      }
+
       await accountService.deleteAccount(id);
 
       logger.info(`Account deleted: ${id} by ${req.user!.email}`);

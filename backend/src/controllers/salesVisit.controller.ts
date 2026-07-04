@@ -79,6 +79,11 @@ export class SalesVisitController {
       }
       const visit = await repo().findOne({ where: { id: req.params.id } });
       if (!visit) throw new AppError(404, 'Sales visit not found');
+      // self-scoped users may only edit their own entries
+      const uScope = getOwnerScope(req.user, 'sales_visits');
+      if (uScope && visit.createdById !== uScope) {
+        throw new AppError(403, 'You can only edit your own sales visits');
+      }
       const { companyName, visitType, discussion, visitDate, accountId } = req.body;
       if (companyName !== undefined) visit.companyName = companyName;
       if (visitType !== undefined) visit.visitType = visitType;
@@ -99,6 +104,10 @@ export class SalesVisitController {
       }
       const visit = await repo().findOne({ where: { id: req.params.id } });
       if (!visit) throw new AppError(404, 'Sales visit not found');
+      const dScope = getOwnerScope(req.user, 'sales_visits');
+      if (dScope && visit.createdById !== dScope) {
+        throw new AppError(403, 'You can only delete your own sales visits');
+      }
       await repo().remove(visit);
       return res.json({ success: true, data: { message: 'Sales visit deleted' } });
     } catch (error) {

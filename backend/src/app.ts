@@ -7,6 +7,7 @@ import { errorHandler } from './middleware/errorHandler';
 import { tracingMiddleware } from './middleware/tracing';
 import { auditMiddleware } from './middleware/audit';
 import { generateCsrfToken, verifyCsrfToken } from './middleware/csrf';
+import { sanitizeResponse } from './middleware/sanitizeResponse';
 import traceService from './services/trace.service';
 import logger from './utils/logger';
 import ensurePermissions from './utils/ensurePermissions';
@@ -40,11 +41,17 @@ app.use(helmet({
   noSniff: true,
   referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
 }));
+// Localhost defaults for development; production origins come from ALLOWED_ORIGINS
+// (comma-separated) so no external site can make credentialed requests.
 const allowedOrigins = [
   'http://localhost:3000',
   'http://127.0.0.1:3000',
   'http://localhost:3001',
   'http://127.0.0.1:3001',
+  ...(process.env.ALLOWED_ORIGINS || '')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean),
 ];
 
 app.use(cors({
@@ -63,6 +70,8 @@ app.use(cors({
 // Limit request payload size to prevent DOS
 app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({ extended: true, limit: '10kb' }));
+// Strip sensitive fields (password hashes, reset tokens) from every response
+app.use(sanitizeResponse);
 // Enable CSRF protection
 app.use(generateCsrfToken);
 app.use(verifyCsrfToken);
