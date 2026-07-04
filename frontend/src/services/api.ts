@@ -28,9 +28,18 @@ apiClient.interceptors.response.use(
     return response;
   },
   (error) => {
+    // Don't auto-redirect on 401 - let the component handle it
+    // This allows proper async cleanup before redirect
     if (error.response?.status === 401) {
-      localStorage.removeItem('user');
-      window.location.href = '/login';
+      console.log('Received 401 Unauthorized - session may have expired');
+      // Only redirect if we're not on the login page already
+      if (!window.location.pathname.includes('/login')) {
+        localStorage.removeItem('user');
+        // Use setTimeout to allow current request to complete
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 0);
+      }
     }
     return Promise.reject(error);
   }

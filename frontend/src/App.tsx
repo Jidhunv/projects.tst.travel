@@ -56,21 +56,47 @@ const RootRoute: React.FC = () => {
 };
 
 function App() {
-  const { loadUser, requiresPasswordChange, clearPasswordChangeRequirement } = useAuth();
+  const { loadUser, logout, requiresPasswordChange, clearPasswordChangeRequirement } = useAuth();
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+  const [isVerifyingSession, setIsVerifyingSession] = useState(true);
 
   useEffect(() => {
-    // Initialize CSRF token on app load
-    initializeCsrfToken().then(() => {
-      loadUser();
-    });
-  }, [loadUser]);
+    // Verify session and initialize on app load
+    const verifySession = async () => {
+      try {
+        // Try to verify session by calling GET /users/me
+        await initializeCsrfToken();
+        // If successful, restore user from localStorage
+        loadUser();
+      } catch (error) {
+        // Session is invalid, clear everything
+        console.warn('Session verification failed, clearing auth');
+        await logout();
+      } finally {
+        setIsVerifyingSession(false);
+      }
+    };
+
+    verifySession();
+  }, [loadUser, logout]);
 
   useEffect(() => {
     if (requiresPasswordChange) {
       setShowPasswordDialog(true);
     }
   }, [requiresPasswordChange]);
+
+  // Show loading state while verifying session
+  if (isVerifyingSession) {
+    return (
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+          <div>Loading...</div>
+        </div>
+      </ThemeProvider>
+    );
+  }
 
   return (
     <ThemeProvider theme={theme}>
