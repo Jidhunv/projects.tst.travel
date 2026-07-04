@@ -25,6 +25,13 @@ function getCsrfTokenFromCookie(): string | null {
 
 apiClient.interceptors.response.use(
   (response) => {
+    // Update CSRF token from response header if present
+    const newCsrfToken = response.headers['x-csrf-token'];
+    if (newCsrfToken) {
+      console.log('✅ CSRF token updated from response');
+      // Set new token in cookie via JavaScript
+      document.cookie = `XSRF-TOKEN=${encodeURIComponent(newCsrfToken)}; path=/; SameSite=Strict`;
+    }
     return response;
   },
   (error) => {
