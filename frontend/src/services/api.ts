@@ -36,9 +36,23 @@ apiClient.interceptors.response.use(
   }
 );
 
+// Initialize CSRF token on first request
+let csrfInitialized = false;
+
 // Add CSRF token to all requests (from cookie)
 apiClient.interceptors.request.use(
-  (config) => {
+  async (config) => {
+    // Initialize CSRF token by making a GET request if not already done
+    if (!csrfInitialized && config.method?.toLowerCase() !== 'get') {
+      try {
+        await apiClient.get('/users/me');
+        csrfInitialized = true;
+      } catch (error) {
+        // Silently fail - token might be generated anyway
+        csrfInitialized = true;
+      }
+    }
+
     const csrfToken = getCsrfTokenFromCookie();
     if (csrfToken) {
       config.headers['X-CSRF-Token'] = csrfToken;
@@ -47,6 +61,16 @@ apiClient.interceptors.request.use(
   },
   (error) => Promise.reject(error)
 );
+
+// Initialize CSRF token when app loads
+export async function initializeCsrfToken(): Promise<void> {
+  try {
+    await apiClient.get('/users/me');
+  } catch (error) {
+    // Token is still generated even if auth fails
+    // No-op
+  }
+}
 
 export const api = {
   // Auth

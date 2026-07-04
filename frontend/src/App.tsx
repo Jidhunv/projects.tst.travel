@@ -4,6 +4,7 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import useAuth from '@hooks/useAuth';
 import FirstLoginPasswordChangeDialog from '@components/FirstLoginPasswordChangeDialog';
+import { initializeCsrfToken } from '@services/api';
 
 // Pages
 import LoginPage from '@pages/LoginPage';
@@ -59,7 +60,10 @@ function App() {
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
 
   useEffect(() => {
-    loadUser();
+    // Initialize CSRF token on app load
+    initializeCsrfToken().then(() => {
+      loadUser();
+    });
   }, [loadUser]);
 
   useEffect(() => {
