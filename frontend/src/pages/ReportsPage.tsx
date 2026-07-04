@@ -14,14 +14,35 @@ import {
   TableRow,
   Chip,
 } from '@mui/material';
+import { Button, Paper, Stack, TextField } from '@mui/material';
 import Layout from '@components/Layout';
 import { api } from '@services/api';
 import { formatCurrency } from '@utils/format';
+import { exportToCsv } from '@utils/exportCsv';
 
 export default function ReportsPage() {
   const [mis, setMis] = React.useState<any>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState('');
+
+  // Combined report (Leads + Accounts + Opportunities) with shared filters.
+  const [cFilters, setCFilters] = React.useState({ search: '', region: '', country: '', fromDate: '', toDate: '' });
+  const [leads, setLeads] = React.useState<any[]>([]);
+  const [accounts, setAccounts] = React.useState<any[]>([]);
+  const [opps, setOpps] = React.useState<any[]>([]);
+
+  const loadCombined = React.useCallback(async () => {
+    const params: any = {};
+    Object.entries(cFilters).forEach(([k, v]) => { if (v) params[k] = v; });
+    const [l, a, o] = await Promise.all([
+      api.getLeads(1, 500, params).catch(() => ({ data: { data: [] } })),
+      api.getAccounts(1, 500, params).catch(() => ({ data: { data: [] } })),
+      api.getOpportunities(1, 500, params).catch(() => ({ data: { data: [] } })),
+    ]);
+    setLeads(l.data.data || []);
+    setAccounts(a.data.data || []);
+    setOpps(o.data.data || []);
+  }, [cFilters]);
 
   React.useEffect(() => {
     api
@@ -32,6 +53,44 @@ export default function ReportsPage() {
       .catch(() => setError('Failed to load report data'))
       .finally(() => setLoading(false));
   }, []);
+
+  React.useEffect(() => { loadCombined(); }, [loadCombined]);
+
+  const exportLeads = () => exportToCsv('leads-report', [
+    { header: 'Name', value: (r: any) => `${r.firstName} ${r.lastName}` },
+    { header: 'Email', value: (r: any) => r.email },
+    { header: 'Company', value: (r: any) => r.company },
+    { header: 'Business Volume', value: (r: any) => r.businessVolume },
+    { header: 'Suppliers', value: (r: any) => r.supplierList },
+    { header: 'Region', value: (r: any) => r.region },
+    { header: 'Country', value: (r: any) => r.country },
+    { header: 'Status', value: (r: any) => r.status },
+    { header: 'Value', value: (r: any) => r.value },
+    { header: 'Owner', value: (r: any) => r.owner ? `${r.owner.firstName} ${r.owner.lastName}` : '' },
+  ], leads);
+
+  const exportAccounts = () => exportToCsv('accounts-report', [
+    { header: 'Name', value: (r: any) => r.name },
+    { header: 'Contact Person', value: (r: any) => r.contactPerson },
+    { header: 'Industry', value: (r: any) => r.industry },
+    { header: 'City', value: (r: any) => r.city },
+    { header: 'Region', value: (r: any) => r.region },
+    { header: 'Country', value: (r: any) => r.country },
+    { header: 'Type', value: (r: any) => r.type },
+    { header: 'Phone', value: (r: any) => r.phoneNumber },
+  ], accounts);
+
+  const exportOpps = () => exportToCsv('opportunities-report', [
+    { header: 'Name', value: (r: any) => r.name },
+    { header: 'Company', value: (r: any) => r.company || r.account?.name },
+    { header: 'Amount', value: (r: any) => r.amount },
+    { header: 'Business Volume', value: (r: any) => r.businessVolume },
+    { header: 'Stage', value: (r: any) => r.stage },
+    { header: 'Status', value: (r: any) => r.status },
+    { header: 'Region', value: (r: any) => r.region },
+    { header: 'Country', value: (r: any) => r.country },
+    { header: 'Owner', value: (r: any) => r.owner ? `${r.owner.firstName} ${r.owner.lastName}` : '' },
+  ], opps);
 
   if (loading) {
     return (
@@ -186,7 +245,57 @@ export default function ReportsPage() {
           </Grid>
         )}
       </Grid>
+
+      {/* ---- Combined Report: Leads + Accounts + Opportunities ---- */}
+      <Typography variant="h5" sx={{ mt: 4, mb: 2 }}>Combined Report</Typography>
+      <Paper sx={{ p: 2, mb: 2 }}>
+        <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
+          <TextField size="small" label="Search" value={cFilters.search} onChange={(e) => setCFilters({ ...cFilters, search: e.target.value })} />
+          <TextField size="small" label="Region" value={cFilters.region} onChange={(e) => setCFilters({ ...cFilters, region: e.target.value })} />
+          <TextField size="small" label="Country" value={cFilters.country} onChange={(e) => setCFilters({ ...cFilters, country: e.target.value })} />
+          <TextField size="small" type="date" label="From" InputLabelProps={{ shrink: true }} value={cFilters.fromDate} onChange={(e) => setCFilters({ ...cFilters, fromDate: e.target.value })} />
+          <TextField size="small" type="date" label="To" InputLabelProps={{ shrink: true }} value={cFilters.toDate} onChange={(e) => setCFilters({ ...cFilters, toDate: e.target.value })} />
+          <Button onClick={() => setCFilters({ search: '', region: '', country: '', fromDate: '', toDate: '' })}>Clear</Button>
+        </Stack>
+      </Paper>
+
+      <ReportBlock title={`Leads (${leads.length})`} onExport={exportLeads}
+        head={['Name', 'Company', 'Business Volume', 'Region', 'Country', 'Status']}
+        rows={leads.map((r) => [`${r.firstName} ${r.lastName}`, r.company || '-', r.businessVolume ?? '-', r.region || '-', r.country || '-', r.status])} />
+
+      <ReportBlock title={`Accounts (${accounts.length})`} onExport={exportAccounts}
+        head={['Name', 'Contact Person', 'City', 'Region', 'Country', 'Type']}
+        rows={accounts.map((r) => [r.name, r.contactPerson || '-', r.city || '-', r.region || '-', r.country || '-', r.type])} />
+
+      <ReportBlock title={`Opportunities (${opps.length})`} onExport={exportOpps}
+        head={['Name', 'Company', 'Amount', 'Stage', 'Status', 'Region']}
+        rows={opps.map((r) => [r.name, r.company || r.account?.name || '-', formatCurrency(r.amount), r.stage, r.status, r.region || '-'])} />
     </Layout>
+  );
+}
+
+function ReportBlock({ title, head, rows, onExport }: { title: string; head: string[]; rows: any[][]; onExport: () => void }) {
+  return (
+    <Card sx={{ mb: 2 }}>
+      <CardContent>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+          <Typography variant="h6">{title}</Typography>
+          <Button size="small" variant="outlined" onClick={onExport}>Export CSV</Button>
+        </Box>
+        <Table size="small">
+          <TableHead>
+            <TableRow>{head.map((h) => <TableCell key={h}>{h}</TableCell>)}</TableRow>
+          </TableHead>
+          <TableBody>
+            {rows.slice(0, 50).map((row, i) => (
+              <TableRow key={i}>{row.map((c, j) => <TableCell key={j}>{c as any}</TableCell>)}</TableRow>
+            ))}
+            {rows.length === 0 && <TableRow><TableCell colSpan={head.length} align="center">No records</TableCell></TableRow>}
+          </TableBody>
+        </Table>
+        {rows.length > 50 && <Typography variant="caption" color="textSecondary">Showing first 50 of {rows.length}. Use Export CSV for all.</Typography>}
+      </CardContent>
+    </Card>
   );
 }
 
