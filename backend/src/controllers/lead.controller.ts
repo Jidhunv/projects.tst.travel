@@ -27,6 +27,10 @@ export class LeadController {
         productIds,
         productNames,
         remark,
+        businessVolume,
+        supplierList,
+        region,
+        country,
       } = req.body;
 
       if (!firstName || !lastName || !email) {
@@ -48,6 +52,10 @@ export class LeadController {
         productIds,
         productNames,
         remark,
+        businessVolume: businessVolume !== undefined ? Number(businessVolume) : undefined,
+        supplierList: Array.isArray(supplierList) ? supplierList : undefined,
+        region,
+        country,
         ownerId: req.user!.id,
       });
 
@@ -64,7 +72,7 @@ export class LeadController {
 
   async getLeads(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const { page = 1, limit = 20, status, source, ownerId, search, fromDate, toDate } = req.query;
+      const { page = 1, limit = 20, status, source, ownerId, search, fromDate, toDate, region, country } = req.query;
 
       // Sales Reps are restricted to their own leads; Admin/Manager see all.
       const scope = getOwnerScope(req.user, 'leads');
@@ -80,6 +88,8 @@ export class LeadController {
           search: search as string,
           fromDate: fromDate as string,
           toDate: toDate as string,
+          region: region as string,
+          country: country as string,
         },
         req.traceId
       );

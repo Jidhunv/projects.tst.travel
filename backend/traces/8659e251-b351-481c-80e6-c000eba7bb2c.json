@@ -1,0 +1,24 @@
+{
+  "traceId": "8659e251-b351-481c-80e6-c000eba7bb2c",
+  "startTime": 1782300772402,
+  "endTime": 1782300772403,
+  "spans": [
+    {
+      "id": "1d066ae2-57c6-4fcd-8d88-22a0146143cb",
+      "operation": "api.GET /opportunities",
+      "startTime": 1782300772402,
+      "input": {
+        "method": "GET",
+        "path": "/opportunities",
+        "query": {}
+      },
+      "status": "completed",
+      "endTime": 1782300772403,
+      "duration": 1,
+      "output": {
+        "statusCode": 404,
+        "contentLength": 152
+      }
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+digraph trace_7bf4be1d_4e29_4610_a3b4_f2818e6aaf90 {
+  rankdir=TB;
+  graph [fontname="Arial"];
+  node [fontname="Arial", shape=box];
+  edge [fontname="Arial"];
+
+  "fc4b8a3f-d0d0-4f50-a373-2c194b5dee59" [label="api.GET /\n3ms", fillcolor="#51cf66", style=filled];
+}

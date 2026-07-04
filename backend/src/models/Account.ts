@@ -25,6 +25,19 @@ export class Account {
   @Column({ nullable: true })
   industry: string;
 
+  // Company information
+  @Column({ nullable: true })
+  contactPerson: string;
+
+  @Column({ nullable: true })
+  city: string;
+
+  @Column({ nullable: true })
+  region: string;
+
+  @Column({ nullable: true })
+  country: string;
+
   @Column({ nullable: true })
   size: string; // 1-10, 11-50, 51-200, 201-500, 500+
 

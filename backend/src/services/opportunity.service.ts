@@ -8,6 +8,8 @@ interface OpportunityFilters {
   status?: string;
   ownerId?: string;
   accountId?: string;
+  region?: string;
+  country?: string;
   page?: number;
   limit?: number;
   search?: string;
@@ -94,6 +96,12 @@ export class OpportunityService {
     }
     if (where.accountId) {
       query.andWhere('opp.accountId = :accountId', { accountId: where.accountId });
+    }
+    if (where.region) {
+      query.andWhere('opp.region ILIKE :region', { region: `%${where.region}%` });
+    }
+    if (where.country) {
+      query.andWhere('opp.country ILIKE :country', { country: `%${where.country}%` });
     }
 
     if (fromDate) {

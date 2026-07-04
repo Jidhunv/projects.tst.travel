@@ -54,7 +54,7 @@ export class OpportunityController {
 
   async getOpportunities(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const { page = 1, limit = 20, stage, status, ownerId, accountId, search, fromDate, toDate, amountFrom, amountTo } = req.query;
+      const { page = 1, limit = 20, stage, status, ownerId, accountId, search, fromDate, toDate, amountFrom, amountTo, region, country } = req.query;
 
       // Sales Reps see only their own opportunities; Admin/Manager see all.
       const scope = getOwnerScope(req.user, 'opportunities');
@@ -72,6 +72,8 @@ export class OpportunityController {
         toDate: toDate as string,
         amountFrom: amountFrom ? Number(amountFrom) : undefined,
         amountTo: amountTo ? Number(amountTo) : undefined,
+        region: region as string,
+        country: country as string,
       });
 
       return res.json({

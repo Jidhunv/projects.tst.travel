@@ -1,0 +1,8 @@
+digraph trace_a32883c7_19c6_4b8c_ad1f_2a85b51efb17 {
+  rankdir=TB;
+  graph [fontname="Arial"];
+  node [fontname="Arial", shape=box];
+  edge [fontname="Arial"];
+
+  "487b9f76-ac39-4e58-8c80-6d8c50a5d41d" [label="api.POST /api/leads/a3aef454-9285-4deb-9303-be031d3534d6/convert\n2ms", fillcolor="#51cf66", style=filled];
+}

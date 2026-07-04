@@ -64,6 +64,20 @@ export class Lead {
   @Column('simple-array', { nullable: true, default: null })
   productNames: string[];
 
+  // Estimated business volume (annual / deal-size indicator)
+  @Column({ type: 'numeric', precision: 15, scale: 2, nullable: true })
+  businessVolume: number;
+
+  // Suppliers associated with this lead (multi-select from the supplier master)
+  @Column('simple-array', { nullable: true })
+  supplierList: string[];
+
+  @Column({ nullable: true })
+  region: string;
+
+  @Column({ nullable: true })
+  country: string;
+
   // Reason captured when a lead is closed as lost
   @Column({ nullable: true })
   lostReason: string;

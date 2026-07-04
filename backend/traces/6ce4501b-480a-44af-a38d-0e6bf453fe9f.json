@@ -1,0 +1,24 @@
+{
+  "traceId": "6ce4501b-480a-44af-a38d-0e6bf453fe9f",
+  "startTime": 1781962322827,
+  "endTime": 1781962322828,
+  "spans": [
+    {
+      "id": "a168c271-a228-4fbb-86a3-1632163ced47",
+      "operation": "api.GET /",
+      "startTime": 1781962322827,
+      "input": {
+        "method": "GET",
+        "path": "/",
+        "query": {}
+      },
+      "status": "completed",
+      "endTime": 1781962322828,
+      "duration": 1,
+      "output": {
+        "statusCode": 404,
+        "contentLength": 139
+      }
+    }
+  ]
+}

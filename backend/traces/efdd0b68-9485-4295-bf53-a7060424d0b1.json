@@ -1,0 +1,29 @@
+{
+  "traceId": "efdd0b68-9485-4295-bf53-a7060424d0b1",
+  "startTime": 1781939475417,
+  "endTime": 1781939475418,
+  "spans": [
+    {
+      "id": "a7b7f070-4c78-4ed9-8ae6-bbe71dd9dc3e",
+      "operation": "api.GET /opportunities",
+      "startTime": 1781939475417,
+      "input": {
+        "method": "GET",
+        "path": "/opportunities",
+        "query": {
+          "stage": "Prospecting",
+          "search": "test",
+          "amountFrom": "1000",
+          "amountTo": "50000"
+        }
+      },
+      "status": "completed",
+      "endTime": 1781939475418,
+      "duration": 1,
+      "output": {
+        "statusCode": 404,
+        "contentLength": 152
+      }
+    }
+  ]
+}

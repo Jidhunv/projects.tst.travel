@@ -68,6 +68,43 @@ export class Opportunity {
   // Notes & activities are polymorphic (linked by resourceType + resourceId)
   // and are accessed via the note/activity services, not as ORM relations.
 
+  // --- Details carried over from a converted lead (no data lost on convert) ---
+  @Column({ type: 'numeric', precision: 15, scale: 2, nullable: true })
+  businessVolume: number;
+
+  @Column('simple-array', { nullable: true })
+  supplierList: string[];
+
+  @Column({ nullable: true })
+  region: string;
+
+  @Column({ nullable: true })
+  country: string;
+
+  @Column({ nullable: true })
+  company: string;
+
+  @Column({ nullable: true })
+  contactPerson: string;
+
+  @Column({ nullable: true })
+  contactEmail: string;
+
+  @Column({ nullable: true })
+  contactPhone: string;
+
+  @Column({ nullable: true })
+  jobTitle: string;
+
+  @Column({ nullable: true })
+  source: string;
+
+  @Column('text', { nullable: true })
+  remark: string;
+
+  @Column({ nullable: true })
+  convertedFromLeadId: string;
+
   @Column({ nullable: true })
   tags: string;
 

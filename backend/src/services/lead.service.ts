@@ -11,6 +11,8 @@ interface LeadFilters {
   status?: string;
   source?: string;
   ownerId?: string;
+  region?: string;
+  country?: string;
   page?: number;
   limit?: number;
   search?: string;
@@ -40,6 +42,10 @@ export class LeadService {
     productIds?: string[];
     productNames?: string[];
     remark?: string;
+    businessVolume?: number;
+    supplierList?: string[];
+    region?: string;
+    country?: string;
   }): Promise<Lead> {
     const existingLead = await this.leadRepository.findOne({
       where: { email: data.email },
@@ -110,6 +116,12 @@ export class LeadService {
       }
       if (where.ownerId) {
         query.andWhere('lead.ownerId = :ownerId', { ownerId: where.ownerId });
+      }
+      if (where.region) {
+        query.andWhere('lead.region ILIKE :region', { region: `%${where.region}%` });
+      }
+      if (where.country) {
+        query.andWhere('lead.country ILIKE :country', { country: `%${where.country}%` });
       }
 
       if (fromDate) {
@@ -215,6 +227,10 @@ export class LeadService {
           ownerId: lead.ownerId,
           type: 'Prospect',
           status: 'Prospect',
+          contactPerson: `${lead.firstName} ${lead.lastName}`.trim(),
+          region: lead.region,
+          country: lead.country,
+          phoneNumber: lead.phoneNumber,
         })
       );
       accountId = account.id;
@@ -237,6 +253,20 @@ export class LeadService {
         forecastedCloseDate: closeDate,
         accountId,
         ownerId: lead.ownerId,
+        // Carry over ALL lead details so nothing is lost on conversion.
+        businessVolume: lead.businessVolume,
+        supplierList: lead.supplierList,
+        region: lead.region,
+        country: lead.country,
+        company: lead.company,
+        contactPerson: `${lead.firstName} ${lead.lastName}`.trim(),
+        contactEmail: lead.email,
+        contactPhone: lead.phoneNumber,
+        jobTitle: lead.jobTitle,
+        source: lead.source,
+        remark: lead.remark,
+        tags: lead.tags,
+        convertedFromLeadId: lead.id,
       })
     );
 

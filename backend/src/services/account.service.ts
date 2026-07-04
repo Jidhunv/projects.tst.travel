@@ -7,6 +7,9 @@ interface AccountFilters {
   status?: string;
   type?: string;
   ownerId?: string;
+  city?: string;
+  region?: string;
+  country?: string;
   page?: number;
   limit?: number;
   search?: string;
@@ -23,6 +26,10 @@ export class AccountService {
     website?: string;
     phoneNumber?: string;
     type?: string;
+    contactPerson?: string;
+    city?: string;
+    region?: string;
+    country?: string;
     ownerId: string;
   }): Promise<Account> {
     // Check for duplicate account name (case-insensitive)
@@ -68,7 +75,7 @@ export class AccountService {
 
     if (search) {
       query.where(
-        '(account.name ILIKE :search OR account.website ILIKE :search)',
+        '(account.name ILIKE :search OR account.website ILIKE :search OR account.contactPerson ILIKE :search OR account.city ILIKE :search)',
         { search: `%${search}%` }
       );
     }
@@ -81,6 +88,15 @@ export class AccountService {
     }
     if (where.ownerId) {
       query.andWhere('account.ownerId = :ownerId', { ownerId: where.ownerId });
+    }
+    if (where.city) {
+      query.andWhere('account.city ILIKE :city', { city: `%${where.city}%` });
+    }
+    if (where.region) {
+      query.andWhere('account.region ILIKE :region', { region: `%${where.region}%` });
+    }
+    if (where.country) {
+      query.andWhere('account.country ILIKE :country', { country: `%${where.country}%` });
     }
 
     const [data, total] = await query

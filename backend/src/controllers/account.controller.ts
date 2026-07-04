@@ -7,7 +7,7 @@ import logger from '../utils/logger';
 export class AccountController {
   async createAccount(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const { name, industry, size, website, phoneNumber, type } = req.body;
+      const { name, industry, size, website, phoneNumber, type, contactPerson, city, region, country } = req.body;
 
       if (!name) {
         throw new AppError(400, 'Account name is required');
@@ -20,6 +20,10 @@ export class AccountController {
         website,
         phoneNumber,
         type,
+        contactPerson,
+        city,
+        region,
+        country,
         ownerId: req.user!.id,
       });
 
@@ -36,7 +40,7 @@ export class AccountController {
 
   async getAccounts(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const { page = 1, limit = 20, status, type, ownerId, search } = req.query;
+      const { page = 1, limit = 20, status, type, ownerId, search, city, region, country } = req.query;
 
       // Sales Reps see only their own accounts; Admin/Manager see all.
       const scope = getOwnerScope(req.user, 'accounts');
@@ -49,6 +53,9 @@ export class AccountController {
         type: type as string,
         ownerId: effectiveOwnerId,
         search: search as string,
+        city: city as string,
+        region: region as string,
+        country: country as string,
       });
 
       return res.json({

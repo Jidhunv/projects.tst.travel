@@ -9,6 +9,7 @@ import { auditMiddleware } from './middleware/audit';
 import { generateCsrfToken, verifyCsrfToken } from './middleware/csrf';
 import traceService from './services/trace.service';
 import logger from './utils/logger';
+import ensurePermissions from './utils/ensurePermissions';
 
 // Import routes (will be created next)
 // import authRoutes from './routes/auth';
@@ -88,11 +89,16 @@ import auditLogRoutes from './routes/audit-logs';
 import notificationRoutes from './routes/notifications';
 import roleRoutes from './routes/roles';
 import emailSettingsRoutes from './routes/email-settings';
+import supplierRoutes from './routes/suppliers';
+import salesVisitRoutes from './routes/sales-visits';
+import expenseRoutes from './routes/expenses';
 
 // Database initialization
 AppDataSource.initialize()
-  .then(() => {
+  .then(async () => {
     logger.info('Database connection established');
+    // Ensure the permission catalog is up to date for newly added modules.
+    await ensurePermissions();
   })
   .catch((error) => {
     logger.error('Database connection error:', error);
@@ -122,6 +128,9 @@ app.use('/api/audit-logs', auditLogRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/roles', roleRoutes);
 app.use('/api/email-settings', emailSettingsRoutes);
+app.use('/api/suppliers', supplierRoutes);
+app.use('/api/sales-visits', salesVisitRoutes);
+app.use('/api/expenses', expenseRoutes);
 
 // Save traces after response completes (for debugging)
 app.use((req: any, res, next) => {

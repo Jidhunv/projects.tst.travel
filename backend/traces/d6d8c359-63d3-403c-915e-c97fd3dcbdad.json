@@ -1,0 +1,24 @@
+{
+  "traceId": "d6d8c359-63d3-403c-915e-c97fd3dcbdad",
+  "startTime": 1781952050960,
+  "endTime": 1781952050962,
+  "spans": [
+    {
+      "id": "d04b810a-e772-49c7-b78a-9564182dcd50",
+      "operation": "api.POST /api/leads/a3aef454-9285-4deb-9303-be031d3534d6/convert",
+      "startTime": 1781952050960,
+      "input": {
+        "method": "POST",
+        "path": "/api/leads/a3aef454-9285-4deb-9303-be031d3534d6/convert",
+        "query": {}
+      },
+      "status": "completed",
+      "endTime": 1781952050962,
+      "duration": 2,
+      "output": {
+        "statusCode": 404,
+        "contentLength": 194
+      }
+    }
+  ]
+}
