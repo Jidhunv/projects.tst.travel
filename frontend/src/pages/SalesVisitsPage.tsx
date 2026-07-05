@@ -14,12 +14,14 @@ const empty = { accountId: '', companyName: '', visitType: 'Visit', discussion: 
 export const SalesVisitsPage: React.FC = () => {
   const { hasPermission } = useAuth();
   const canCreate = hasPermission('sales_visits', 'create');
+  const canUpdate = hasPermission('sales_visits', 'update');
   const canDelete = hasPermission('sales_visits', 'delete');
 
   const [rows, setRows] = useState<any[]>([]);
   const [accounts, setAccounts] = useState<any[]>([]);
   const [filters, setFilters] = useState({ search: '', accountId: '', visitType: '', fromDate: '', toDate: '' });
   const [open, setOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<any>(empty);
 
   const load = async () => {
@@ -34,7 +36,18 @@ export const SalesVisitsPage: React.FC = () => {
     /* eslint-disable-next-line */
   }, []);
 
-  const openNew = () => { setForm(empty); setOpen(true); };
+  const openNew = () => { setEditingId(null); setForm(empty); setOpen(true); };
+  const openEdit = (r: any) => {
+    setEditingId(r.id);
+    setForm({
+      accountId: r.accountId || '',
+      companyName: r.companyName || '',
+      visitType: r.visitType || 'Visit',
+      discussion: r.discussion || '',
+      visitDate: r.visitDate ? new Date(r.visitDate).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
+    });
+    setOpen(true);
+  };
   const save = async () => {
     try {
       const payload = { ...form };
@@ -42,7 +55,11 @@ export const SalesVisitsPage: React.FC = () => {
         const acc = accounts.find((a) => a.id === payload.accountId);
         payload.companyName = acc?.name || payload.companyName;
       }
-      await api.createSalesVisit(payload);
+      if (editingId) {
+        await api.updateSalesVisit(editingId, payload);
+      } else {
+        await api.createSalesVisit(payload);
+      }
       setOpen(false);
       load();
     } catch (e: any) {
@@ -116,7 +133,10 @@ export const SalesVisitsPage: React.FC = () => {
                   <TableCell>{r.visitDate ? new Date(r.visitDate).toLocaleDateString() : '-'}</TableCell>
                   <TableCell>{new Date(r.createdAt).toLocaleString()}</TableCell>
                   <TableCell>{r.createdBy ? `${r.createdBy.firstName} ${r.createdBy.lastName}` : '-'}</TableCell>
-                  <TableCell>{canDelete && <Button size="small" color="error" onClick={() => remove(r.id)}>Delete</Button>}</TableCell>
+                  <TableCell>
+                    {canUpdate && <Button size="small" onClick={() => openEdit(r)}>Edit</Button>}
+                    {canDelete && <Button size="small" color="error" onClick={() => remove(r.id)}>Delete</Button>}
+                  </TableCell>
                 </TableRow>
               ))}
               {rows.length === 0 && (
@@ -127,7 +147,7 @@ export const SalesVisitsPage: React.FC = () => {
         </TableContainer>
 
         <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
-          <DialogTitle>Log Visit / Call</DialogTitle>
+          <DialogTitle>{editingId ? 'Edit Visit / Call' : 'Log Visit / Call'}</DialogTitle>
           <DialogContent>
             <Stack spacing={2} sx={{ mt: 1 }}>
               <TextField select label="Company Information" value={form.accountId} onChange={(e) => setForm({ ...form, accountId: e.target.value })}>
