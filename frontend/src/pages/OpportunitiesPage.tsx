@@ -37,6 +37,8 @@ const stageColor: Record<string, 'info' | 'primary' | 'success' | 'error' | 'war
   Qualification: 'info',
   Proposal: 'primary',
   Negotiation: 'warning',
+  'Closed-Won': 'success',
+  'Closed-Lost': 'error',
 };
 
 export default function OpportunitiesPage() {
@@ -127,11 +129,16 @@ export default function OpportunitiesPage() {
   const handleUpdate = async () => {
     if (!openEdit) return;
     try {
+      // Keep status in sync when a closing stage is chosen from the dropdown.
+      const status =
+        form.stage === 'Closed-Won' ? 'Won' :
+        form.stage === 'Closed-Lost' ? 'Lost' : 'Open';
       await apiClient.patch(`/opportunities/${openEdit.id}`, {
         name: form.name,
         amount: form.amount ? Number(form.amount) : 0,
         stage: form.stage,
-        probability: form.probability ? Number(form.probability) : 0,
+        status,
+        probability: form.stage === 'Closed-Won' ? 100 : (form.probability ? Number(form.probability) : 0),
         forecastedCloseDate: form.forecastedCloseDate || undefined,
         description: form.description,
       });
@@ -267,6 +274,8 @@ export default function OpportunitiesPage() {
                   <MenuItem value="Qualification">Qualification</MenuItem>
                   <MenuItem value="Proposal">Proposal</MenuItem>
                   <MenuItem value="Negotiation">Negotiation</MenuItem>
+                  <MenuItem value="Closed-Won">Closed-Won</MenuItem>
+                  <MenuItem value="Closed-Lost">Closed-Lost</MenuItem>
                 </TextField>
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
@@ -458,6 +467,8 @@ export default function OpportunitiesPage() {
               <MenuItem value="Qualification">Qualification</MenuItem>
               <MenuItem value="Proposal">Proposal</MenuItem>
               <MenuItem value="Negotiation">Negotiation</MenuItem>
+              <MenuItem value="Closed-Won">Closed-Won</MenuItem>
+              <MenuItem value="Closed-Lost">Closed-Lost</MenuItem>
             </TextField>
             <TextField
               fullWidth
