@@ -87,7 +87,10 @@ export class AccountService {
       query.andWhere('account.type = :type', { type: where.type });
     }
     if (where.ownerId) {
-      query.andWhere('account.ownerId = :ownerId', { ownerId: where.ownerId });
+      query.andWhere('(account.ownerId = :ownerId OR account.assigneeIds LIKE :ownerIdLike)', {
+        ownerId: where.ownerId,
+        ownerIdLike: `%${where.ownerId}%`,
+      });
     }
     if (where.city) {
       query.andWhere('account.city ILIKE :city', { city: `%${where.city}%` });

@@ -108,6 +108,10 @@ export class Opportunity {
   @Column({ nullable: true })
   tags: string;
 
+  // Additional users this record is assigned to (multi-assign).
+  @Column('simple-array', { nullable: true })
+  assigneeIds: string[];
+
   @Column({ nullable: true })
   closedAt: Date;
 

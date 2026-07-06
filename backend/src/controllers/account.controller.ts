@@ -79,7 +79,7 @@ export class AccountController {
       const { id } = req.params;
       const account = await accountService.getAccountById(id);
 
-      if (!canAccessRecord(req.user, 'accounts', account.ownerId)) {
+      if (!canAccessRecord(req.user, 'accounts', account.ownerId, 'read', account.assigneeIds)) {
         throw new AppError(403, 'You can only view your own accounts');
       }
 
@@ -101,7 +101,7 @@ export class AccountController {
         throw new AppError(403, 'You do not have permission to update accounts');
       }
       const existing = await accountService.getAccountById(id);
-      if (!canAccessRecord(req.user, 'accounts', existing.ownerId, 'update')) {
+      if (!canAccessRecord(req.user, 'accounts', existing.ownerId, 'update', existing.assigneeIds)) {
         throw new AppError(403, 'You can only update your own accounts');
       }
 
@@ -132,17 +132,19 @@ export class AccountController {
     }
   }
 
-  // Reassign an account to another user (Admin/Manager only).
+  // Assign an account to one or more users (Admin/Manager only).
   async assignAccount(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       if (!canReassign(req.user, 'accounts')) {
         throw new AppError(403, 'You do not have permission to reassign accounts');
       }
-      const { ownerId } = req.body;
-      if (!ownerId) throw new AppError(400, 'ownerId is required');
-      await userService.getUserById(ownerId);
-      const account = await accountService.updateAccount(req.params.id, { ownerId } as any);
-      logger.info(`Account ${account.id} reassigned to ${ownerId} by ${req.user!.email}`);
+      const ids: string[] = Array.isArray(req.body.ownerIds)
+        ? req.body.ownerIds
+        : req.body.ownerId ? [req.body.ownerId] : [];
+      if (!ids.length) throw new AppError(400, 'ownerIds is required');
+      for (const id of ids) await userService.getUserById(id);
+      const account = await accountService.updateAccount(req.params.id, { ownerId: ids[0], assigneeIds: ids } as any);
+      logger.info(`Account ${account.id} assigned to [${ids.join(', ')}] by ${req.user!.email}`);
       return res.json({ success: true, data: account });
     } catch (error) {
       next(error);
@@ -157,7 +159,7 @@ export class AccountController {
         throw new AppError(403, 'You do not have permission to delete accounts');
       }
       const existing = await accountService.getAccountById(id);
-      if (!canAccessRecord(req.user, 'accounts', existing.ownerId, 'delete')) {
+      if (!canAccessRecord(req.user, 'accounts', existing.ownerId, 'delete', existing.assigneeIds)) {
         throw new AppError(403, 'You can only delete your own accounts');
       }
 

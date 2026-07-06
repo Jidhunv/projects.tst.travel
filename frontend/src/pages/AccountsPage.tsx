@@ -461,6 +461,7 @@ export default function AccountsPage() {
                 module="accounts"
                 recordId={editingAccount.id}
                 currentOwnerId={(editingAccount as any).ownerId}
+                currentAssigneeIds={(editingAccount as any).assigneeIds}
                 onAssigned={() => { setOpenEdit(false); fetchAccounts(); }}
               />
             )}

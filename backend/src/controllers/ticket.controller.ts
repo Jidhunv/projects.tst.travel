@@ -83,13 +83,15 @@ export class TicketController {
       if (!canReassign(req.user, 'tickets')) {
         throw new AppError(403, 'You do not have permission to assign tickets');
       }
-      const { assigneeId } = req.body;
-      if (!assigneeId) {
-        throw new AppError(400, 'assigneeId is required');
+      const ids: string[] = Array.isArray(req.body.assigneeIds)
+        ? req.body.assigneeIds
+        : req.body.assigneeId ? [req.body.assigneeId] : [];
+      if (!ids.length) {
+        throw new AppError(400, 'assigneeIds is required');
       }
 
-      const ticket = await ticketService.assignTicket(req.params.id, assigneeId);
-      logger.info(`Ticket assigned: ${ticket.id} to ${assigneeId} by ${req.user?.email}`);
+      const ticket = await ticketService.assignTicket(req.params.id, ids);
+      logger.info(`Ticket assigned: ${ticket.id} to [${ids.join(', ')}] by ${req.user?.email}`);
       return res.json({ success: true, data: ticket });
     } catch (error) {
       next(error);

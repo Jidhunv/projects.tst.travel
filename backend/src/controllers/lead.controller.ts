@@ -115,7 +115,7 @@ export class LeadController {
       const { id } = req.params;
       const lead = await leadService.getLeadById(id);
 
-      if (!canAccessRecord(req.user, 'leads', lead.ownerId)) {
+      if (!canAccessRecord(req.user, 'leads', lead.ownerId, 'read', lead.assigneeIds)) {
         throw new AppError(403, 'You can only view your own leads');
       }
 
@@ -135,7 +135,7 @@ export class LeadController {
 
       const lead = await leadService.getLeadById(id);
 
-      if (!canAccessRecord(req.user, 'leads', lead.ownerId, 'update')) {
+      if (!canAccessRecord(req.user, 'leads', lead.ownerId, 'update', lead.assigneeIds)) {
         throw new AppError(403, 'You can only update your own leads');
       }
 
@@ -162,17 +162,20 @@ export class LeadController {
     }
   }
 
-  // Reassign a lead to another user (Admin/Manager only).
+  // Assign a lead to one or more users (Admin/Manager only). The first id
+  // becomes the primary owner; all ids are stored as assignees.
   async assignLead(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       if (!canReassign(req.user, 'leads')) {
         throw new AppError(403, 'You do not have permission to reassign leads');
       }
-      const { ownerId } = req.body;
-      if (!ownerId) throw new AppError(400, 'ownerId is required');
-      await userService.getUserById(ownerId); // 404 if target user does not exist
-      const lead = await leadService.updateLead(req.params.id, { ownerId } as any);
-      logger.info(`Lead ${lead.id} reassigned to ${ownerId} by ${req.user!.email}`);
+      const ids: string[] = Array.isArray(req.body.ownerIds)
+        ? req.body.ownerIds
+        : req.body.ownerId ? [req.body.ownerId] : [];
+      if (!ids.length) throw new AppError(400, 'ownerIds is required');
+      for (const id of ids) await userService.getUserById(id); // 404 if any is invalid
+      const lead = await leadService.updateLead(req.params.id, { ownerId: ids[0], assigneeIds: ids } as any);
+      logger.info(`Lead ${lead.id} assigned to [${ids.join(', ')}] by ${req.user!.email}`);
       return res.json({ success: true, data: lead });
     } catch (error) {
       next(error);
@@ -185,7 +188,7 @@ export class LeadController {
 
       const lead = await leadService.getLeadById(id);
 
-      if (!canAccessRecord(req.user, 'leads', lead.ownerId, 'delete')) {
+      if (!canAccessRecord(req.user, 'leads', lead.ownerId, 'delete', lead.assigneeIds)) {
         throw new AppError(403, 'You can only delete your own leads');
       }
 
@@ -218,7 +221,7 @@ export class LeadController {
 
       const lead = await leadService.getLeadById(id);
 
-      if (!canAccessRecord(req.user, 'leads', lead.ownerId, 'update')) {
+      if (!canAccessRecord(req.user, 'leads', lead.ownerId, 'update', lead.assigneeIds)) {
         throw new AppError(403, 'You can only update your own leads');
       }
 
@@ -241,7 +244,7 @@ export class LeadController {
 
       const lead = await leadService.getLeadById(id);
 
-      if (!canAccessRecord(req.user, 'leads', lead.ownerId, 'update')) {
+      if (!canAccessRecord(req.user, 'leads', lead.ownerId, 'update', lead.assigneeIds)) {
         throw new AppError(403, 'You can only convert your own leads');
       }
 

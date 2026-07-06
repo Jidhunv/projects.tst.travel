@@ -308,7 +308,7 @@ export const TicketsPage: React.FC = () => {
                       <Button size="small" variant="text" onClick={() => handleOpenDialog(ticket)}>
                         Edit
                       </Button>
-                      <AssignOwner module="tickets" recordId={ticket.id} currentOwnerId={(ticket as any).assignee?.id} onAssigned={fetchTickets} />
+                      <AssignOwner module="tickets" recordId={ticket.id} currentOwnerId={(ticket as any).assignee?.id} currentAssigneeIds={(ticket as any).assigneeIds} onAssigned={fetchTickets} />
                       {ticket.status !== 'Resolved' && (
                         <Button size="small" variant="text" color="success" onClick={() => handleResolve(ticket.id)}>
                           Resolve

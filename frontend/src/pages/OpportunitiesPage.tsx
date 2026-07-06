@@ -359,7 +359,7 @@ export default function OpportunitiesPage() {
                       <Button size="small" variant="text" onClick={() => handleOpenEdit(opp)}>
                         Edit
                       </Button>
-                      <AssignOwner module="opportunities" recordId={opp.id} currentOwnerId={(opp as any).ownerId} onAssigned={fetchOpportunities} />
+                      <AssignOwner module="opportunities" recordId={opp.id} currentOwnerId={(opp as any).ownerId} currentAssigneeIds={(opp as any).assigneeIds} onAssigned={fetchOpportunities} />
                       <Button size="small" variant="text" color="error" onClick={() => handleDelete(opp.id)}>
                         Delete
                       </Button>

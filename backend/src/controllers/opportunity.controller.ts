@@ -97,7 +97,7 @@ export class OpportunityController {
       const { id } = req.params;
       const opp = await opportunityService.getOpportunityById(id);
 
-      if (!canAccessRecord(req.user, 'opportunities', opp.ownerId)) {
+      if (!canAccessRecord(req.user, 'opportunities', opp.ownerId, 'read', opp.assigneeIds)) {
         throw new AppError(403, 'You can only view your own opportunities');
       }
 
@@ -117,7 +117,7 @@ export class OpportunityController {
 
       const opp = await opportunityService.getOpportunityById(id);
 
-      if (!canAccessRecord(req.user, 'opportunities', opp.ownerId, 'update')) {
+      if (!canAccessRecord(req.user, 'opportunities', opp.ownerId, 'update', opp.assigneeIds)) {
         throw new AppError(403, 'You can only update your own opportunities');
       }
 
@@ -155,7 +155,7 @@ export class OpportunityController {
 
       const opp = await opportunityService.getOpportunityById(id);
 
-      if (!canAccessRecord(req.user, 'opportunities', opp.ownerId, 'update')) {
+      if (!canAccessRecord(req.user, 'opportunities', opp.ownerId, 'update', opp.assigneeIds)) {
         throw new AppError(403, 'You can only update your own opportunities');
       }
 
@@ -193,7 +193,7 @@ export class OpportunityController {
 
       const opp = await opportunityService.getOpportunityById(id);
 
-      if (!canAccessRecord(req.user, 'opportunities', opp.ownerId, 'update')) {
+      if (!canAccessRecord(req.user, 'opportunities', opp.ownerId, 'update', opp.assigneeIds)) {
         throw new AppError(403, 'You can only close your own opportunities');
       }
 
@@ -219,17 +219,19 @@ export class OpportunityController {
     }
   }
 
-  // Reassign an opportunity to another user (Admin/Manager only).
+  // Assign an opportunity to one or more users (Admin/Manager only).
   async assignOpportunity(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       if (!canReassign(req.user, 'opportunities')) {
         throw new AppError(403, 'You do not have permission to reassign opportunities');
       }
-      const { ownerId } = req.body;
-      if (!ownerId) throw new AppError(400, 'ownerId is required');
-      await userService.getUserById(ownerId);
-      const opp = await opportunityService.updateOpportunity(req.params.id, { ownerId } as any);
-      logger.info(`Opportunity ${opp.id} reassigned to ${ownerId} by ${req.user!.email}`);
+      const ids: string[] = Array.isArray(req.body.ownerIds)
+        ? req.body.ownerIds
+        : req.body.ownerId ? [req.body.ownerId] : [];
+      if (!ids.length) throw new AppError(400, 'ownerIds is required');
+      for (const id of ids) await userService.getUserById(id);
+      const opp = await opportunityService.updateOpportunity(req.params.id, { ownerId: ids[0], assigneeIds: ids } as any);
+      logger.info(`Opportunity ${opp.id} assigned to [${ids.join(', ')}] by ${req.user!.email}`);
       return res.json({ success: true, data: opp });
     } catch (error) {
       next(error);
@@ -242,7 +244,7 @@ export class OpportunityController {
 
       const opp = await opportunityService.getOpportunityById(id);
 
-      if (!canAccessRecord(req.user, 'opportunities', opp.ownerId, 'delete')) {
+      if (!canAccessRecord(req.user, 'opportunities', opp.ownerId, 'delete', opp.assigneeIds)) {
         throw new AppError(403, 'You can only delete your own opportunities');
       }
 

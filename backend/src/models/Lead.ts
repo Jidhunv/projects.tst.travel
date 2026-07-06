@@ -105,6 +105,11 @@ export class Lead {
   @Column({ nullable: true })
   tags: string;
 
+  // Additional users this record is assigned to (multi-assign). The primary
+  // owner remains `ownerId`; assigned users can also see the record.
+  @Column('simple-array', { nullable: true })
+  assigneeIds: string[];
+
   @CreateDateColumn()
   createdAt: Date;
 

@@ -92,7 +92,10 @@ export class OpportunityService {
       query.andWhere('opp.status = :status', { status: where.status });
     }
     if (where.ownerId) {
-      query.andWhere('opp.ownerId = :ownerId', { ownerId: where.ownerId });
+      query.andWhere('(opp.ownerId = :ownerId OR opp.assigneeIds LIKE :ownerIdLike)', {
+        ownerId: where.ownerId,
+        ownerIdLike: `%${where.ownerId}%`,
+      });
     }
     if (where.accountId) {
       query.andWhere('opp.accountId = :accountId', { accountId: where.accountId });

@@ -58,6 +58,10 @@ export class Ticket {
   @ManyToOne(() => User, { nullable: true })
   assignee?: User;
 
+  // Additional users this ticket is assigned to (multi-assign).
+  @Column('simple-array', { nullable: true })
+  assigneeIds?: string[];
+
   @Column({ nullable: true })
   slaResponseHours?: number;
 

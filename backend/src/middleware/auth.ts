@@ -130,12 +130,15 @@ export const canAccessRecord = (
   user: AuthUser | undefined,
   module: string,
   ownerId: string,
-  action: string = 'read'
+  action: string = 'read',
+  assigneeIds?: string[]
 ): boolean => {
   if (!user) return false;
   const { allowed, scope } = resolvePermission(user, module, action);
   if (!allowed) return false;
-  return scope === 'all' ? true : user.id === ownerId;
+  if (scope === 'all') return true;
+  // Self scope: the primary owner or any additional assignee may access it.
+  return user.id === ownerId || (Array.isArray(assigneeIds) && assigneeIds.includes(user.id));
 };
 
 export const generateToken = (id: string, email: string, role: string): string => {

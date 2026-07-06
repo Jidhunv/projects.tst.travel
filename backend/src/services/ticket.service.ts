@@ -97,8 +97,12 @@ class TicketService {
     return await this.repository.save(ticket);
   }
 
-  async assignTicket(id: string, assigneeId: string) {
-    return await this.updateTicket(id, { assignee: { id: assigneeId } as any });
+  async assignTicket(id: string, assigneeIds: string[]) {
+    // First id is the primary assignee; all ids are stored for multi-assign.
+    return await this.updateTicket(id, {
+      assignee: { id: assigneeIds[0] } as any,
+      assigneeIds,
+    } as any);
   }
 
   async resolveTicket(id: string, resolutionNotes: string) {

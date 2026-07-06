@@ -410,7 +410,7 @@ export default function LeadsPage() {
                       <Button size="small" variant="text" onClick={() => handleOpenEdit(lead)}>
                         Edit
                       </Button>
-                      <AssignOwner module="leads" recordId={lead.id} currentOwnerId={(lead as any).ownerId} onAssigned={fetchLeads} />
+                      <AssignOwner module="leads" recordId={lead.id} currentOwnerId={(lead as any).ownerId} currentAssigneeIds={(lead as any).assigneeIds} onAssigned={fetchLeads} />
                       <Button size="small" variant="text" color="error" onClick={() => handleDelete(lead.id)}>
                         Delete
                       </Button>

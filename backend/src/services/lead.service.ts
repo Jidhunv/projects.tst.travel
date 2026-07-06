@@ -115,7 +115,11 @@ export class LeadService {
         query.andWhere('lead.source = :source', { source: where.source });
       }
       if (where.ownerId) {
-        query.andWhere('lead.ownerId = :ownerId', { ownerId: where.ownerId });
+        // Owner OR one of the additional assignees (multi-assign).
+        query.andWhere('(lead.ownerId = :ownerId OR lead.assigneeIds LIKE :ownerIdLike)', {
+          ownerId: where.ownerId,
+          ownerIdLike: `%${where.ownerId}%`,
+        });
       }
       if (where.region) {
         query.andWhere('lead.region ILIKE :region', { region: `%${where.region}%` });

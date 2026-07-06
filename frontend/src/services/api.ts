@@ -144,8 +144,8 @@ export const api = {
   markLeadLost: (id: string, lostReason: string) =>
     apiClient.patch<ApiResponse<any>>(`/leads/${id}/lost`, { lostReason }),
 
-  assignLead: (id: string, ownerId: string) =>
-    apiClient.patch<ApiResponse<any>>(`/leads/${id}/assign`, { ownerId }),
+  assignLead: (id: string, ownerIds: string[]) =>
+    apiClient.patch<ApiResponse<any>>(`/leads/${id}/assign`, { ownerIds }),
 
   // Products
   getProducts: (page = 1, limit = 100) =>
@@ -171,8 +171,8 @@ export const api = {
   deleteAccount: (id: string) =>
     apiClient.delete<ApiResponse<void>>(`/accounts/${id}`),
 
-  assignAccount: (id: string, ownerId: string) =>
-    apiClient.patch<ApiResponse<any>>(`/accounts/${id}/assign`, { ownerId }),
+  assignAccount: (id: string, ownerIds: string[]) =>
+    apiClient.patch<ApiResponse<any>>(`/accounts/${id}/assign`, { ownerIds }),
 
   getAccountTimeline: (id: string) =>
     apiClient.get<ApiResponse<any>>(`/accounts/${id}/timeline`),
@@ -209,11 +209,11 @@ export const api = {
   updateOpportunityStage: (id: string, stage: string) =>
     apiClient.patch<ApiResponse<any>>(`/opportunities/${id}/stage`, { stage }),
 
-  assignOpportunity: (id: string, ownerId: string) =>
-    apiClient.patch<ApiResponse<any>>(`/opportunities/${id}/assign`, { ownerId }),
+  assignOpportunity: (id: string, ownerIds: string[]) =>
+    apiClient.patch<ApiResponse<any>>(`/opportunities/${id}/assign`, { ownerIds }),
 
-  assignTicket: (id: string, assigneeId: string) =>
-    apiClient.patch<ApiResponse<any>>(`/tickets/${id}/assign`, { assigneeId }),
+  assignTicket: (id: string, assigneeIds: string[]) =>
+    apiClient.patch<ApiResponse<any>>(`/tickets/${id}/assign`, { assigneeIds }),
 
   closeOpportunity: (id: string, data: any) =>
     apiClient.post<ApiResponse<any>>(`/opportunities/${id}/close`, data),
