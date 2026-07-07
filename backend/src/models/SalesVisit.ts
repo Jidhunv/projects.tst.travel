@@ -5,10 +5,12 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   ManyToOne,
+  OneToMany,
   JoinColumn,
 } from 'typeorm';
 import { Account } from './Account';
 import { User } from './User';
+import { FollowupEntry } from './FollowupEntry';
 
 // A logged sales visit or call. Powers the Sales Report.
 @Entity('sales_visits')
@@ -37,15 +39,20 @@ export class SalesVisit {
   @Column({ type: 'timestamp', nullable: true })
   visitDate: Date; // Date of visit/call
 
-  // Followup tracking
+  // Relationship to followup entries for this visit
+  @OneToMany(() => FollowupEntry, (entry) => entry.visit, { cascade: true })
+  followups: FollowupEntry[];
+
+  // DEPRECATED: Use followups relationship instead
+  // Kept for backward compatibility
   @Column({ type: 'timestamp', nullable: true })
-  followupDate: Date; // When to follow up
+  followupDate: Date;
 
   @Column({ default: false })
-  followupCompleted: boolean; // Was followup done?
+  followupCompleted: boolean;
 
   @Column('text', { nullable: true })
-  followupNotes: string; // What happened at followup
+  followupNotes: string;
 
   @ManyToOne(() => User, { nullable: true })
   @JoinColumn({ name: 'createdById' })

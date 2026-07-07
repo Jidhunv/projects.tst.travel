@@ -2,12 +2,14 @@ import { Response, NextFunction } from 'express';
 import { Between, ILike } from 'typeorm';
 import { AppDataSource } from '../config/database';
 import { SalesVisit } from '../models/SalesVisit';
+import { FollowupEntry } from '../models/FollowupEntry';
 import { Account } from '../models/Account';
 import { AuthRequest, canPerformAction, getOwnerScope } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
 import logger from '../utils/logger';
 
 const repo = () => AppDataSource.getRepository(SalesVisit);
+const followupRepo = () => AppDataSource.getRepository(FollowupEntry);
 
 export class SalesVisitController {
   async list(req: AuthRequest, res: Response, next: NextFunction) {
@@ -21,7 +23,10 @@ export class SalesVisitController {
         .createQueryBuilder('v')
         .leftJoinAndSelect('v.createdBy', 'creator')
         .leftJoinAndSelect('v.account', 'account')
-        .orderBy('v.visitDate', 'DESC');
+        .leftJoinAndSelect('v.followups', 'followups')
+        .leftJoinAndSelect('followups.createdBy', 'followupCreator')
+        .orderBy('v.visitDate', 'DESC')
+        .addOrderBy('followups.createdAt', 'DESC');
 
       // Self-scope: users with only read:self see their own visits.
       const scope = getOwnerScope(req.user, 'sales_visits');
@@ -87,7 +92,22 @@ export class SalesVisitController {
       try {
         await repo().save(visit);
         logger.info(`Sales visit logged by ${req.user!.email}`);
-        const saved = await repo().findOne({ where: { id: visit.id }, relations: ['createdBy', 'account'] });
+
+        // If followup notes are provided during creation, create a FollowupEntry
+        if (followupNotes) {
+          const followupEntry = followupRepo().create({
+            visitId: visit.id,
+            notes: followupNotes,
+            completed: Boolean(followupCompleted) || false,
+            createdById: req.user!.id,
+          });
+          await followupRepo().save(followupEntry);
+        }
+
+        const saved = await repo().findOne({
+          where: { id: visit.id },
+          relations: ['createdBy', 'account', 'followups', 'followups.createdBy']
+        });
         return res.status(201).json({ success: true, data: saved });
       } catch (dbError: any) {
         logger.error('Failed to save sales visit:', dbError.message);
@@ -126,23 +146,27 @@ export class SalesVisitController {
           }
         }
 
-        if (followupDate !== undefined) {
-          if (followupDate && followupDate !== '') {
-            const parsedDate = new Date(followupDate);
-            if (!isNaN(parsedDate.getTime())) {
-              visit.followupDate = parsedDate;
-            }
-          } else {
-            visit.followupDate = null as any;
-          }
+        // Save the main visit record
+        await repo().save(visit);
+
+        // If followup notes are provided, create a new FollowupEntry
+        // This allows multiple followups to accumulate
+        if (followupNotes !== undefined && followupNotes) {
+          const followupEntry = followupRepo().create({
+            visitId: visit.id,
+            notes: followupNotes,
+            completed: Boolean(followupCompleted) || false,
+            createdById: req.user?.id,
+          });
+          await followupRepo().save(followupEntry);
+          logger.info(`Followup added to visit ${visit.id} by ${req.user?.email}`);
         }
 
-        if (followupNotes !== undefined) visit.followupNotes = followupNotes || null;
-        if (followupCompleted !== undefined) visit.followupCompleted = Boolean(followupCompleted);
-
-        await repo().save(visit);
-        // Reload with relations for response
-        const updated = await repo().findOne({ where: { id: visit.id }, relations: ['createdBy', 'account'] });
+        // Reload with all relations for response
+        const updated = await repo().findOne({
+          where: { id: visit.id },
+          relations: ['createdBy', 'account', 'followups', 'followups.createdBy']
+        });
         logger.info(`Sales visit updated by ${req.user?.email}: ${visit.id}`);
         return res.json({ success: true, data: updated });
       } catch (dbError: any) {
