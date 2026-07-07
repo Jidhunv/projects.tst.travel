@@ -17,6 +17,11 @@ build/
 .env.test.local
 .env.production.local
 
+# Secrets / credentials — never commit plaintext credentials
+LOGIN_CREDENTIALS.md
+*credentials*.md
+*CREDENTIALS*.md
+
 # Logs
 logs
 *.log
