@@ -37,6 +37,11 @@
     "uuid": "^14.0.0",
     "winston": "^3.10.0"
   },
+  "overrides": {
+    "@typescript-eslint/typescript-estree": {
+      "minimatch": "^9.0.7"
+    }
+  },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.2",
     "@types/cors": "^2.8.19",
