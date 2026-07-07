@@ -297,55 +297,66 @@ export const SalesVisitsPage: React.FC = () => {
                 <Box sx={{ pt: 2, borderTop: '1px solid #eee' }}>
                   <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>History (Non-Editable Log)</Typography>
                   <Stack spacing={2}>
-                    {/* Original visit entry */}
-                    <Card sx={{ bgcolor: '#f5f5f5', border: '1px solid #e0e0e0' }}>
-                      <CardContent sx={{ pb: 2, '&:last-child': { pb: 2 } }}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                          <Box>
-                            <Chip
-                              label={editingVisit.visitType || 'Visit'}
-                              size="small"
-                              color={editingVisit.visitType === 'Call' ? 'primary' : 'secondary'}
-                              variant="outlined"
-                              sx={{ mr: 1 }}
-                            />
-                            <Typography variant="caption" color="textSecondary">
-                              {editingVisit.visitDate ? new Date(editingVisit.visitDate).toLocaleDateString() : ''}
+                    {/* Unified timeline: original visit + all followups, newest first */}
+                    {[
+                      {
+                        kind: 'visit',
+                        id: `visit-${editingVisit.id}`,
+                        ts: editingVisit.visitDate || editingVisit.createdAt,
+                        data: editingVisit,
+                      },
+                      ...(editingVisit.followups || []).map((fu: any) => ({
+                        kind: 'followup',
+                        id: `fu-${fu.id}`,
+                        ts: fu.createdAt,
+                        data: fu,
+                      })),
+                    ]
+                      .sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime())
+                      .map((item) => item.kind === 'visit' ? (
+                        <Card key={item.id} sx={{ bgcolor: '#f5f5f5', border: '1px solid #e0e0e0' }}>
+                          <CardContent sx={{ pb: 2, '&:last-child': { pb: 2 } }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                              <Box>
+                                <Chip
+                                  label={item.data.visitType || 'Visit'}
+                                  size="small"
+                                  color={item.data.visitType === 'Call' ? 'primary' : 'secondary'}
+                                  variant="outlined"
+                                  sx={{ mr: 1 }}
+                                />
+                                <Typography variant="caption" color="textSecondary">
+                                  {item.data.visitDate ? new Date(item.data.visitDate).toLocaleDateString() : ''}
+                                </Typography>
+                              </Box>
+                              {item.data.createdBy && (
+                                <Typography variant="caption" color="textSecondary">
+                                  by {item.data.createdBy.firstName} {item.data.createdBy.lastName}
+                                </Typography>
+                              )}
+                            </Box>
+                            <Typography variant="body2" sx={{ my: 1, whiteSpace: 'pre-wrap' }}>
+                              {item.data.discussion}
                             </Typography>
-                          </Box>
-                          {editingVisit.createdBy && (
-                            <Typography variant="caption" color="textSecondary">
-                              by {editingVisit.createdBy.firstName} {editingVisit.createdBy.lastName}
-                            </Typography>
-                          )}
-                        </Box>
-                        <Typography variant="body2" sx={{ my: 1, whiteSpace: 'pre-wrap' }}>
-                          {editingVisit.discussion}
-                        </Typography>
-                      </CardContent>
-                    </Card>
-
-                    {/* Accumulating followup entries (newest first) */}
-                    {(editingVisit.followups || [])
-                      .slice()
-                      .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-                      .map((fu: any) => (
-                        <Card key={fu.id} sx={{ bgcolor: '#eef6ff', border: '1px solid #bbdefb', ml: 2 }}>
+                          </CardContent>
+                        </Card>
+                      ) : (
+                        <Card key={item.id} sx={{ bgcolor: '#eef6ff', border: '1px solid #bbdefb', ml: 2 }}>
                           <CardContent sx={{ pb: 2, '&:last-child': { pb: 2 } }}>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                               <Chip
-                                label={`Followup${fu.followupDate ? ' · ' + new Date(fu.followupDate).toLocaleDateString() : ''}${fu.completed ? ' ✓' : ''}`}
+                                label={`Followup${item.data.followupDate ? ' · ' + new Date(item.data.followupDate).toLocaleDateString() : ''}${item.data.completed ? ' ✓' : ''}`}
                                 size="small"
                                 color="primary"
                                 variant="outlined"
                               />
                               <Typography variant="caption" color="textSecondary">
-                                {fu.createdBy ? `by ${fu.createdBy.firstName} ${fu.createdBy.lastName} · ` : ''}
-                                {fu.createdAt ? new Date(fu.createdAt).toLocaleString() : ''}
+                                {item.data.createdBy ? `by ${item.data.createdBy.firstName} ${item.data.createdBy.lastName} · ` : ''}
+                                {item.data.createdAt ? new Date(item.data.createdAt).toLocaleString() : ''}
                               </Typography>
                             </Box>
                             <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
-                              {fu.notes}
+                              {item.data.notes}
                             </Typography>
                           </CardContent>
                         </Card>
