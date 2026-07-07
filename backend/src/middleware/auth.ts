@@ -3,6 +3,7 @@ import jwt, { SignOptions } from 'jsonwebtoken';
 import { AppDataSource } from '../config/database';
 import { User } from '../models/User';
 import { logSecurityEvent, requestContext } from '../utils/securityLogger';
+import tokenBlacklist from '../services/token-blacklist.service';
 
 export interface AuthUser {
   id: string;
@@ -65,17 +66,19 @@ function getCookieValue(req: Request, name: string): string | undefined {
   return undefined;
 }
 
+// Extract the raw JWT from the Authorization header or the authToken cookie.
+export const extractToken = (req: Request): string | undefined => {
+  const headerToken = req.headers.authorization?.split(' ')[1];
+  if (headerToken) return headerToken;
+  return getCookieValue(req, 'authToken');
+};
+
 export const verifyToken = async (
   req: AuthRequest,
   res: Response,
   next: NextFunction
 ) => {
-  // Try to get token from Authorization header first, then from HTTPOnly cookie
-  let token = req.headers.authorization?.split(' ')[1];
-
-  if (!token) {
-    token = getCookieValue(req, 'authToken');
-  }
+  const token = extractToken(req);
 
   if (!token) {
     logSecurityEvent('AUTH_MISSING_TOKEN', { ...requestContext(req), reason: 'No token provided' });
@@ -88,6 +91,13 @@ export const verifyToken = async (
       return res.status(500).json({ success: false, error: 'JWT_SECRET not configured' });
     }
     const decoded = jwt.verify(token, secret) as AuthUser;
+
+    // Reject tokens that were explicitly revoked (e.g. via logout).
+    if (await tokenBlacklist.isRevoked(token)) {
+      logSecurityEvent('AUTH_INVALID_TOKEN', { ...requestContext(req), reason: 'Token revoked' });
+      return res.status(401).json({ success: false, error: 'Token revoked' });
+    }
+
     // Attach the user's live permissions so scoping reflects current config.
     decoded.permissions = await loadUserPermissions(decoded.id);
     req.user = decoded;

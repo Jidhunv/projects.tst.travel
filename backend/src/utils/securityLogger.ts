@@ -5,6 +5,7 @@ import { Request } from 'express';
 export type SecurityEventType =
   | 'LOGIN_SUCCESS'
   | 'LOGIN_FAILURE'
+  | 'ACCOUNT_LOCKED'
   | 'LOGOUT'
   | 'AUTH_MISSING_TOKEN'
   | 'AUTH_INVALID_TOKEN'
@@ -63,6 +64,7 @@ export function requestContext(req: Request): SecurityEventDetail {
 export function logSecurityEvent(type: SecurityEventType, detail: SecurityEventDetail = {}) {
   const isFailure =
     type === 'LOGIN_FAILURE' ||
+    type === 'ACCOUNT_LOCKED' ||
     type === 'ACCESS_DENIED' ||
     type === 'AUTH_INVALID_TOKEN' ||
     type === 'AUTH_MISSING_TOKEN';

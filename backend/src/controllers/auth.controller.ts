@@ -1,11 +1,13 @@
 import { Request, Response, NextFunction } from 'express';
 import userService from '../services/user.service';
-import { generateToken, AuthRequest } from '../middleware/auth';
+import { generateToken, extractToken, AuthRequest } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
 import PasswordValidator from '../utils/passwordValidator';
 import emailService from '../services/email.service';
 import logger from '../utils/logger';
 import { logSecurityEvent, requestContext } from '../utils/securityLogger';
+import tokenBlacklist from '../services/token-blacklist.service';
+import jwt from 'jsonwebtoken';
 
 export class AuthController {
   async login(req: Request, res: Response, next: NextFunction) {
@@ -20,8 +22,9 @@ export class AuthController {
       try {
         user = await userService.authenticateUser(email, password);
       } catch (authError) {
-        // Record failed login attempts (invalid credentials / inactive account)
-        logSecurityEvent('LOGIN_FAILURE', {
+        // Distinguish a lockout (HTTP 423) from an ordinary failed attempt.
+        const isLockout = authError instanceof AppError && authError.statusCode === 423;
+        logSecurityEvent(isLockout ? 'ACCOUNT_LOCKED' : 'LOGIN_FAILURE', {
           ...requestContext(req),
           email,
           reason: authError instanceof AppError ? authError.message : 'authentication failed',
@@ -71,6 +74,13 @@ export class AuthController {
 
   async logout(req: AuthRequest, res: Response, next: NextFunction) {
     try {
+      // Revoke the presented token so it cannot be reused before its expiry.
+      const token = extractToken(req);
+      if (token) {
+        const decoded = jwt.decode(token) as { exp?: number } | null;
+        await tokenBlacklist.revoke(token, decoded?.exp, req.user?.id);
+      }
+
       // Clear the auth cookie on logout
       res.clearCookie('authToken', { path: '/' });
       logger.info('User logged out');

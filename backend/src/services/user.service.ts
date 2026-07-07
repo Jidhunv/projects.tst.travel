@@ -1,6 +1,7 @@
 import { AppDataSource } from '../config/database';
 import { User } from '../models/User';
 import { Role } from '../models/Role';
+import { LoginSecurity } from '../models/LoginSecurity';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { MoreThan } from 'typeorm';
@@ -61,6 +62,11 @@ export class UserService {
     return user;
   }
 
+  // Brute-force protection thresholds.
+  private static readonly MAX_FAILED_ATTEMPTS = 5;
+  private static readonly LOCKOUT_MINUTES = 15;
+  private loginSecurityRepository = AppDataSource.getRepository(LoginSecurity);
+
   async authenticateUser(email: string, password: string): Promise<User> {
     const user = await this.userRepository.findOne({
       where: { email },
@@ -68,16 +74,49 @@ export class UserService {
     });
 
     if (!user) {
+      // Generic message — do not reveal whether the email exists.
       throw new AppError(401, 'Invalid credentials');
+    }
+
+    // Load brute-force protection state (separate table).
+    let sec = await this.loginSecurityRepository.findOne({ where: { userId: user.id } });
+
+    // If the account is currently locked, reject before checking the password.
+    if (sec?.lockoutUntil && sec.lockoutUntil.getTime() > Date.now()) {
+      const mins = Math.ceil((sec.lockoutUntil.getTime() - Date.now()) / 60000);
+      throw new AppError(423, `Account locked due to too many failed attempts. Try again in ${mins} minute(s).`);
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
+      if (!sec) {
+        sec = this.loginSecurityRepository.create({ userId: user.id, failedAttempts: 0, lockoutUntil: null });
+      }
+      sec.failedAttempts = (sec.failedAttempts || 0) + 1;
+
+      if (sec.failedAttempts >= UserService.MAX_FAILED_ATTEMPTS) {
+        sec.lockoutUntil = new Date(Date.now() + UserService.LOCKOUT_MINUTES * 60 * 1000);
+        sec.failedAttempts = 0; // reset counter; the lock now gates access
+        await this.loginSecurityRepository.save(sec);
+        throw new AppError(
+          423,
+          `Account locked due to too many failed attempts. Try again in ${UserService.LOCKOUT_MINUTES} minutes.`
+        );
+      }
+
+      await this.loginSecurityRepository.save(sec);
       throw new AppError(401, 'Invalid credentials');
     }
 
     if (!user.isActive) {
       throw new AppError(401, 'User account is inactive');
+    }
+
+    // Successful login — clear any accumulated failure state.
+    if (sec && (sec.failedAttempts > 0 || sec.lockoutUntil)) {
+      sec.failedAttempts = 0;
+      sec.lockoutUntil = null;
+      await this.loginSecurityRepository.save(sec);
     }
 
     return user;
