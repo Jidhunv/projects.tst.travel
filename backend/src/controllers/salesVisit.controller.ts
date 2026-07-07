@@ -55,13 +55,30 @@ export class SalesVisitController {
         resolvedCompany = account?.name;
       }
 
+      // Safely parse dates
+      let parsedVisitDate = new Date();
+      if (visitDate) {
+        const parsed = new Date(visitDate);
+        if (!isNaN(parsed.getTime())) {
+          parsedVisitDate = parsed;
+        }
+      }
+
+      let parsedFollowupDate = null as any;
+      if (followupDate && followupDate !== '') {
+        const parsed = new Date(followupDate);
+        if (!isNaN(parsed.getTime())) {
+          parsedFollowupDate = parsed;
+        }
+      }
+
       const visit = repo().create({
         accountId: accountId || null,
         companyName: resolvedCompany,
         visitType: visitType || 'Visit',
         discussion,
-        visitDate: visitDate ? new Date(visitDate) : new Date(),
-        followupDate: followupDate && followupDate !== '' ? new Date(followupDate) : (null as any),
+        visitDate: parsedVisitDate,
+        followupDate: parsedFollowupDate,
         followupNotes: followupNotes || null,
         followupCompleted: Boolean(followupCompleted) || false,
         createdById: req.user!.id,
@@ -100,9 +117,27 @@ export class SalesVisitController {
         if (visitType !== undefined) visit.visitType = visitType;
         if (discussion !== undefined) visit.discussion = discussion;
         if (accountId !== undefined) visit.accountId = accountId;
-        if (visitDate !== undefined) visit.visitDate = visitDate ? new Date(visitDate) : visit.visitDate;
-        if (followupDate !== undefined) visit.followupDate = followupDate && followupDate !== '' ? new Date(followupDate) : (null as any);
-        if (followupNotes !== undefined) visit.followupNotes = followupNotes;
+
+        // Safely parse dates - handle ISO strings and empty values
+        if (visitDate !== undefined && visitDate) {
+          const parsedDate = new Date(visitDate);
+          if (!isNaN(parsedDate.getTime())) {
+            visit.visitDate = parsedDate;
+          }
+        }
+
+        if (followupDate !== undefined) {
+          if (followupDate && followupDate !== '') {
+            const parsedDate = new Date(followupDate);
+            if (!isNaN(parsedDate.getTime())) {
+              visit.followupDate = parsedDate;
+            }
+          } else {
+            visit.followupDate = null as any;
+          }
+        }
+
+        if (followupNotes !== undefined) visit.followupNotes = followupNotes || null;
         if (followupCompleted !== undefined) visit.followupCompleted = Boolean(followupCompleted);
 
         await repo().save(visit);
