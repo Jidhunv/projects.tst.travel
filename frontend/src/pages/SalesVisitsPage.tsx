@@ -54,9 +54,13 @@ export const SalesVisitsPage: React.FC = () => {
   };
   const openEdit = (r: any) => {
     setEditingId(r.id);
+
+    // Load company name from account if not stored
+    const companyName = r.companyName || accounts.find((a) => a.id === r.accountId)?.name || '';
+
     setForm({
       accountId: r.accountId || '',
-      companyName: r.companyName || '',
+      companyName,
       visitType: r.visitType || 'Visit',
       discussion: r.discussion || '',
       visitDate: r.visitDate ? new Date(r.visitDate).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
@@ -64,8 +68,11 @@ export const SalesVisitsPage: React.FC = () => {
       followupCompleted: r.followupCompleted || false,
       followupNotes: r.followupNotes || '',
     });
-    // Load history for this account
-    const history = rows.filter((v) => v.accountId === r.accountId && v.id !== r.id).sort((a, b) => new Date(b.visitDate).getTime() - new Date(a.visitDate).getTime());
+
+    // Load history for this account (excluding the current visit being edited)
+    const history = rows
+      .filter((v) => v.accountId === r.accountId && v.id !== r.id)
+      .sort((a, b) => new Date(b.visitDate).getTime() - new Date(a.visitDate).getTime());
     setVisitHistory(history);
     setOpen(true);
   };
@@ -81,8 +88,21 @@ export const SalesVisitsPage: React.FC = () => {
       } else {
         await api.createSalesVisit(payload);
       }
+
+      // Reload data and close dialog
+      await load();
+
+      // If we were in edit mode, reload history to show the new visit
+      if (payload.accountId) {
+        // Small delay to ensure data is loaded
+        setTimeout(() => {
+          handleAccountChange(payload.accountId);
+        }, 100);
+      }
+
       setOpen(false);
-      load();
+      setForm(empty);
+      setEditingId(null);
     } catch (e: any) {
       alert(e.response?.data?.error || 'Failed to save sales visit');
     }
@@ -94,10 +114,19 @@ export const SalesVisitsPage: React.FC = () => {
   };
 
   const handleAccountChange = (accountId: string) => {
-    setForm({ ...form, accountId });
+    // Find and populate company name from selected account
+    const selectedAccount = accounts.find((a) => a.id === accountId);
+    setForm({
+      ...form,
+      accountId,
+      companyName: selectedAccount?.name || ''
+    });
+
     // Load history for this account
     if (accountId) {
-      const history = rows.filter((v) => v.accountId === accountId && v.id !== editingId).sort((a, b) => new Date(b.visitDate).getTime() - new Date(a.visitDate).getTime());
+      const history = rows
+        .filter((v) => v.accountId === accountId && v.id !== editingId)
+        .sort((a, b) => new Date(b.visitDate).getTime() - new Date(a.visitDate).getTime());
       setVisitHistory(history);
     } else {
       setVisitHistory([]);
@@ -193,10 +222,27 @@ export const SalesVisitsPage: React.FC = () => {
           <DialogTitle>{editingId ? 'Edit Visit / Call' : 'Log Visit / Call'}</DialogTitle>
           <DialogContent sx={{ maxHeight: '80vh', overflowY: 'auto' }}>
             <Stack spacing={2} sx={{ mt: 1 }}>
-              <TextField select label="Company Information" value={form.accountId} onChange={(e) => handleAccountChange(e.target.value)}>
+              <TextField
+                select
+                label="Company Information"
+                value={form.accountId}
+                onChange={(e) => handleAccountChange(e.target.value)}
+              >
                 <MenuItem value="">-- Select company --</MenuItem>
                 {accounts.map((a) => <MenuItem key={a.id} value={a.id}>{a.name}</MenuItem>)}
               </TextField>
+
+              {/* Display selected company name as read-only */}
+              {form.accountId && (
+                <TextField
+                  label="Company Name"
+                  value={form.companyName || ''}
+                  disabled
+                  fullWidth
+                  helperText="Auto-populated from selected company"
+                />
+              )}
+
               <TextField select label="Type" value={form.visitType} onChange={(e) => setForm({ ...form, visitType: e.target.value })}>
                 <MenuItem value="Visit">Visit</MenuItem>
                 <MenuItem value="Call">Call</MenuItem>
