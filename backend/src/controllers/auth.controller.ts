@@ -5,6 +5,7 @@ import { AppError } from '../middleware/errorHandler';
 import PasswordValidator from '../utils/passwordValidator';
 import emailService from '../services/email.service';
 import logger from '../utils/logger';
+import { logSecurityEvent, requestContext } from '../utils/securityLogger';
 
 export class AuthController {
   async login(req: Request, res: Response, next: NextFunction) {
@@ -15,10 +16,28 @@ export class AuthController {
         throw new AppError(400, 'Email and password are required');
       }
 
-      const user = await userService.authenticateUser(email, password);
+      let user;
+      try {
+        user = await userService.authenticateUser(email, password);
+      } catch (authError) {
+        // Record failed login attempts (invalid credentials / inactive account)
+        logSecurityEvent('LOGIN_FAILURE', {
+          ...requestContext(req),
+          email,
+          reason: authError instanceof AppError ? authError.message : 'authentication failed',
+        });
+        throw authError;
+      }
+
       const token = generateToken(user.id, user.email, user.role?.name || 'Sales Rep');
 
       logger.info(`User logged in: ${user.email}`);
+      logSecurityEvent('LOGIN_SUCCESS', {
+        ...requestContext(req),
+        email: user.email,
+        userId: user.id,
+        role: user.role?.name,
+      });
 
       // Set token in HTTPOnly cookie to prevent XSS attacks
       // Note: secure flag should be true in production, but can be false in local development
@@ -50,9 +69,16 @@ export class AuthController {
     }
   }
 
-  async logout(req: Request, res: Response, next: NextFunction) {
+  async logout(req: AuthRequest, res: Response, next: NextFunction) {
     try {
+      // Clear the auth cookie on logout
+      res.clearCookie('authToken', { path: '/' });
       logger.info('User logged out');
+      logSecurityEvent('LOGOUT', {
+        ...requestContext(req),
+        userId: req.user?.id,
+        email: req.user?.email,
+      });
       return res.json({
         success: true,
         data: { message: 'Logged out successfully' },
@@ -84,6 +110,7 @@ export class AuthController {
       }
 
       logger.info(`Password reset requested for: ${email}`);
+      logSecurityEvent('PASSWORD_RESET_REQUESTED', { ...requestContext(req), email });
 
       return res.json({
         success: true,
@@ -111,6 +138,7 @@ export class AuthController {
 
       await userService.resetPasswordWithToken(token, newPassword);
       logger.info('Password reset confirmed');
+      logSecurityEvent('PASSWORD_RESET_COMPLETED', { ...requestContext(req) });
 
       return res.json({
         success: true,
@@ -171,6 +199,7 @@ export class AuthController {
 
       await userService.changePassword(userId, currentPassword, newPassword);
       logger.info(`User ${userId} changed password`);
+      logSecurityEvent('PASSWORD_CHANGED', { ...requestContext(req), userId, email: req.user?.email });
 
       return res.json({
         success: true,
@@ -201,6 +230,12 @@ export class AuthController {
 
       await userService.setUserPassword(userId, newPassword);
       logger.info(`Admin ${req.user?.id} set password for user ${userId}`);
+      logSecurityEvent('ADMIN_SET_PASSWORD', {
+        ...requestContext(req),
+        userId: req.user?.id,
+        email: req.user?.email,
+        targetUserId: userId,
+      });
 
       return res.json({
         success: true,

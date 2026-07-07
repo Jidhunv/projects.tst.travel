@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt, { SignOptions } from 'jsonwebtoken';
 import { AppDataSource } from '../config/database';
 import { User } from '../models/User';
+import { logSecurityEvent, requestContext } from '../utils/securityLogger';
 
 export interface AuthUser {
   id: string;
@@ -77,6 +78,7 @@ export const verifyToken = async (
   }
 
   if (!token) {
+    logSecurityEvent('AUTH_MISSING_TOKEN', { ...requestContext(req), reason: 'No token provided' });
     return res.status(401).json({ success: false, error: 'No token provided' });
   }
 
@@ -91,6 +93,10 @@ export const verifyToken = async (
     req.user = decoded;
     next();
   } catch (error) {
+    logSecurityEvent('AUTH_INVALID_TOKEN', {
+      ...requestContext(req),
+      reason: error instanceof Error ? error.message : 'Invalid token',
+    });
     return res.status(401).json({ success: false, error: 'Invalid token' });
   }
 };
@@ -102,6 +108,13 @@ export const requireRole = (...allowedRoles: string[]) => {
       return res.status(401).json({ success: false, error: 'Not authenticated' });
     }
     if (!allowedRoles.includes(req.user.role)) {
+      logSecurityEvent('ACCESS_DENIED', {
+        ...requestContext(req),
+        userId: req.user.id,
+        email: req.user.email,
+        role: req.user.role,
+        reason: `requires role: ${allowedRoles.join(', ')}`,
+      });
       return res
         .status(403)
         .json({ success: false, error: 'You do not have permission to perform this action' });
