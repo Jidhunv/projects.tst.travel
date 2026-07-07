@@ -27,7 +27,9 @@
       "@services/*": ["services/*"],
       "@types/*": ["types/*"],
       "@hooks/*": ["hooks/*"],
-      "@utils/*": ["utils/*"]
+      "@utils/*": ["utils/*"],
+      "@context/*": ["context/*"],
+      "@theme/*": ["theme/*"]
     }
   },
   "include": ["src"],

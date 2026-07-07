@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import useAuth from '@hooks/useAuth';
 import FirstLoginPasswordChangeDialog from '@components/FirstLoginPasswordChangeDialog';
 import { initializeCsrfToken } from '@services/api';
+import { ThemeContextProvider } from '@context/ThemeContext';
 
 // Pages
 import LoginPage from '@pages/LoginPage';
@@ -28,20 +28,6 @@ import { ExpensesPage } from '@pages/ExpensesPage';
 import { SettingsPage } from '@pages/SettingsPage';
 import { ForgotPasswordPage } from '@pages/ForgotPasswordPage';
 import { ResetPasswordPage } from '@pages/ResetPasswordPage';
-
-const theme = createTheme({
-  palette: {
-    primary: {
-      main: '#6366f1',
-    },
-    secondary: {
-      main: '#ec4899',
-    },
-  },
-  typography: {
-    fontFamily: '"Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", sans-serif',
-  },
-});
 
 const ProtectedRoute: React.FC<{
   children: React.ReactNode;
@@ -113,17 +99,17 @@ function App() {
   // Show loading state while verifying session
   if (isVerifyingSession) {
     return (
-      <ThemeProvider theme={theme}>
+      <ThemeContextProvider>
         <CssBaseline />
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
           <div>Loading...</div>
         </div>
-      </ThemeProvider>
+      </ThemeContextProvider>
     );
   }
 
   return (
-    <ThemeProvider theme={theme}>
+    <ThemeContextProvider>
       <CssBaseline />
       <FirstLoginPasswordChangeDialog
         open={showPasswordDialog}
@@ -290,7 +276,7 @@ function App() {
           <Route path="/" element={<RootRoute />} />
         </Routes>
       </Router>
-    </ThemeProvider>
+    </ThemeContextProvider>
   );
 }
 

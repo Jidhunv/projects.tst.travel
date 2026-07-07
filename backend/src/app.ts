@@ -101,6 +101,7 @@ import emailSettingsRoutes from './routes/email-settings';
 import supplierRoutes from './routes/suppliers';
 import salesVisitRoutes from './routes/sales-visits';
 import expenseRoutes from './routes/expenses';
+import countryRoutes from './routes/countries';
 
 // Database initialization
 AppDataSource.initialize()
@@ -140,6 +141,7 @@ app.use('/api/email-settings', emailSettingsRoutes);
 app.use('/api/suppliers', supplierRoutes);
 app.use('/api/sales-visits', salesVisitRoutes);
 app.use('/api/expenses', expenseRoutes);
+app.use('/api/countries', countryRoutes);
 
 // Save traces after response completes (for debugging)
 app.use((req: any, res, next) => {

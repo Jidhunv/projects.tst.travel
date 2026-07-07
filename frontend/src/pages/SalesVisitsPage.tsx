@@ -2,14 +2,23 @@ import React, { useEffect, useState } from 'react';
 import {
   Box, Typography, Button, Paper, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, Dialog, DialogTitle, DialogContent, DialogActions, TextField,
-  Stack, MenuItem,
+  Stack, MenuItem, Checkbox, FormControlLabel, Card, CardContent, Chip,
 } from '@mui/material';
 import Layout from '@components/Layout';
 import { api } from '@services/api';
 import useAuth from '@hooks/useAuth';
 import { exportToCsv } from '@utils/exportCsv';
 
-const empty = { accountId: '', companyName: '', visitType: 'Visit', discussion: '', visitDate: new Date().toISOString().slice(0, 10) };
+const empty = {
+  accountId: '',
+  companyName: '',
+  visitType: 'Visit',
+  discussion: '',
+  visitDate: new Date().toISOString().slice(0, 10),
+  followupDate: '',
+  followupCompleted: false,
+  followupNotes: '',
+};
 
 export const SalesVisitsPage: React.FC = () => {
   const { hasPermission } = useAuth();
@@ -23,6 +32,7 @@ export const SalesVisitsPage: React.FC = () => {
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<any>(empty);
+  const [visitHistory, setVisitHistory] = useState<any[]>([]);
 
   const load = async () => {
     const params: any = {};
@@ -36,7 +46,12 @@ export const SalesVisitsPage: React.FC = () => {
     /* eslint-disable-next-line */
   }, []);
 
-  const openNew = () => { setEditingId(null); setForm(empty); setOpen(true); };
+  const openNew = () => {
+    setEditingId(null);
+    setForm(empty);
+    setVisitHistory([]);
+    setOpen(true);
+  };
   const openEdit = (r: any) => {
     setEditingId(r.id);
     setForm({
@@ -45,7 +60,13 @@ export const SalesVisitsPage: React.FC = () => {
       visitType: r.visitType || 'Visit',
       discussion: r.discussion || '',
       visitDate: r.visitDate ? new Date(r.visitDate).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
+      followupDate: r.followupDate ? new Date(r.followupDate).toISOString().slice(0, 10) : '',
+      followupCompleted: r.followupCompleted || false,
+      followupNotes: r.followupNotes || '',
     });
+    // Load history for this account
+    const history = rows.filter((v) => v.accountId === r.accountId && v.id !== r.id).sort((a, b) => new Date(b.visitDate).getTime() - new Date(a.visitDate).getTime());
+    setVisitHistory(history);
     setOpen(true);
   };
   const save = async () => {
@@ -70,6 +91,17 @@ export const SalesVisitsPage: React.FC = () => {
     if (!window.confirm('Delete this record?')) return;
     await api.deleteSalesVisit(id);
     load();
+  };
+
+  const handleAccountChange = (accountId: string) => {
+    setForm({ ...form, accountId });
+    // Load history for this account
+    if (accountId) {
+      const history = rows.filter((v) => v.accountId === accountId && v.id !== editingId).sort((a, b) => new Date(b.visitDate).getTime() - new Date(a.visitDate).getTime());
+      setVisitHistory(history);
+    } else {
+      setVisitHistory([]);
+    }
   };
 
   const exportCsv = () => exportToCsv('sales-report', [
@@ -118,29 +150,40 @@ export const SalesVisitsPage: React.FC = () => {
                 <TableCell>Company</TableCell>
                 <TableCell>Type</TableCell>
                 <TableCell>What Was Discussed</TableCell>
-                <TableCell>Date of Visit/Call</TableCell>
+                <TableCell>Visit Date</TableCell>
+                <TableCell>Followup Date</TableCell>
                 <TableCell>Created</TableCell>
                 <TableCell>Creator</TableCell>
                 <TableCell>Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {rows.map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell>{r.companyName || r.account?.name || '-'}</TableCell>
-                  <TableCell>{r.visitType}</TableCell>
-                  <TableCell sx={{ maxWidth: 320, whiteSpace: 'pre-wrap' }}>{r.discussion}</TableCell>
-                  <TableCell>{r.visitDate ? new Date(r.visitDate).toLocaleDateString() : '-'}</TableCell>
-                  <TableCell>{new Date(r.createdAt).toLocaleString()}</TableCell>
-                  <TableCell>{r.createdBy ? `${r.createdBy.firstName} ${r.createdBy.lastName}` : '-'}</TableCell>
-                  <TableCell>
-                    {canUpdate && <Button size="small" onClick={() => openEdit(r)}>Edit</Button>}
-                    {canDelete && <Button size="small" color="error" onClick={() => remove(r.id)}>Delete</Button>}
-                  </TableCell>
-                </TableRow>
-              ))}
+              {rows.map((r) => {
+                const followupDate = r.followupDate ? new Date(r.followupDate) : null;
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const isOverdue = followupDate && followupDate < today && !r.followupCompleted;
+
+                return (
+                  <TableRow key={r.id} sx={{ backgroundColor: isOverdue ? '#ffebee' : 'inherit' }}>
+                    <TableCell>{r.companyName || r.account?.name || '-'}</TableCell>
+                    <TableCell>{r.visitType}</TableCell>
+                    <TableCell sx={{ maxWidth: 220, whiteSpace: 'pre-wrap' }}>{r.discussion}</TableCell>
+                    <TableCell>{r.visitDate ? new Date(r.visitDate).toLocaleDateString() : '-'}</TableCell>
+                    <TableCell sx={{ color: isOverdue ? '#d32f2f' : 'inherit', fontWeight: isOverdue ? 600 : 400 }}>
+                      {r.followupDate ? `${new Date(r.followupDate).toLocaleDateString()}${r.followupCompleted ? ' ✓' : ''}` : '-'}
+                    </TableCell>
+                    <TableCell>{new Date(r.createdAt).toLocaleString()}</TableCell>
+                    <TableCell>{r.createdBy ? `${r.createdBy.firstName} ${r.createdBy.lastName}` : '-'}</TableCell>
+                    <TableCell>
+                      {canUpdate && <Button size="small" onClick={() => openEdit(r)}>Edit</Button>}
+                      {canDelete && <Button size="small" color="error" onClick={() => remove(r.id)}>Delete</Button>}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
               {rows.length === 0 && (
-                <TableRow><TableCell colSpan={7} align="center">No sales visits logged yet</TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} align="center">No sales visits logged yet</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
@@ -148,9 +191,9 @@ export const SalesVisitsPage: React.FC = () => {
 
         <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
           <DialogTitle>{editingId ? 'Edit Visit / Call' : 'Log Visit / Call'}</DialogTitle>
-          <DialogContent>
+          <DialogContent sx={{ maxHeight: '80vh', overflowY: 'auto' }}>
             <Stack spacing={2} sx={{ mt: 1 }}>
-              <TextField select label="Company Information" value={form.accountId} onChange={(e) => setForm({ ...form, accountId: e.target.value })}>
+              <TextField select label="Company Information" value={form.accountId} onChange={(e) => handleAccountChange(e.target.value)}>
                 <MenuItem value="">-- Select company --</MenuItem>
                 {accounts.map((a) => <MenuItem key={a.id} value={a.id}>{a.name}</MenuItem>)}
               </TextField>
@@ -158,8 +201,79 @@ export const SalesVisitsPage: React.FC = () => {
                 <MenuItem value="Visit">Visit</MenuItem>
                 <MenuItem value="Call">Call</MenuItem>
               </TextField>
-              <TextField label="What Was Discussed" required multiline rows={4} value={form.discussion} onChange={(e) => setForm({ ...form, discussion: e.target.value })} />
+              <TextField label="What Was Discussed" required multiline rows={3} value={form.discussion} onChange={(e) => setForm({ ...form, discussion: e.target.value })} />
               <TextField label="Date of Visit / Call" type="date" InputLabelProps={{ shrink: true }} value={form.visitDate} onChange={(e) => setForm({ ...form, visitDate: e.target.value })} />
+
+              <Box sx={{ pt: 2, borderTop: '1px solid #eee' }}>
+                <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>Followup</Typography>
+                <TextField
+                  fullWidth
+                  label="Followup Date"
+                  type="date"
+                  InputLabelProps={{ shrink: true }}
+                  value={form.followupDate}
+                  onChange={(e) => setForm({ ...form, followupDate: e.target.value })}
+                  sx={{ mb: 2 }}
+                />
+                <TextField
+                  fullWidth
+                  label="Followup Notes"
+                  multiline
+                  rows={2}
+                  value={form.followupNotes}
+                  onChange={(e) => setForm({ ...form, followupNotes: e.target.value })}
+                  sx={{ mb: 2 }}
+                  placeholder="What to follow up on..."
+                />
+              </Box>
+
+              {visitHistory.length > 0 && (
+                <Box sx={{ pt: 2, borderTop: '1px solid #eee' }}>
+                  <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>History (Non-Editable Log)</Typography>
+                  <Stack spacing={2}>
+                    {visitHistory.map((visit) => (
+                      <Card key={visit.id} sx={{ bgcolor: '#f5f5f5', border: '1px solid #e0e0e0' }}>
+                        <CardContent sx={{ pb: 2, '&:last-child': { pb: 2 } }}>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                            <Box>
+                              <Chip
+                                label={visit.visitType || 'Visit'}
+                                size="small"
+                                color={visit.visitType === 'Call' ? 'primary' : 'secondary'}
+                                variant="outlined"
+                                sx={{ mr: 1 }}
+                              />
+                              <Typography variant="caption" color="textSecondary">
+                                {new Date(visit.visitDate).toLocaleDateString()}
+                              </Typography>
+                            </Box>
+                            {visit.createdBy && (
+                              <Typography variant="caption" color="textSecondary">
+                                by {visit.createdBy.firstName} {visit.createdBy.lastName}
+                              </Typography>
+                            )}
+                          </Box>
+                          <Typography variant="body2" sx={{ my: 1, whiteSpace: 'pre-wrap' }}>
+                            {visit.discussion}
+                          </Typography>
+                          {visit.followupDate && (
+                            <Box sx={{ mt: 1, pt: 1, borderTop: '1px solid #ddd' }}>
+                              <Typography variant="caption" color="primary" sx={{ fontWeight: 600 }}>
+                                Followup: {new Date(visit.followupDate).toLocaleDateString()} {visit.followupCompleted && '✓'}
+                              </Typography>
+                              {visit.followupNotes && (
+                                <Typography variant="caption" display="block" sx={{ whiteSpace: 'pre-wrap', mt: 0.5 }}>
+                                  {visit.followupNotes}
+                                </Typography>
+                              )}
+                            </Box>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </Stack>
+                </Box>
+              )}
             </Stack>
           </DialogContent>
           <DialogActions>

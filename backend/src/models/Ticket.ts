@@ -49,6 +49,19 @@ export class Ticket {
   @ManyToOne(() => Account)
   account: Account;
 
+  @Column({ nullable: true })
+  productId?: string; // Reference to Product
+
+  @Column({
+    type: 'enum',
+    enum: ['Bug', 'Feature Request', 'Enhancement Suggestion'],
+    nullable: true,
+  })
+  moduleType?: 'Bug' | 'Feature Request' | 'Enhancement Suggestion';
+
+  @Column('simple-array', { nullable: true })
+  attachmentPaths?: string[]; // File paths for attachments
+
   @ManyToOne(() => Contact, { nullable: true })
   contact?: Contact;
 

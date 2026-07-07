@@ -28,7 +28,7 @@ apiClient.interceptors.response.use(
     // Update CSRF token from response header if present
     const newCsrfToken = response.headers['x-csrf-token'];
     if (newCsrfToken) {
-      console.log('✅ CSRF token updated from response');
+      if (import.meta.env.DEV) console.log('CSRF token updated from response');
       // Set new token in cookie via JavaScript
       document.cookie = `XSRF-TOKEN=${encodeURIComponent(newCsrfToken)}; path=/; SameSite=Strict`;
     }
@@ -38,7 +38,7 @@ apiClient.interceptors.response.use(
     // Don't auto-redirect on 401 - let the component handle it
     // This allows proper async cleanup before redirect
     if (error.response?.status === 401) {
-      console.log('Received 401 Unauthorized - session may have expired');
+      if (import.meta.env.DEV) console.log('Session expired, redirecting to login');
       // Only redirect if we're not on the login page already
       if (!window.location.pathname.includes('/login')) {
         localStorage.removeItem('user');
@@ -64,12 +64,12 @@ apiClient.interceptors.request.use(
     // Initialize CSRF token by making a GET request if not already done and this is a state-changing request
     if (!csrfInitialized && isStateChangingRequest) {
       try {
-        console.log('Initializing CSRF token before state-changing request...');
+        if (import.meta.env.DEV) console.log('Initializing CSRF token...');
         await apiClient.get('/users/me');
         csrfInitialized = true;
-        console.log('CSRF token initialized successfully');
+        if (import.meta.env.DEV) console.log('CSRF token initialized');
       } catch (error) {
-        console.warn('CSRF token initialization failed:', error);
+        if (import.meta.env.DEV) console.warn('CSRF token initialization failed');
         csrfInitialized = true;
       }
     }
@@ -77,9 +77,9 @@ apiClient.interceptors.request.use(
     const csrfToken = getCsrfTokenFromCookie();
     if (csrfToken) {
       config.headers['X-CSRF-Token'] = csrfToken;
-      console.log('CSRF token added to request header');
+      if (import.meta.env.DEV) console.log('CSRF token added to request');
     } else if (isStateChangingRequest) {
-      console.warn('No CSRF token found for state-changing request!');
+      if (import.meta.env.DEV) console.warn('No CSRF token found for state-changing request');
     }
 
     return config;
@@ -248,6 +248,10 @@ export const api = {
   updateSupplier: (id: string, data: any) => apiClient.patch<ApiResponse<any>>(`/suppliers/${id}`, data),
   deleteSupplier: (id: string) => apiClient.delete<ApiResponse<void>>(`/suppliers/${id}`),
 
+  // Countries (master data - public, read-only)
+  getCountries: (filters?: Record<string, any>) =>
+    apiClient.get<ApiResponse<any[]>>('/countries', { params: filters }),
+
   // Sales visits / calls (Sales Report source)
   getSalesVisits: (filters?: Record<string, any>) =>
     apiClient.get<ApiResponse<any[]>>('/sales-visits', { params: filters }),
@@ -263,6 +267,17 @@ export const api = {
   decideExpense: (id: string, decision: 'Approved' | 'Rejected', notes?: string) =>
     apiClient.post<ApiResponse<any>>(`/expenses/${id}/decision`, { decision, notes }),
   deleteExpense: (id: string) => apiClient.delete<ApiResponse<void>>(`/expenses/${id}`),
+
+  // Audit logs and activity tracking
+  getRecentChanges: (days: number = 30, limit: number = 50) => {
+    const fromDate = new Date();
+    fromDate.setDate(fromDate.getDate() - days);
+    return apiClient.get<PaginatedResponse<any>>('/audit-logs', {
+      params: { limit, fromDate: fromDate.toISOString() },
+    });
+  },
+  getAuditLogs: (filters?: Record<string, any>) =>
+    apiClient.get<PaginatedResponse<any>>('/audit-logs', { params: filters }),
 };
 
 export default apiClient;

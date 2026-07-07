@@ -28,8 +28,8 @@ import {
 import { Search as SearchIcon, ViewAgendaOutlined as ListIcon, ViewWeekOutlined as KanbanIcon } from '@mui/icons-material';
 import Layout from '@components/Layout';
 import AssignOwner from '@components/AssignOwner';
-import { apiClient } from '../services/api';
-import { Lead } from '../types';
+import { apiClient, api } from '../services/api';
+import { Lead, Account } from '../types';
 import { formatCurrency } from '@utils/format';
 
 const statusColor: Record<string, 'info' | 'primary' | 'success' | 'error' | 'warning'> = {
@@ -52,6 +52,7 @@ export default function LeadsPage() {
   const [pageSize, setPageSize] = useState(20);
   const [loading, setLoading] = useState(false);
   const [products, setProducts] = useState<any[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list');
 
   // Filters
@@ -68,8 +69,10 @@ export default function LeadsPage() {
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [regionFilter, setRegionFilter] = useState('');
   const [countryFilter, setCountryFilter] = useState('');
+  const [accountContacts, setAccountContacts] = useState<any[]>([]);
 
   const [form, setForm] = useState({
+    accountId: '',
     firstName: '',
     lastName: '',
     email: '',
@@ -118,16 +121,23 @@ export default function LeadsPage() {
   useEffect(() => {
     apiClient.get('/products').then((r) => setProducts(r.data.data || []));
     apiClient.get('/suppliers').then((r) => setSuppliers(r.data.data || [])).catch(() => {});
+    api.getAccounts(1, 200).then((r) => setAccounts(r.data.data || [])).catch(() => {});
   }, []);
 
   const handleCreate = async () => {
     try {
+      if (!form.accountId) {
+        alert('Please select an account first');
+        return;
+      }
       const productNames = form.productIds.map((id) => products.find((p) => p.id === id)?.name).filter(Boolean);
+      const selectedAccount = accounts.find((a) => a.id === form.accountId);
       await apiClient.post('/leads', {
+        accountId: form.accountId,
         firstName: form.firstName,
         lastName: form.lastName,
         email: form.email,
-        company: form.company,
+        company: selectedAccount?.name || form.company,
         phoneNumber: form.phoneNumber,
         value: form.value ? Number(form.value) : 0,
         expectedCloseDate: form.expectedCloseDate || undefined,
@@ -142,6 +152,7 @@ export default function LeadsPage() {
       });
       setOpenCreate(false);
       setForm({
+        accountId: '',
         firstName: '',
         lastName: '',
         email: '',
@@ -227,6 +238,7 @@ export default function LeadsPage() {
   const handleOpenEdit = (lead: Lead) => {
     setOpenEdit(lead);
     setForm({
+      accountId: (lead as any).accountId || '',
       firstName: lead.firstName,
       lastName: lead.lastName,
       email: lead.email,
@@ -499,43 +511,164 @@ export default function LeadsPage() {
         <Dialog open={openCreate || !!openEdit} onClose={() => { setOpenCreate(false); setOpenEdit(null); }} maxWidth="sm" fullWidth>
           <DialogTitle>{openEdit ? 'Edit Lead' : 'Add New Lead'}</DialogTitle>
           <DialogContent sx={{ pt: 2 }}>
-            <TextField
-              fullWidth
-              label="First Name"
-              value={form.firstName}
-              onChange={(e) => setForm({ ...form, firstName: e.target.value })}
-              sx={{ mb: 2 }}
-            />
-            <TextField
-              fullWidth
-              label="Last Name"
-              value={form.lastName}
-              onChange={(e) => setForm({ ...form, lastName: e.target.value })}
-              sx={{ mb: 2 }}
-            />
-            <TextField
-              fullWidth
-              label="Email"
-              type="email"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-              sx={{ mb: 2 }}
-            />
-            <TextField
-              fullWidth
-              label="Company"
-              value={form.company}
-              onChange={(e) => setForm({ ...form, company: e.target.value })}
-              disabled={!!openEdit}
-              sx={{ mb: 2 }}
-            />
-            <TextField
-              fullWidth
-              label="Phone"
-              value={form.phoneNumber}
-              onChange={(e) => setForm({ ...form, phoneNumber: e.target.value })}
-              sx={{ mb: 2 }}
-            />
+            <Box sx={{ mb: 3, p: 2, bgcolor: '#f5f5f5', borderRadius: 1 }}>
+              <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                Step 1: Select Account
+              </Typography>
+              <TextField
+                fullWidth
+                select
+                label="Select Account"
+                value={form.accountId}
+                onChange={async (e) => {
+                  const selectedAcct = accounts.find((a) => a.id === e.target.value);
+                  let updatedForm: any = {
+                    ...form,
+                    accountId: e.target.value,
+                    company: selectedAcct?.name || form.company,
+                    region: form.region || selectedAcct?.region || '',
+                    country: form.country || selectedAcct?.country || '',
+                    firstName: '',
+                    lastName: '',
+                    email: '',
+                    phoneNumber: '',
+                  };
+
+                  // Load contacts for this account
+                  if (e.target.value) {
+                    try {
+                      const response = await api.getAccountContacts(e.target.value);
+                      const contacts = response.data.data || [];
+                      setAccountContacts(contacts);
+
+                      // Auto-populate with first contact if available
+                      if (contacts.length > 0) {
+                        const firstContact = contacts[0];
+                        updatedForm = {
+                          ...updatedForm,
+                          firstName: firstContact.firstName || '',
+                          lastName: firstContact.lastName || '',
+                          email: firstContact.email || '',
+                          phoneNumber: firstContact.phoneNumber || '',
+                        };
+                      }
+                    } catch (error) {
+                      console.error('Error loading contacts:', error);
+                    }
+                  } else {
+                    setAccountContacts([]);
+                  }
+
+                  setForm(updatedForm);
+                }}
+                disabled={!!openEdit}
+                required
+              >
+                <MenuItem value="">-- Select Company --</MenuItem>
+                {accounts.map((a) => (
+                  <MenuItem key={a.id} value={a.id}>
+                    {a.name}
+                  </MenuItem>
+                ))}
+              </TextField>
+              {!openEdit && form.accountId && (
+                <Button
+                  size="small"
+                  variant="text"
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    alert('Create new account from Accounts page first');
+                  }}
+                  sx={{ mt: 1 }}
+                >
+                  Don't see your account? Create it first.
+                </Button>
+              )}
+            </Box>
+
+            {form.accountId && (
+              <>
+                <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>
+                  Step 2: Lead Details
+                </Typography>
+                <TextField
+                  fullWidth
+                  label="First Name"
+                  value={form.firstName}
+                  disabled
+                  sx={{ mb: 2 }}
+                  helperText="Auto-populated from account contact"
+                />
+                <TextField
+                  fullWidth
+                  label="Last Name"
+                  value={form.lastName}
+                  disabled
+                  sx={{ mb: 2 }}
+                  helperText="Auto-populated from account contact"
+                />
+                <TextField
+                  fullWidth
+                  label="Email"
+                  type="email"
+                  value={form.email}
+                  disabled
+                  sx={{ mb: 2 }}
+                  helperText="Auto-populated from account contact"
+                />
+                <TextField
+                  fullWidth
+                  label="Company"
+                  value={form.company}
+                  disabled
+                  sx={{ mb: 2 }}
+                />
+                {accountContacts.length > 0 && (
+                  <TextField
+                    fullWidth
+                    select
+                    label="Switch Contact (Optional)"
+                    value={form.firstName && form.lastName ? accountContacts.find((c) => c.firstName === form.firstName && c.lastName === form.lastName)?.id || '' : ''}
+                    onChange={(e) => {
+                      const contact = accountContacts.find((c) => c.id === e.target.value);
+                      if (contact) {
+                        setForm({
+                          ...form,
+                          firstName: contact.firstName || '',
+                          lastName: contact.lastName || '',
+                          phoneNumber: contact.phoneNumber || '',
+                          email: contact.email || '',
+                        });
+                      } else if (e.target.value === '') {
+                        setForm({
+                          ...form,
+                          firstName: '',
+                          lastName: '',
+                          phoneNumber: '',
+                          email: '',
+                        });
+                      }
+                    }}
+                    sx={{ mb: 2 }}
+                    helperText={`Select different contact from this account (${accountContacts.length} available)`}
+                  >
+                    <MenuItem value="">-- Clear Selection --</MenuItem>
+                    {accountContacts.map((c) => (
+                      <MenuItem key={c.id} value={c.id}>
+                        {c.firstName} {c.lastName} {c.jobTitle ? `(${c.jobTitle})` : ''}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                )}
+                <TextField
+                  fullWidth
+                  label="Phone"
+                  value={form.phoneNumber}
+                  disabled
+                  sx={{ mb: 2 }}
+                  helperText="Auto-populated from account contact"
+                />
             <TextField
               fullWidth
               label="Value"
@@ -652,18 +785,31 @@ export default function LeadsPage() {
               onChange={(e) => setForm({ ...form, country: e.target.value })}
               sx={{ mb: 2 }}
             />
-            <TextField
-              fullWidth
-              label="Remark"
-              multiline
-              rows={3}
-              value={form.remark}
-              onChange={(e) => setForm({ ...form, remark: e.target.value })}
-            />
+                <TextField
+                  fullWidth
+                  label="Remark"
+                  multiline
+                  rows={3}
+                  value={form.remark}
+                  onChange={(e) => setForm({ ...form, remark: e.target.value })}
+                />
+              </>
+            )}
+            {!form.accountId && !openEdit && (
+              <Box sx={{ p: 2, bgcolor: '#fff3cd', borderRadius: 1, mt: 2 }}>
+                <Typography variant="body2" color="textSecondary">
+                  ℹ️ Please select an account first to proceed with lead details.
+                </Typography>
+              </Box>
+            )}
           </DialogContent>
           <DialogActions>
             <Button onClick={() => { setOpenCreate(false); setOpenEdit(null); }}>Cancel</Button>
-            <Button onClick={openEdit ? handleUpdate : handleCreate} variant="contained">
+            <Button
+              onClick={openEdit ? handleUpdate : handleCreate}
+              variant="contained"
+              disabled={!form.accountId}
+            >
               {openEdit ? 'Update' : 'Create'}
             </Button>
           </DialogActions>

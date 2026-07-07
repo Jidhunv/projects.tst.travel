@@ -121,6 +121,13 @@ class TicketService {
     const ticket = await this.getTicketById(id);
     await this.repository.remove(ticket);
   }
+
+  async addAttachment(id: string, filePath: string) {
+    const ticket = await this.getTicketById(id);
+    ticket.attachmentPaths = ticket.attachmentPaths || [];
+    ticket.attachmentPaths.push(filePath);
+    return await this.repository.save(ticket);
+  }
 }
 
 export default new TicketService();

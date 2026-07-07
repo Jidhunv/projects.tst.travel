@@ -37,6 +37,16 @@ export class SalesVisit {
   @Column({ type: 'timestamp', nullable: true })
   visitDate: Date; // Date of visit/call
 
+  // Followup tracking
+  @Column({ type: 'timestamp', nullable: true })
+  followupDate: Date; // When to follow up
+
+  @Column({ default: false })
+  followupCompleted: boolean; // Was followup done?
+
+  @Column('text', { nullable: true })
+  followupNotes: string; // What happened at followup
+
   @ManyToOne(() => User, { nullable: true })
   @JoinColumn({ name: 'createdById' })
   createdBy: User;

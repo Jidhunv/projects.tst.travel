@@ -26,7 +26,7 @@ export class UserService {
       throw new AppError(409, 'User with this email already exists');
     }
 
-    const hashedPassword = await bcrypt.hash(data.password, 12);
+    const hashedPassword = await bcrypt.hash(data.password, 13);
     const user = this.userRepository.create({
       ...data,
       password: hashedPassword,
@@ -87,7 +87,7 @@ export class UserService {
     const user = await this.getUserById(id);
 
     if (data.password) {
-      data.password = await bcrypt.hash(data.password, 12);
+      data.password = await bcrypt.hash(data.password, 13);
     }
 
     Object.assign(user, data);

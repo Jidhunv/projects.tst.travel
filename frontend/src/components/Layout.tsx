@@ -33,8 +33,14 @@ import {
   LocalShipping as SupplierIcon,
   EventNote as VisitIcon,
   RequestQuote as ExpenseIcon,
+  DarkMode as DarkModeIcon,
+  LightMode as LightModeIcon,
 } from '@mui/icons-material';
 import useAuth from '@hooks/useAuth';
+import NotificationCenter from './NotificationCenter';
+import { usePendingFollowups } from '@hooks/usePendingFollowups';
+import { Badge, IconButton } from '@mui/material';
+import { useThemeContext } from '@context/ThemeContext';
 
 const DRAWER_WIDTH = 240;
 
@@ -46,6 +52,8 @@ export default function Layout({ children }: LayoutProps) {
   const navigate = useNavigate();
   const { logout, canViewModule, hasPermission } = useAuth();
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
+  const { pendingCount } = usePendingFollowups();
+  const { isDarkMode, toggleTheme } = useThemeContext();
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -65,8 +73,8 @@ export default function Layout({ children }: LayoutProps) {
   // pages without a permission entry) are always visible.
   const allMenuItems = [
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard', show: true },
-    { text: 'Leads', icon: <PeopleIcon />, path: '/leads', show: canViewModule('leads') },
     { text: 'Accounts', icon: <BusinessIcon />, path: '/accounts', show: canViewModule('accounts') },
+    { text: 'Leads', icon: <PeopleIcon />, path: '/leads', show: canViewModule('leads') },
     { text: 'Opportunities', icon: <OpportunityIcon />, path: '/opportunities', show: canViewModule('opportunities') },
     { text: 'Contracts', icon: <ContractIcon />, path: '/contracts', show: canViewModule('contracts') },
     { text: 'Projects', icon: <ProjectIcon />, path: '/projects', show: canViewModule('projects') },
@@ -98,6 +106,14 @@ export default function Layout({ children }: LayoutProps) {
           <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
             CRM System
           </Typography>
+          <IconButton
+            onClick={toggleTheme}
+            sx={{ mr: 2, color: 'white' }}
+            title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+          >
+            {isDarkMode ? <LightModeIcon /> : <DarkModeIcon />}
+          </IconButton>
+          <NotificationCenter />
           <Avatar
             sx={{ cursor: 'pointer', bgcolor: '#6366f1' }}
             onClick={handleMenuOpen}
@@ -142,7 +158,15 @@ export default function Layout({ children }: LayoutProps) {
                 },
               }}
             >
-              <ListItemIcon>{item.icon}</ListItemIcon>
+              <ListItemIcon>
+                {item.text === 'Sales Report' && pendingCount > 0 ? (
+                  <Badge badgeContent={pendingCount} color="error">
+                    {item.icon}
+                  </Badge>
+                ) : (
+                  item.icon
+                )}
+              </ListItemIcon>
               <ListItemText primary={item.text} />
             </ListItem>
           ))}

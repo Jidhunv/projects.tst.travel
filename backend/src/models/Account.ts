@@ -47,6 +47,9 @@ export class Account {
   @Column({ nullable: true })
   phoneNumber: string;
 
+  @Column({ unique: true, nullable: true })
+  email: string;
+
   @Column({ default: 'Prospect' })
   type: string; // Prospect, Customer, Inactive
 
@@ -74,6 +77,9 @@ export class Account {
 
   @Column({ nullable: true })
   billingCountry: string;
+
+  @Column({ nullable: true })
+  remark: string;
 
   @Column({ nullable: true })
   shippingStreet: string;

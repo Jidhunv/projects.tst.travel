@@ -93,11 +93,11 @@ export class Lead {
   @Column()
   ownerId: string;
 
-  @ManyToOne(() => Account, { nullable: true })
+  @ManyToOne(() => Account)
   @JoinColumn({ name: 'accountId' })
   account: Account;
 
-  @Column({ nullable: true })
+  @Column()
   accountId: string;
 
   // Notes & activities are polymorphic; accessed via their own services.

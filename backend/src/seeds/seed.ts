@@ -3,8 +3,10 @@ import { User } from '../models/User';
 import { Role } from '../models/Role';
 import { Permission } from '../models/Permission';
 import { Product } from '../models/Product';
+import { Country } from '../models/Country';
 import bcrypt from 'bcryptjs';
 import logger from '../utils/logger';
+import { countriesData } from '../utils/countriesData';
 
 async function seed() {
   await AppDataSource.initialize();
@@ -198,12 +200,20 @@ async function seed() {
 
     logger.info('Roles created');
 
-    // Create demo users
+    // Create demo users with default passwords
+    // SECURITY: These are default demo accounts for development only
+    // In production, use secure random passwords and send via secure email
+    const DEFAULT_PASSWORDS = {
+      admin: process.env.ADMIN_DEFAULT_PASSWORD || 'ChangeMe@Admin2026!',
+      sales: process.env.SALES_DEFAULT_PASSWORD || 'ChangeMe@Sales2026!',
+      manager: process.env.MANAGER_DEFAULT_PASSWORD || 'ChangeMe@Manager2026!',
+    };
+
     const adminUser = await userRepository.findOne({
       where: { email: 'admin@tst.travel' },
     });
     if (!adminUser) {
-      const hashedPassword = await bcrypt.hash('SecureAdmin@2026!', 12);
+      const hashedPassword = await bcrypt.hash(DEFAULT_PASSWORDS.admin, 13);
       await userRepository.save(
         userRepository.create({
           email: 'admin@tst.travel',
@@ -214,13 +224,14 @@ async function seed() {
           isActive: true,
         })
       );
+      logger.info('Admin user created with default password. CHANGE THIS IMMEDIATELY.');
     }
 
     const salesRepUser = await userRepository.findOne({
       where: { email: 'sales@tst.travel' },
     });
     if (!salesRepUser) {
-      const hashedPassword = await bcrypt.hash('sales123', 12);
+      const hashedPassword = await bcrypt.hash(DEFAULT_PASSWORDS.sales, 13);
       await userRepository.save(
         userRepository.create({
           email: 'sales@tst.travel',
@@ -232,13 +243,14 @@ async function seed() {
           isActive: true,
         })
       );
+      logger.info('Sales Rep user created with default password. CHANGE THIS IMMEDIATELY.');
     }
 
     const stageManagerUser = await userRepository.findOne({
       where: { email: 'manager@tst.travel' },
     });
     if (!stageManagerUser) {
-      const hashedPassword = await bcrypt.hash('Manager@2026!', 12);
+      const hashedPassword = await bcrypt.hash(DEFAULT_PASSWORDS.manager, 13);
       await userRepository.save(
         userRepository.create({
           email: 'manager@tst.travel',
@@ -250,6 +262,7 @@ async function seed() {
           isActive: true,
         })
       );
+      logger.info('Manager user created with default password. CHANGE THIS IMMEDIATELY.');
     }
 
     logger.info('Demo users created');
@@ -503,6 +516,24 @@ async function seed() {
     }
 
     logger.info('Demo products created');
+
+    // Seed countries
+    const countryRepository = AppDataSource.getRepository(Country);
+    for (const countryData of countriesData) {
+      const existing = await countryRepository.findOne({
+        where: { code: countryData.code },
+      });
+      if (!existing) {
+        await countryRepository.save(
+          countryRepository.create({
+            code: countryData.code,
+            name: countryData.name,
+            region: countryData.region,
+          })
+        );
+      }
+    }
+    logger.info(`Countries seeded: ${countriesData.length} countries created/updated`);
 
     logger.info('Seeding completed successfully');
   } catch (error) {

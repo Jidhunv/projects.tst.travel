@@ -2,6 +2,8 @@ import { AppDataSource } from './config/database';
 import { User } from './models/User';
 import { Role } from './models/Role';
 import { Permission } from './models/Permission';
+import { Country } from './models/Country';
+import { countriesData } from './data/countries';
 import bcrypt from 'bcryptjs';
 
 async function seed() {
@@ -93,6 +95,25 @@ async function seed() {
       });
       await userRepository.save(repUser);
       console.log('✓ Sales Rep user created (sales@example.com / password)');
+    }
+
+    // Seed countries
+    const countryRepository = AppDataSource.getRepository(Country);
+    const existingCountries = await countryRepository.count();
+    if (existingCountries === 0) {
+      console.log('\nSeeding 183 countries...');
+      for (const countryData of countriesData) {
+        const exists = await countryRepository.findOne({ where: { code: countryData.code } });
+        if (!exists) {
+          const country = countryRepository.create({
+            code: countryData.code,
+            name: countryData.name,
+            region: countryData.region,
+          });
+          await countryRepository.save(country);
+        }
+      }
+      console.log(`✓ ${countriesData.length} countries seeded`);
     }
 
     console.log('\n✅ Seed completed successfully!');

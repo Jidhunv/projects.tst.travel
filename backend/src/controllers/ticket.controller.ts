@@ -7,7 +7,7 @@ import logger from '../utils/logger';
 export class TicketController {
   async createTicket(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const { title, description, priority, category, accountId, contactId, slaResponseHours, slaResolutionHours } = req.body;
+      const { title, description, priority, category, accountId, contactId, productId, moduleType, slaResponseHours, slaResolutionHours } = req.body;
 
       if (!title || !description || !accountId) {
         throw new AppError(400, 'Required fields: title, description, accountId');
@@ -19,6 +19,8 @@ export class TicketController {
         priority: priority || 'Medium',
         category,
         accountId,
+        productId,
+        moduleType,
         reporterId: req.user?.id || '',
         slaResponseHours,
         slaResolutionHours,
@@ -32,6 +34,25 @@ export class TicketController {
 
       logger.info(`Ticket created: ${ticket.ticketNumber} by ${req.user?.email}`);
       return res.status(201).json({ success: true, data: ticket });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async uploadAttachment(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const file = (req as any).file;
+      if (!file) {
+        throw new AppError(400, 'No file uploaded');
+      }
+
+      const ticketId = req.params.id;
+      const filePath = file.path;
+
+      const ticket = await ticketService.addAttachment(ticketId, filePath);
+
+      logger.info(`Attachment added to ticket ${ticketId} by ${req.user?.email}`);
+      return res.json({ success: true, data: ticket, path: filePath });
     } catch (error) {
       next(error);
     }

@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import auditLogService from '../services/audit-log.service';
 import { AuthRequest } from './auth';
+import logger from '../utils/logger';
 
 const SENSITIVE_FIELDS = [
   'password',
@@ -54,12 +55,52 @@ export const auditMiddleware = async (req: AuthRequest, res: Response, next: Nex
       const responseData = typeof data === 'string' ? JSON.parse(data) : data;
 
       if (responseData?.success && responseData?.data) {
-        const entity = req.path.split('/')[2]; // Extract entity type from path (e.g., /api/leads/:id)
-        const entityId = req.params.id || responseData.data.id;
+        // Extract entity type from path
+        // Paths: /api/leads -> "leads", /api/leads/123 -> "leads", /api/leads/123/assign -> "leads"
+        const pathSegments = req.path.split('/').filter(p => p); // Remove empty strings
+
+        let entity = 'unknown';
+
+        // pathSegments after split will be like: ['api', 'leads'] or ['api', 'leads', 'id'] or ['api', 'leads', 'id', 'assign']
+        if (pathSegments.length > 0) {
+          // Skip 'api' prefix if present, get the first non-numeric, non-action segment
+          let startIdx = pathSegments[0] === 'api' ? 1 : 0;
+
+          if (startIdx < pathSegments.length) {
+            const potentialEntity = pathSegments[startIdx];
+
+            // Check if this is actually an entity name (not a number/ID)
+            if (potentialEntity && isNaN(parseInt(potentialEntity))) {
+              // Make sure it's not a special action name
+              const actionNames = ['assign', 'convert', 'close', 'resolve', 'upload', 'download'];
+              const isAction = actionNames.some(action => potentialEntity.includes(action));
+
+              if (!isAction) {
+                entity = potentialEntity;
+              }
+            }
+          }
+        }
+
+        const entityId = req.params.id || responseData.data.id || responseData.data?.ticketId;
         const action = req.method === 'POST' ? 'CREATE' : req.method === 'PATCH' ? 'UPDATE' : 'DELETE';
 
         // Sanitize data before logging to remove sensitive fields
         const sanitizedData = sanitizeObject(responseData.data);
+
+        // Create better descriptions based on entity type
+        let description = `${action} ${entity}`;
+        if (responseData.data?.name) {
+          description = `${action} ${entity}: ${responseData.data.name}`;
+        } else if (responseData.data?.firstName && responseData.data?.lastName) {
+          description = `${action} ${entity}: ${responseData.data.firstName} ${responseData.data.lastName}`;
+        } else if (responseData.data?.title) {
+          description = `${action} ${entity}: ${responseData.data.title}`;
+        } else if (responseData.data?.email) {
+          description = `${action} ${entity}: ${responseData.data.email}`;
+        } else if (responseData.data?.ticketNumber) {
+          description = `${action} ${entity}: ${responseData.data.ticketNumber}`;
+        }
 
         auditLogService.logChange({
           entityType: entity || 'unknown',
@@ -70,9 +111,9 @@ export const auditMiddleware = async (req: AuthRequest, res: Response, next: Nex
           userId: req.user?.id || 'unknown',
           ipAddress: req.ip,
           userAgent: req.get('user-agent'),
-          description: `${action} ${entity}`,
+          description,
         }).catch((err) => {
-          console.error('Audit log error:', err);
+          logger.error('Audit log error:', err);
         });
       }
     }

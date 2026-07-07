@@ -23,6 +23,13 @@ import { api } from '@services/api';
 import { Account } from '../types';
 import { formatCurrency } from '@utils/format';
 
+interface Country {
+  id: string;
+  code: string;
+  name: string;
+  region?: string;
+}
+
 const statusColor: Record<string, any> = {
   Prospect: 'info',
   Customer: 'success',
@@ -43,6 +50,7 @@ export default function AccountsPage() {
   const [pageSize, setPageSize] = React.useState(20);
   const [loading, setLoading] = React.useState(false);
   const [toast, setToast] = React.useState<{ msg: string; sev: 'success' | 'error' } | null>(null);
+  const [countries, setCountries] = React.useState<Country[]>([]);
 
   const [openCreate, setOpenCreate] = React.useState(false);
   const [openEdit, setOpenEdit] = React.useState(false);
@@ -60,9 +68,26 @@ export default function AccountsPage() {
     city: '',
     region: '',
     country: '',
+    email: '',
+    remark: '',
   });
 
   const [acctFilters, setAcctFilters] = React.useState({ search: '', city: '', region: '', country: '' });
+
+  // Load countries on component mount
+  React.useEffect(() => {
+    const loadCountries = async () => {
+      try {
+        const response = await api.getCountries();
+        if (response.data.success && Array.isArray(response.data.data)) {
+          setCountries(response.data.data);
+        }
+      } catch (error) {
+        console.error('Error loading countries:', error);
+      }
+    };
+    loadCountries();
+  }, []);
 
   const [duplicateWarning, setDuplicateWarning] = React.useState('');
 
@@ -130,6 +155,8 @@ export default function AccountsPage() {
       city: '',
       region: '',
       country: '',
+      email: '',
+      remark: '',
     });
     setDuplicateWarning('');
     setOpenCreate(true);
@@ -159,6 +186,8 @@ export default function AccountsPage() {
       city: (account as any).city || '',
       region: (account as any).region || '',
       country: (account as any).country || '',
+      email: (account as any).email || '',
+      remark: (account as any).remark || '',
     });
     setOnboardingData({
       onboardingStatus: (account.onboardingStatus as any) || 'Not Started',
@@ -280,6 +309,21 @@ export default function AccountsPage() {
                 fullWidth
               />
               <TextField
+                label="Email"
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                fullWidth
+              />
+              <TextField
+                label="Remark"
+                value={formData.remark}
+                onChange={(e) => setFormData({ ...formData, remark: e.target.value })}
+                fullWidth
+                multiline
+                rows={3}
+              />
+              <TextField
                 label="Alternate Phone Number"
                 value={formData.alternatePhoneNumber}
                 onChange={(e) => setFormData({ ...formData, alternatePhoneNumber: e.target.value })}
@@ -299,7 +343,20 @@ export default function AccountsPage() {
               <TextField label="Contact Person" value={formData.contactPerson} onChange={(e) => setFormData({ ...formData, contactPerson: e.target.value })} fullWidth />
               <TextField label="City" value={formData.city} onChange={(e) => setFormData({ ...formData, city: e.target.value })} fullWidth />
               <TextField label="Region" value={formData.region} onChange={(e) => setFormData({ ...formData, region: e.target.value })} fullWidth />
-              <TextField label="Country" value={formData.country} onChange={(e) => setFormData({ ...formData, country: e.target.value })} fullWidth />
+              <TextField
+                label="Country"
+                select
+                value={formData.country}
+                onChange={(e) => setFormData({ ...formData, country: e.target.value })}
+                fullWidth
+              >
+                <MenuItem value="">-- Select Country --</MenuItem>
+                {countries.map((c) => (
+                  <MenuItem key={c.id} value={c.name}>
+                    {c.name}
+                  </MenuItem>
+                ))}
+              </TextField>
             </Box>
           </DialogContent>
           <DialogActions>
@@ -356,6 +413,13 @@ export default function AccountsPage() {
                   fullWidth
                 />
                 <TextField
+                  label="Email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  fullWidth
+                />
+                <TextField
                   label="Alternate Phone Number"
                   value={formData.alternatePhoneNumber}
                   onChange={(e) => setFormData({ ...formData, alternatePhoneNumber: e.target.value })}
@@ -375,7 +439,20 @@ export default function AccountsPage() {
                 <TextField label="Contact Person" value={formData.contactPerson} onChange={(e) => setFormData({ ...formData, contactPerson: e.target.value })} fullWidth />
                 <TextField label="City" value={formData.city} onChange={(e) => setFormData({ ...formData, city: e.target.value })} fullWidth />
                 <TextField label="Region" value={formData.region} onChange={(e) => setFormData({ ...formData, region: e.target.value })} fullWidth />
-                <TextField label="Country" value={formData.country} onChange={(e) => setFormData({ ...formData, country: e.target.value })} fullWidth />
+                <TextField
+                  label="Country"
+                  select
+                  value={formData.country}
+                  onChange={(e) => setFormData({ ...formData, country: e.target.value })}
+                  fullWidth
+                >
+                  <MenuItem value="">-- Select Country --</MenuItem>
+                  {countries.map((c) => (
+                    <MenuItem key={c.id} value={c.name}>
+                      {c.name}
+                    </MenuItem>
+                  ))}
+                </TextField>
               </Box>
             )}
 

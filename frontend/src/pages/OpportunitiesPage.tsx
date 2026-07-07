@@ -374,14 +374,17 @@ export default function OpportunitiesPage() {
         {/* Kanban View */}
         {viewMode === 'kanban' && (
           <Box sx={{ display: 'flex', gap: 2, overflowX: 'auto', pb: 2 }}>
-            {['Prospecting', 'Qualification', 'Proposal', 'Negotiation'].map((stage) => {
+            {['Prospecting', 'Qualification', 'Proposal', 'Negotiation', 'Closed-Won', 'Closed-Lost'].map((stage) => {
               const stageOpps = opportunities.filter((opp) => opp.stage === stage);
+              const isClosed = stage.startsWith('Closed-');
+              const bgColor = stage === 'Closed-Won' ? '#e8f5e9' : stage === 'Closed-Lost' ? '#ffebee' : '#f5f5f5';
+
               return (
                 <Box
                   key={stage}
                   sx={{
                     flex: '0 0 300px',
-                    bgcolor: '#f5f5f5',
+                    bgcolor: bgColor,
                     borderRadius: 2,
                     p: 2,
                   }}
@@ -402,6 +405,7 @@ export default function OpportunitiesPage() {
                         key={opp.id}
                         sx={{
                           cursor: 'pointer',
+                          opacity: isClosed ? 0.85 : 1,
                           '&:hover': { boxShadow: 3 },
                         }}
                         onClick={() => handleOpenEdit(opp)}
@@ -418,7 +422,7 @@ export default function OpportunitiesPage() {
                               {formatCurrency(opp.amount)}
                             </Typography>
                           </Box>
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: isClosed ? 1 : 0 }}>
                             <Typography variant="body2" color="textSecondary">
                               Probability
                             </Typography>
@@ -426,6 +430,20 @@ export default function OpportunitiesPage() {
                               {opp.probability}%
                             </Typography>
                           </Box>
+                          {isClosed && (
+                            <Box sx={{ pt: 1, borderTop: '1px solid #eee' }}>
+                              {(opp as any).closedAt && (
+                                <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mb: 0.5 }}>
+                                  Closed: {new Date((opp as any).closedAt).toLocaleDateString()}
+                                </Typography>
+                              )}
+                              {(opp as any).closedReason && (
+                                <Typography variant="caption" color="textSecondary">
+                                  Reason: {(opp as any).closedReason}
+                                </Typography>
+                              )}
+                            </Box>
+                          )}
                         </CardContent>
                       </Card>
                     ))}
