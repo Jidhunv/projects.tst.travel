@@ -69,9 +69,10 @@ export const SalesVisitsPage: React.FC = () => {
       followupNotes: r.followupNotes || '',
     });
 
-    // Load history for this account (excluding the current visit being edited)
+    // Load ALL visits history for this account (including current one)
+    // This shows all visits and followups for the company
     const history = rows
-      .filter((v) => v.accountId === r.accountId && v.id !== r.id)
+      .filter((v) => v.accountId === r.accountId)
       .sort((a, b) => new Date(b.visitDate).getTime() - new Date(a.visitDate).getTime());
     setVisitHistory(history);
     setOpen(true);
@@ -122,10 +123,11 @@ export const SalesVisitsPage: React.FC = () => {
       companyName: selectedAccount?.name || ''
     });
 
-    // Load history for this account
+    // Load ALL visits history for this account (including current one being edited)
+    // This allows followups to accumulate in the history
     if (accountId) {
       const history = rows
-        .filter((v) => v.accountId === accountId && v.id !== editingId)
+        .filter((v) => v.accountId === accountId)
         .sort((a, b) => new Date(b.visitDate).getTime() - new Date(a.visitDate).getTime());
       setVisitHistory(history);
     } else {
@@ -224,24 +226,13 @@ export const SalesVisitsPage: React.FC = () => {
             <Stack spacing={2} sx={{ mt: 1 }}>
               <TextField
                 select
-                label="Company Information"
+                label="Company"
                 value={form.accountId}
                 onChange={(e) => handleAccountChange(e.target.value)}
               >
                 <MenuItem value="">-- Select company --</MenuItem>
                 {accounts.map((a) => <MenuItem key={a.id} value={a.id}>{a.name}</MenuItem>)}
               </TextField>
-
-              {/* Display selected company name as read-only */}
-              {form.accountId && (
-                <TextField
-                  label="Company Name"
-                  value={form.companyName || ''}
-                  disabled
-                  fullWidth
-                  helperText="Auto-populated from selected company"
-                />
-              )}
 
               <TextField select label="Type" value={form.visitType} onChange={(e) => setForm({ ...form, visitType: e.target.value })}>
                 <MenuItem value="Visit">Visit</MenuItem>
