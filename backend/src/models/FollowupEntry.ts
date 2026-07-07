@@ -27,6 +27,10 @@ export class FollowupEntry {
   @Column('text', { nullable: true })
   notes: string;
 
+  // The date this followup is scheduled for / occurred on
+  @Column({ type: 'timestamp', nullable: true })
+  followupDate: Date;
+
   // Followup completion status
   @Column({ default: false })
   completed: boolean;

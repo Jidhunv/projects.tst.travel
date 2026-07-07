@@ -32,13 +32,16 @@ export const SalesVisitsPage: React.FC = () => {
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<any>(empty);
-  const [visitHistory, setVisitHistory] = useState<any[]>([]);
+  // Full record of the visit being edited (holds accumulating followups)
+  const [editingVisit, setEditingVisit] = useState<any>(null);
 
   const load = async () => {
     const params: any = {};
     Object.entries(filters).forEach(([k, v]) => { if (v) params[k] = v; });
     const res = await api.getSalesVisits(params);
-    setRows(res.data.data || []);
+    const data = res.data.data || [];
+    setRows(data);
+    return data;
   };
   useEffect(() => {
     load();
@@ -48,12 +51,13 @@ export const SalesVisitsPage: React.FC = () => {
 
   const openNew = () => {
     setEditingId(null);
+    setEditingVisit(null);
     setForm(empty);
-    setVisitHistory([]);
     setOpen(true);
   };
   const openEdit = (r: any) => {
     setEditingId(r.id);
+    setEditingVisit(r);
 
     // Load company name from account if not stored
     const companyName = r.companyName || accounts.find((a) => a.id === r.accountId)?.name || '';
@@ -64,17 +68,11 @@ export const SalesVisitsPage: React.FC = () => {
       visitType: r.visitType || 'Visit',
       discussion: r.discussion || '',
       visitDate: r.visitDate ? new Date(r.visitDate).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
-      followupDate: r.followupDate ? new Date(r.followupDate).toISOString().slice(0, 10) : '',
-      followupCompleted: r.followupCompleted || false,
-      followupNotes: r.followupNotes || '',
+      // Followup inputs start empty on edit — the user adds a NEW followup each time
+      followupDate: '',
+      followupCompleted: false,
+      followupNotes: '',
     });
-
-    // Load ALL visits history for this account (including current one)
-    // This shows all visits and followups for the company
-    const history = rows
-      .filter((v) => v.accountId === r.accountId)
-      .sort((a, b) => new Date(b.visitDate).getTime() - new Date(a.visitDate).getTime());
-    setVisitHistory(history);
     setOpen(true);
   };
   const save = async () => {
@@ -84,26 +82,33 @@ export const SalesVisitsPage: React.FC = () => {
         const acc = accounts.find((a) => a.id === payload.accountId);
         payload.companyName = acc?.name || payload.companyName;
       }
+
       if (editingId) {
+        // Edit mode: only a followup is being added. Require a followup message.
+        if (!payload.followupNotes || !payload.followupNotes.trim()) {
+          alert('Please enter a followup message to add to the history.');
+          return;
+        }
         await api.updateSalesVisit(editingId, payload);
+
+        // Reload and re-open the SAME visit so the new followup shows in history
+        const data = await load();
+        const refreshed = data.find((v: any) => v.id === editingId);
+        if (refreshed) {
+          setEditingVisit(refreshed);
+          // Clear the followup inputs so the user can add another one
+          setForm((prev: any) => ({ ...prev, followupDate: '', followupCompleted: false, followupNotes: '' }));
+        }
+        // Keep dialog OPEN so more followups can be added
       } else {
+        // Create mode: new visit
         await api.createSalesVisit(payload);
+        await load();
+        setOpen(false);
+        setForm(empty);
+        setEditingId(null);
+        setEditingVisit(null);
       }
-
-      // Reload data and close dialog
-      await load();
-
-      // If we were in edit mode, reload history to show the new visit
-      if (payload.accountId) {
-        // Small delay to ensure data is loaded
-        setTimeout(() => {
-          handleAccountChange(payload.accountId);
-        }, 100);
-      }
-
-      setOpen(false);
-      setForm(empty);
-      setEditingId(null);
     } catch (e: any) {
       alert(e.response?.data?.error || 'Failed to save sales visit');
     }
@@ -122,17 +127,6 @@ export const SalesVisitsPage: React.FC = () => {
       accountId,
       companyName: selectedAccount?.name || ''
     });
-
-    // Load ALL visits history for this account (including current one being edited)
-    // This allows followups to accumulate in the history
-    if (accountId) {
-      const history = rows
-        .filter((v) => v.accountId === accountId)
-        .sort((a, b) => new Date(b.visitDate).getTime() - new Date(a.visitDate).getTime());
-      setVisitHistory(history);
-    } else {
-      setVisitHistory([]);
-    }
   };
 
   const exportCsv = () => exportToCsv('sales-report', [
@@ -224,25 +218,50 @@ export const SalesVisitsPage: React.FC = () => {
           <DialogTitle>{editingId ? 'Edit Visit / Call' : 'Log Visit / Call'}</DialogTitle>
           <DialogContent sx={{ maxHeight: '80vh', overflowY: 'auto' }}>
             <Stack spacing={2} sx={{ mt: 1 }}>
+              {/* Main fields — locked (read-only) when editing an existing visit */}
               <TextField
                 select
                 label="Company"
                 value={form.accountId}
                 onChange={(e) => handleAccountChange(e.target.value)}
+                disabled={!!editingId}
               >
                 <MenuItem value="">-- Select company --</MenuItem>
                 {accounts.map((a) => <MenuItem key={a.id} value={a.id}>{a.name}</MenuItem>)}
               </TextField>
 
-              <TextField select label="Type" value={form.visitType} onChange={(e) => setForm({ ...form, visitType: e.target.value })}>
+              <TextField
+                select
+                label="Type"
+                value={form.visitType}
+                onChange={(e) => setForm({ ...form, visitType: e.target.value })}
+                disabled={!!editingId}
+              >
                 <MenuItem value="Visit">Visit</MenuItem>
                 <MenuItem value="Call">Call</MenuItem>
               </TextField>
-              <TextField label="What Was Discussed" required multiline rows={3} value={form.discussion} onChange={(e) => setForm({ ...form, discussion: e.target.value })} />
-              <TextField label="Date of Visit / Call" type="date" InputLabelProps={{ shrink: true }} value={form.visitDate} onChange={(e) => setForm({ ...form, visitDate: e.target.value })} />
+              <TextField
+                label="What Was Discussed"
+                required
+                multiline
+                rows={3}
+                value={form.discussion}
+                onChange={(e) => setForm({ ...form, discussion: e.target.value })}
+                disabled={!!editingId}
+              />
+              <TextField
+                label="Date of Visit / Call"
+                type="date"
+                InputLabelProps={{ shrink: true }}
+                value={form.visitDate}
+                onChange={(e) => setForm({ ...form, visitDate: e.target.value })}
+                disabled={!!editingId}
+              />
 
               <Box sx={{ pt: 2, borderTop: '1px solid #eee' }}>
-                <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>Followup</Typography>
+                <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>
+                  {editingId ? 'Add Followup Message' : 'Followup'}
+                </Typography>
                 <TextField
                   fullWidth
                   label="Followup Date"
@@ -262,60 +281,95 @@ export const SalesVisitsPage: React.FC = () => {
                   sx={{ mb: 2 }}
                   placeholder="What to follow up on..."
                 />
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={form.followupCompleted}
+                      onChange={(e) => setForm({ ...form, followupCompleted: e.target.checked })}
+                    />
+                  }
+                  label="Mark followup as completed"
+                />
               </Box>
 
-              {visitHistory.length > 0 && (
+              {/* History log of the current visit + all its accumulating followups */}
+              {editingId && editingVisit && (
                 <Box sx={{ pt: 2, borderTop: '1px solid #eee' }}>
                   <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>History (Non-Editable Log)</Typography>
                   <Stack spacing={2}>
-                    {visitHistory.map((visit) => (
-                      <Card key={visit.id} sx={{ bgcolor: '#f5f5f5', border: '1px solid #e0e0e0' }}>
-                        <CardContent sx={{ pb: 2, '&:last-child': { pb: 2 } }}>
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                            <Box>
+                    {/* Original visit entry */}
+                    <Card sx={{ bgcolor: '#f5f5f5', border: '1px solid #e0e0e0' }}>
+                      <CardContent sx={{ pb: 2, '&:last-child': { pb: 2 } }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                          <Box>
+                            <Chip
+                              label={editingVisit.visitType || 'Visit'}
+                              size="small"
+                              color={editingVisit.visitType === 'Call' ? 'primary' : 'secondary'}
+                              variant="outlined"
+                              sx={{ mr: 1 }}
+                            />
+                            <Typography variant="caption" color="textSecondary">
+                              {editingVisit.visitDate ? new Date(editingVisit.visitDate).toLocaleDateString() : ''}
+                            </Typography>
+                          </Box>
+                          {editingVisit.createdBy && (
+                            <Typography variant="caption" color="textSecondary">
+                              by {editingVisit.createdBy.firstName} {editingVisit.createdBy.lastName}
+                            </Typography>
+                          )}
+                        </Box>
+                        <Typography variant="body2" sx={{ my: 1, whiteSpace: 'pre-wrap' }}>
+                          {editingVisit.discussion}
+                        </Typography>
+                      </CardContent>
+                    </Card>
+
+                    {/* Accumulating followup entries (newest first) */}
+                    {(editingVisit.followups || [])
+                      .slice()
+                      .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                      .map((fu: any) => (
+                        <Card key={fu.id} sx={{ bgcolor: '#eef6ff', border: '1px solid #bbdefb', ml: 2 }}>
+                          <CardContent sx={{ pb: 2, '&:last-child': { pb: 2 } }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                               <Chip
-                                label={visit.visitType || 'Visit'}
+                                label={`Followup${fu.followupDate ? ' · ' + new Date(fu.followupDate).toLocaleDateString() : ''}${fu.completed ? ' ✓' : ''}`}
                                 size="small"
-                                color={visit.visitType === 'Call' ? 'primary' : 'secondary'}
+                                color="primary"
                                 variant="outlined"
-                                sx={{ mr: 1 }}
                               />
                               <Typography variant="caption" color="textSecondary">
-                                {new Date(visit.visitDate).toLocaleDateString()}
+                                {fu.createdBy ? `by ${fu.createdBy.firstName} ${fu.createdBy.lastName} · ` : ''}
+                                {fu.createdAt ? new Date(fu.createdAt).toLocaleString() : ''}
                               </Typography>
                             </Box>
-                            {visit.createdBy && (
-                              <Typography variant="caption" color="textSecondary">
-                                by {visit.createdBy.firstName} {visit.createdBy.lastName}
-                              </Typography>
-                            )}
-                          </Box>
-                          <Typography variant="body2" sx={{ my: 1, whiteSpace: 'pre-wrap' }}>
-                            {visit.discussion}
-                          </Typography>
-                          {visit.followupDate && (
-                            <Box sx={{ mt: 1, pt: 1, borderTop: '1px solid #ddd' }}>
-                              <Typography variant="caption" color="primary" sx={{ fontWeight: 600 }}>
-                                Followup: {new Date(visit.followupDate).toLocaleDateString()} {visit.followupCompleted && '✓'}
-                              </Typography>
-                              {visit.followupNotes && (
-                                <Typography variant="caption" display="block" sx={{ whiteSpace: 'pre-wrap', mt: 0.5 }}>
-                                  {visit.followupNotes}
-                                </Typography>
-                              )}
-                            </Box>
-                          )}
-                        </CardContent>
-                      </Card>
-                    ))}
+                            <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                              {fu.notes}
+                            </Typography>
+                          </CardContent>
+                        </Card>
+                      ))}
+
+                    {(!editingVisit.followups || editingVisit.followups.length === 0) && (
+                      <Typography variant="caption" color="textSecondary">
+                        No followups yet. Add a followup message above and click Save.
+                      </Typography>
+                    )}
                   </Stack>
                 </Box>
               )}
             </Stack>
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setOpen(false)}>Cancel</Button>
-            <Button variant="contained" onClick={save} disabled={!form.discussion}>Save</Button>
+            <Button onClick={() => setOpen(false)}>{editingId ? 'Close' : 'Cancel'}</Button>
+            <Button
+              variant="contained"
+              onClick={save}
+              disabled={editingId ? !form.followupNotes?.trim() : !form.discussion}
+            >
+              {editingId ? 'Add Followup' : 'Save'}
+            </Button>
           </DialogActions>
         </Dialog>
       </Box>

@@ -98,6 +98,7 @@ export class SalesVisitController {
           const followupEntry = followupRepo().create({
             visitId: visit.id,
             notes: followupNotes,
+            followupDate: parsedFollowupDate,
             completed: Boolean(followupCompleted) || false,
             createdById: req.user!.id,
           });
@@ -152,9 +153,15 @@ export class SalesVisitController {
         // If followup notes are provided, create a new FollowupEntry
         // This allows multiple followups to accumulate
         if (followupNotes !== undefined && followupNotes) {
+          let entryDate: Date | null = null;
+          if (followupDate && followupDate !== '') {
+            const parsed = new Date(followupDate);
+            if (!isNaN(parsed.getTime())) entryDate = parsed;
+          }
           const followupEntry = followupRepo().create({
             visitId: visit.id,
             notes: followupNotes,
+            followupDate: entryDate as any,
             completed: Boolean(followupCompleted) || false,
             createdById: req.user?.id,
           });
