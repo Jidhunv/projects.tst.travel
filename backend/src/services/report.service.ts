@@ -2,6 +2,7 @@ import { AppDataSource } from '../config/database';
 import { Opportunity } from '../models/Opportunity';
 import { Lead } from '../models/Lead';
 import { OPPORTUNITY_STAGES } from '../utils/constants';
+import logger from '../utils/logger';
 
 // All monetary values are returned as plain numbers (dollars).
 // The frontend formats them as currency.
@@ -248,7 +249,7 @@ export class ReportService {
 
       return result;
     } catch (error) {
-      console.error('Error in getMIS:', error);
+      logger.error('Error in getMIS:', error);
       // Return empty dashboard structure if query fails
       return {
         pipeline: {

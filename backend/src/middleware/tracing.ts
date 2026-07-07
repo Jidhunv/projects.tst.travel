@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction, RequestHandler } from 'express';
 import { AuthRequest } from './auth';
 import { initTrace, startSpan, endSpan, clearTrace } from '../utils/tracer';
+import logger from '../utils/logger';
 
 export interface TracedRequest extends AuthRequest {
   traceId: string;
@@ -25,8 +26,10 @@ export function tracingMiddleware(req: TracedRequest, res: Response, next: NextF
       contentLength: res.get('content-length'),
     });
 
-    // Log trace info and keep for retrieval
-    console.log(`[TRACE ${traceId}] ${req.method} ${req.path} → ${res.statusCode}`);
+    // Log trace info and keep for retrieval (development only)
+    if (process.env.LOG_LEVEL === 'debug') {
+      logger.debug(`[TRACE ${traceId}] ${req.method} ${req.path} → ${res.statusCode}`);
+    }
   });
 
   next();

@@ -5,11 +5,12 @@ import { Permission } from './models/Permission';
 import { Country } from './models/Country';
 import { countriesData } from './data/countries';
 import bcrypt from 'bcryptjs';
+import logger from './utils/logger';
 
 async function seed() {
   try {
     await AppDataSource.initialize();
-    console.log('Database connected');
+    logger.info('Database connected');
 
     const roleRepository = AppDataSource.getRepository(Role);
     const permissionRepository = AppDataSource.getRepository(Permission);
@@ -23,7 +24,7 @@ async function seed() {
         description: 'Administrator with full access',
       });
       await roleRepository.save(adminRole);
-      console.log('✓ Admin role created');
+      logger.info('✓ Admin role created');
     }
 
     let managerRole = await roleRepository.findOne({ where: { name: 'Manager' } });
@@ -33,7 +34,7 @@ async function seed() {
         description: 'Sales Manager',
       });
       await roleRepository.save(managerRole);
-      console.log('✓ Manager role created');
+      logger.info('✓ Manager role created');
     }
 
     let repRole = await roleRepository.findOne({ where: { name: 'Sales Rep' } });
@@ -43,7 +44,7 @@ async function seed() {
         description: 'Sales Representative',
       });
       await roleRepository.save(repRole);
-      console.log('✓ Sales Rep role created');
+      logger.info('✓ Sales Rep role created');
     }
 
     // Create default admin user
@@ -60,7 +61,7 @@ async function seed() {
         role: adminRole,
       });
       await userRepository.save(adminUser);
-      console.log('✓ Admin user created (admin@example.com / password)');
+      logger.info('✓ Admin user created (admin@example.com / password)');
     }
 
     // Create test manager user
@@ -77,7 +78,7 @@ async function seed() {
         role: managerRole,
       });
       await userRepository.save(managerUser);
-      console.log('✓ Manager user created (manager@example.com / password)');
+      logger.info('✓ Manager user created (manager@example.com / password)');
     }
 
     // Create test sales rep user
@@ -94,14 +95,14 @@ async function seed() {
         role: repRole,
       });
       await userRepository.save(repUser);
-      console.log('✓ Sales Rep user created (sales@example.com / password)');
+      logger.info('✓ Sales Rep user created (sales@example.com / password)');
     }
 
     // Seed countries
     const countryRepository = AppDataSource.getRepository(Country);
     const existingCountries = await countryRepository.count();
     if (existingCountries === 0) {
-      console.log('\nSeeding 183 countries...');
+      logger.info('Seeding 183 countries...');
       for (const countryData of countriesData) {
         const exists = await countryRepository.findOne({ where: { code: countryData.code } });
         if (!exists) {
@@ -113,18 +114,15 @@ async function seed() {
           await countryRepository.save(country);
         }
       }
-      console.log(`✓ ${countriesData.length} countries seeded`);
+      logger.info(`✓ ${countriesData.length} countries seeded`);
     }
 
-    console.log('\n✅ Seed completed successfully!');
-    console.log('\nTest Credentials:');
-    console.log('  Admin:  admin@example.com / password');
-    console.log('  Manager: manager@example.com / password');
-    console.log('  Sales Rep: sales@example.com / password');
+    logger.info('✅ Seed completed successfully!');
+    logger.info('Test Credentials: admin@example.com, manager@example.com, sales@example.com (all with "password")');
 
     await AppDataSource.destroy();
   } catch (error) {
-    console.error('Seed failed:', error);
+    logger.error('Seed failed:', error);
     process.exit(1);
   }
 }

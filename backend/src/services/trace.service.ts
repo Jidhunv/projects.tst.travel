@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { getTrace, traceToGraphviz, TraceTree } from '../utils/tracer';
+import logger from '../utils/logger';
 
 const TRACES_DIR = path.join(__dirname, '../../traces');
 
@@ -23,10 +24,10 @@ export class TraceService {
       const dotPath = path.join(TRACES_DIR, `${traceId}.dot`);
       fs.writeFileSync(dotPath, dot);
 
-      console.log(`Trace saved: ${filepath}`);
+      logger.debug(`Trace saved: ${filepath}`);
       return { traceId, filepath, dotPath };
     } catch (err: any) {
-      console.error(`Failed to save trace: ${err.message}`);
+      logger.error(`Failed to save trace: ${err.message}`);
       return null;
     }
   }
