@@ -45,7 +45,7 @@ export class SalesVisitController {
       if (!canPerformAction(req.user, 'sales_visits', 'create')) {
         throw new AppError(403, 'You do not have permission to log sales visits');
       }
-      const { accountId, companyName, visitType, discussion, visitDate } = req.body;
+      const { accountId, companyName, visitType, discussion, visitDate, followupDate, followupNotes, followupCompleted } = req.body;
       if (!discussion) throw new AppError(400, 'Please describe what was discussed');
 
       // Snapshot the company name from the account when available.
@@ -61,6 +61,9 @@ export class SalesVisitController {
         visitType: visitType || 'Visit',
         discussion,
         visitDate: visitDate ? new Date(visitDate) : new Date(),
+        followupDate: followupDate ? new Date(followupDate) : (null as any),
+        followupNotes: followupNotes || null,
+        followupCompleted: followupCompleted || false,
         createdById: req.user!.id,
       });
       await repo().save(visit);
@@ -84,14 +87,19 @@ export class SalesVisitController {
       if (uScope && visit.createdById !== uScope) {
         throw new AppError(403, 'You can only edit your own sales visits');
       }
-      const { companyName, visitType, discussion, visitDate, accountId } = req.body;
+      const { companyName, visitType, discussion, visitDate, accountId, followupDate, followupNotes, followupCompleted } = req.body;
       if (companyName !== undefined) visit.companyName = companyName;
       if (visitType !== undefined) visit.visitType = visitType;
       if (discussion !== undefined) visit.discussion = discussion;
       if (accountId !== undefined) visit.accountId = accountId;
       if (visitDate !== undefined) visit.visitDate = new Date(visitDate);
+      if (followupDate !== undefined) visit.followupDate = followupDate ? new Date(followupDate) : (null as any);
+      if (followupNotes !== undefined) visit.followupNotes = followupNotes;
+      if (followupCompleted !== undefined) visit.followupCompleted = followupCompleted;
       await repo().save(visit);
-      return res.json({ success: true, data: visit });
+      // Reload with relations for response
+      const updated = await repo().findOne({ where: { id: visit.id }, relations: ['createdBy', 'account'] });
+      return res.json({ success: true, data: updated });
     } catch (error) {
       next(error);
     }
