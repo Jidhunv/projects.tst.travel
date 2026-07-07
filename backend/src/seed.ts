@@ -7,6 +7,15 @@ import { countriesData } from './data/countries';
 import bcrypt from 'bcryptjs';
 import logger from './utils/logger';
 
+// SECURITY: Demo passwords come from env with strong defaults (never the literal "password").
+// Change these immediately after first setup. Hashed with bcrypt cost 13.
+const DEMO_PASSWORDS = {
+  admin: process.env.ADMIN_DEFAULT_PASSWORD || 'ChangeMe@Admin2026!',
+  manager: process.env.MANAGER_DEFAULT_PASSWORD || 'ChangeMe@Manager2026!',
+  sales: process.env.SALES_DEFAULT_PASSWORD || 'ChangeMe@Sales2026!',
+};
+const BCRYPT_COST = 13;
+
 async function seed() {
   try {
     await AppDataSource.initialize();
@@ -50,7 +59,7 @@ async function seed() {
     // Create default admin user
     let adminUser = await userRepository.findOne({ where: { email: 'admin@example.com' } });
     if (!adminUser) {
-      const hashedPassword = await bcrypt.hash('password', 10);
+      const hashedPassword = await bcrypt.hash(DEMO_PASSWORDS.admin, BCRYPT_COST);
       adminUser = userRepository.create({
         email: 'admin@example.com',
         password: hashedPassword,
@@ -61,13 +70,13 @@ async function seed() {
         role: adminRole,
       });
       await userRepository.save(adminUser);
-      logger.info('✓ Admin user created (admin@example.com / password)');
+      logger.info('✓ Admin user created (admin@example.com). CHANGE THE DEFAULT PASSWORD.');
     }
 
     // Create test manager user
     let managerUser = await userRepository.findOne({ where: { email: 'manager@example.com' } });
     if (!managerUser) {
-      const hashedPassword = await bcrypt.hash('password', 10);
+      const hashedPassword = await bcrypt.hash(DEMO_PASSWORDS.manager, BCRYPT_COST);
       managerUser = userRepository.create({
         email: 'manager@example.com',
         password: hashedPassword,
@@ -78,13 +87,13 @@ async function seed() {
         role: managerRole,
       });
       await userRepository.save(managerUser);
-      logger.info('✓ Manager user created (manager@example.com / password)');
+      logger.info('✓ Manager user created (manager@example.com). CHANGE THE DEFAULT PASSWORD.');
     }
 
     // Create test sales rep user
     let repUser = await userRepository.findOne({ where: { email: 'sales@example.com' } });
     if (!repUser) {
-      const hashedPassword = await bcrypt.hash('password', 10);
+      const hashedPassword = await bcrypt.hash(DEMO_PASSWORDS.sales, BCRYPT_COST);
       repUser = userRepository.create({
         email: 'sales@example.com',
         password: hashedPassword,
@@ -95,7 +104,7 @@ async function seed() {
         role: repRole,
       });
       await userRepository.save(repUser);
-      logger.info('✓ Sales Rep user created (sales@example.com / password)');
+      logger.info('✓ Sales Rep user created (sales@example.com). CHANGE THE DEFAULT PASSWORD.');
     }
 
     // Seed countries
@@ -118,7 +127,8 @@ async function seed() {
     }
 
     logger.info('✅ Seed completed successfully!');
-    logger.info('Test Credentials: admin@example.com, manager@example.com, sales@example.com (all with "password")');
+    logger.info('Demo users: admin@example.com, manager@example.com, sales@example.com');
+    logger.info('Passwords are set from env (ADMIN/MANAGER/SALES_DEFAULT_PASSWORD) or safe defaults — CHANGE THEM.');
 
     await AppDataSource.destroy();
   } catch (error) {

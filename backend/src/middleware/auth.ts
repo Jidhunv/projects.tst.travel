@@ -146,8 +146,12 @@ export const generateToken = (id: string, email: string, role: string): string =
   if (!secret) {
     throw new Error('JWT_SECRET not configured');
   }
+  // Interpret JWT_EXPIRATION as an integer number of SECONDS (default 3600 = 1h,
+  // matching the auth cookie maxAge). Passing a numeric value makes jsonwebtoken
+  // treat it as seconds; a bare numeric string would be parsed as milliseconds.
+  const expiresInSeconds = parseInt(process.env.JWT_EXPIRATION || '3600', 10) || 3600;
   const options: SignOptions = {
-    expiresIn: (process.env.JWT_EXPIRATION || '24h') as SignOptions['expiresIn'],
+    expiresIn: expiresInSeconds,
   };
   return jwt.sign({ id, email, role }, secret, options);
 };
