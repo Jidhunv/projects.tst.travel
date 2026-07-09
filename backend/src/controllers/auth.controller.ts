@@ -108,24 +108,27 @@ export class AuthController {
 
       const token = await userService.createPasswordResetToken(email);
 
-      // Send password reset email
-      try {
-        const user = await userService.getUserByEmail(email);
-        if (user && token) {
-          await emailService.sendPasswordResetEmail(user, token);
+      // Send password reset email only if token was generated (user exists)
+      if (token) {
+        try {
+          const user = await userService.getUserByEmail(email);
+          if (user) {
+            await emailService.sendPasswordResetEmail(user, token);
+            logSecurityEvent('PASSWORD_RESET_REQUESTED', { ...requestContext(req), email });
+          }
+        } catch (emailError) {
+          logger.warn(`Failed to send password reset email to ${email}:`, emailError);
+          // Continue even if email fails - user can use the link if they have it
         }
-      } catch (emailError) {
-        logger.warn(`Failed to send password reset email to ${email}:`, emailError);
-        // Continue even if email fails - user can use the link if they have it
       }
 
       logger.info(`Password reset requested for: ${email}`);
-      logSecurityEvent('PASSWORD_RESET_REQUESTED', { ...requestContext(req), email });
 
+      // Always return the same 200 response regardless of whether user exists
       return res.json({
         success: true,
         data: {
-          message: 'Password reset email has been sent if an account exists with this email',
+          message: 'If an account exists with this email, a password reset link has been sent',
         },
       });
     } catch (error) {

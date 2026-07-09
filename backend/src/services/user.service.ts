@@ -210,11 +210,12 @@ export class UserService {
 
   // Generates a one-time reset token, stores its hash with a 1-hour expiry,
   // and returns the raw token (to be emailed in production).
-  async createPasswordResetToken(email: string): Promise<string> {
+  // Returns null if user not found to prevent user enumeration via HTTP status codes.
+  async createPasswordResetToken(email: string): Promise<string | null> {
     const user = await this.userRepository.findOne({ where: { email } });
     if (!user) {
-      // Don't reveal whether the email exists; surface a generic error.
-      throw new AppError(404, 'If the account exists, a reset token was generated');
+      // Return null instead of throwing to avoid leaking user existence via HTTP status codes
+      return null;
     }
 
     const rawToken = crypto.randomBytes(32).toString('hex');
@@ -288,9 +289,10 @@ export class UserService {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
     const passwordLength = 12;
     let password = '';
+    const randomBytes = crypto.randomBytes(passwordLength);
 
     for (let i = 0; i < passwordLength; i++) {
-      password += chars.charAt(Math.floor(Math.random() * chars.length));
+      password += chars[randomBytes[i] % chars.length];
     }
 
     return password;
