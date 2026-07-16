@@ -8,6 +8,9 @@ interface InvoiceFilters {
   contractId?: string;
   projectId?: string;
   status?: string;
+  // Restrict to invoices whose account is owned by this user. Invoices have no
+  // owner column of their own, so "self" scope is derived from the account.
+  accountOwnerId?: string;
   page?: number;
   limit?: number;
 }
@@ -83,6 +86,9 @@ export class InvoiceService {
     }
     if (where.status) {
       query.andWhere('invoice.status = :status', { status: where.status });
+    }
+    if (where.accountOwnerId) {
+      query.andWhere('account.ownerId = :accountOwnerId', { accountOwnerId: where.accountOwnerId });
     }
 
     const [data, total] = await query

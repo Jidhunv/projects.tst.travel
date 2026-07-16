@@ -57,7 +57,7 @@ interface LayoutProps {
 
 export default function Layout({ children }: LayoutProps) {
   const navigate = useNavigate();
-  const { logout, canViewModule, hasPermission } = useAuth();
+  const { logout, canViewModule, hasPermission, user } = useAuth();
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
   const { pendingCount } = usePendingFollowups();
   const { isDarkMode, toggleTheme } = useThemeContext();
@@ -72,6 +72,14 @@ export default function Layout({ children }: LayoutProps) {
     userManagement: false,
     logs: false,
   });
+
+  const fullName = [user?.firstName, user?.lastName].filter(Boolean).join(' ');
+  // Fall back to the email's first letter, then a generic glyph, so the avatar
+  // never renders empty for a user with no name set.
+  const initials =
+    [user?.firstName?.[0], user?.lastName?.[0]].filter(Boolean).join('').toUpperCase() ||
+    user?.email?.[0]?.toUpperCase() ||
+    'U';
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -123,7 +131,7 @@ export default function Layout({ children }: LayoutProps) {
       icon: <InvoiceIcon />,
       show: true,
       items: [
-        { text: 'Invoices', icon: <InvoiceIcon />, path: '/invoices', show: true },
+        { text: 'Invoices', icon: <InvoiceIcon />, path: '/invoices', show: canViewModule('invoices') },
         { text: 'Expenses', icon: <ExpenseIcon />, path: '/expenses', show: canViewModule('expenses') },
       ],
     },
@@ -220,14 +228,31 @@ export default function Layout({ children }: LayoutProps) {
           <Avatar
             sx={{ cursor: 'pointer', bgcolor: '#6366f1' }}
             onClick={handleMenuOpen}
+            title={fullName || 'Account'}
           >
-            U
+            {initials}
           </Avatar>
           <Menu
             anchorEl={anchorEl}
             open={Boolean(anchorEl)}
             onClose={handleMenuClose}
+            slotProps={{ paper: { sx: { minWidth: 240 } } }}
           >
+            {/* Profile summary. Not a MenuItem: it is information, not an action. */}
+            <Box sx={{ px: 2, py: 1.5 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600 }} noWrap>
+                {fullName || 'Signed in'}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" noWrap>
+                {user?.email || '-'}
+              </Typography>
+              {user?.role?.name && (
+                <Typography variant="caption" color="text.secondary">
+                  {user.role.name}
+                </Typography>
+              )}
+            </Box>
+            <Divider />
             <MenuItem onClick={handleLogout}>
               <LogoutIcon sx={{ mr: 1 }} />
               Logout

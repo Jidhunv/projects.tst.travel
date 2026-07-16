@@ -69,6 +69,18 @@ async function seed() {
       { module: 'contracts', action: 'delete', scope: 'all', description: 'Delete contracts' },
       { module: 'contracts', action: 'delete', scope: 'self', description: 'Delete own contracts' },
 
+      // Invoices permissions
+      // Invoices have no owner of their own; "self" scope means invoices
+      // belonging to an account the user owns.
+      { module: 'invoices', action: 'read', scope: 'all', description: 'View all invoices' },
+      { module: 'invoices', action: 'read', scope: 'self', description: 'View invoices for own accounts' },
+      { module: 'invoices', action: 'create', scope: 'all', description: 'Create invoices' },
+      { module: 'invoices', action: 'create', scope: 'self', description: 'Create invoices for own accounts' },
+      { module: 'invoices', action: 'update', scope: 'all', description: 'Update invoices' },
+      { module: 'invoices', action: 'update', scope: 'self', description: 'Update invoices for own accounts' },
+      { module: 'invoices', action: 'delete', scope: 'all', description: 'Delete invoices' },
+      { module: 'invoices', action: 'delete', scope: 'self', description: 'Delete invoices for own accounts' },
+
       // Projects permissions
       { module: 'projects', action: 'read', scope: 'all', description: 'View all projects' },
       { module: 'projects', action: 'read', scope: 'self', description: 'View own projects' },
