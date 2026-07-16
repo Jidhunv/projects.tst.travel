@@ -3,6 +3,7 @@ import accountService from '../services/account.service';
 import { AuthRequest, getOwnerScope, canAccessRecord, canPerformAction, canReassign } from '../middleware/auth';
 import userService from '../services/user.service';
 import { AppError } from '../middleware/errorHandler';
+import InputValidator from '../utils/inputValidator';
 import logger from '../utils/logger';
 
 export class AccountController {
@@ -10,8 +11,25 @@ export class AccountController {
     try {
       const { name, industry, size, website, phoneNumber, type, contactPerson, city, region, country } = req.body;
 
-      if (!name) {
-        throw new AppError(400, 'Account name is required');
+      // Validate required fields
+      const nameValidation = InputValidator.validateString(name, 'Account name', 1, 100);
+      if (!nameValidation.valid) {
+        throw new AppError(400, nameValidation.errors.join(', '));
+      }
+
+      // Validate optional fields
+      if (website) {
+        const urlValidation = InputValidator.validateUrl(website);
+        if (!urlValidation.valid) {
+          throw new AppError(400, urlValidation.errors.join(', '));
+        }
+      }
+
+      if (phoneNumber) {
+        const phoneValidation = InputValidator.validatePhone(phoneNumber);
+        if (!phoneValidation.valid) {
+          throw new AppError(400, phoneValidation.errors.join(', '));
+        }
       }
 
       const account = await accountService.createAccount({

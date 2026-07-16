@@ -7,7 +7,7 @@ import logger from '../utils/logger';
 export class ProductController {
   async createProduct(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const { name, sku, description, category, unitPrice, billingType } = req.body;
+      const { name, sku, description, categoryId, unitPrice, billingType } = req.body;
 
       if (!name) {
         throw new AppError(400, 'Product name is required');
@@ -17,7 +17,7 @@ export class ProductController {
         name,
         sku,
         description,
-        category,
+        categoryId,
         unitPrice,
         billingType,
       });
@@ -32,12 +32,12 @@ export class ProductController {
 
   async getProducts(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const { page = 1, limit = 20, category, isActive, search } = req.query;
+      const { page = 1, limit = 20, categoryId, isActive, search } = req.query;
 
       const { data, total } = await productService.getProducts({
         page: Number(page),
         limit: Number(limit),
-        category: category as string,
+        categoryId: categoryId as string,
         isActive: isActive === undefined ? undefined : isActive === 'true',
         search: search as string,
       });

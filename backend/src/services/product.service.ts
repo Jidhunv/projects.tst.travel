@@ -3,7 +3,7 @@ import { Product } from '../models/Product';
 import { AppError } from '../middleware/errorHandler';
 
 interface ProductFilters {
-  category?: string;
+  categoryId?: string;
   isActive?: boolean;
   page?: number;
   limit?: number;
@@ -17,7 +17,7 @@ export class ProductService {
     name: string;
     sku?: string;
     description?: string;
-    category?: string;
+    categoryId?: string;
     unitPrice?: number;
     billingType?: string;
   }): Promise<Product> {
@@ -29,7 +29,10 @@ export class ProductService {
     }
 
     const product = this.productRepository.create({
-      ...data,
+      name: data.name,
+      sku: data.sku,
+      description: data.description,
+      categoryId: data.categoryId,
       unitPrice: data.unitPrice ?? 0,
       billingType: data.billingType || 'one-time',
       isActive: true,
@@ -57,8 +60,8 @@ export class ProductService {
         search: `%${search}%`,
       });
     }
-    if (where.category) {
-      query.andWhere('product.category = :category', { category: where.category });
+    if (where.categoryId) {
+      query.andWhere('product.categoryId = :categoryId', { categoryId: where.categoryId });
     }
     if (where.isActive !== undefined) {
       query.andWhere('product.isActive = :isActive', { isActive: where.isActive });

@@ -3,6 +3,7 @@ import { User } from '../models/User';
 import { Role } from '../models/Role';
 import { Permission } from '../models/Permission';
 import { Product } from '../models/Product';
+import { ProductCategory } from '../models/ProductCategory';
 import { Country } from '../models/Country';
 import bcrypt from 'bcryptjs';
 import logger from '../utils/logger';
@@ -497,25 +498,52 @@ async function seed() {
       logger.info('Sample contracts created');
     }
 
+    // Seed product categories
+    const categoryRepository = AppDataSource.getRepository(ProductCategory);
+    const demoCategories = [
+      { name: 'Subscription', code: 'SUB', description: 'Subscription-based products', displayOrder: 1 },
+      { name: 'Service', code: 'SVC', description: 'Professional services', displayOrder: 2 },
+      { name: 'Add-on', code: 'ADDON', description: 'Add-on products', displayOrder: 3 },
+    ];
+
+    const categoryMap: Record<string, string> = {};
+    for (const cat of demoCategories) {
+      const existing = await categoryRepository.findOne({ where: { code: cat.code } });
+      if (!existing) {
+        const created = await categoryRepository.save(categoryRepository.create(cat));
+        categoryMap[cat.name] = created.id;
+      } else {
+        categoryMap[cat.name] = existing.id;
+      }
+    }
+
     // Seed a small product catalog
     const productRepository = AppDataSource.getRepository(Product);
     const demoProducts = [
-      { name: 'Starter Plan', sku: 'PLAN-START', category: 'Subscription', unitPrice: 49, billingType: 'subscription' },
-      { name: 'Professional Plan', sku: 'PLAN-PRO', category: 'Subscription', unitPrice: 149, billingType: 'subscription' },
-      { name: 'Enterprise Plan', sku: 'PLAN-ENT', category: 'Subscription', unitPrice: 499, billingType: 'subscription' },
-      { name: 'Implementation & Onboarding', sku: 'SVC-IMPL', category: 'Service', unitPrice: 2000, billingType: 'one-time' },
-      { name: 'Premium Support (Annual)', sku: 'SVC-SUPPORT', category: 'Service', unitPrice: 1200, billingType: 'subscription' },
-      { name: 'Additional User Seat', sku: 'ADDON-SEAT', category: 'Add-on', unitPrice: 15, billingType: 'subscription' },
+      { name: 'Starter Plan', sku: 'PLAN-START', categoryId: categoryMap['Subscription'], unitPrice: 49, billingType: 'subscription' },
+      { name: 'Professional Plan', sku: 'PLAN-PRO', categoryId: categoryMap['Subscription'], unitPrice: 149, billingType: 'subscription' },
+      { name: 'Enterprise Plan', sku: 'PLAN-ENT', categoryId: categoryMap['Subscription'], unitPrice: 499, billingType: 'subscription' },
+      { name: 'Implementation & Onboarding', sku: 'SVC-IMPL', categoryId: categoryMap['Service'], unitPrice: 2000, billingType: 'one-time' },
+      { name: 'Premium Support (Annual)', sku: 'SVC-SUPPORT', categoryId: categoryMap['Service'], unitPrice: 1200, billingType: 'subscription' },
+      { name: 'Additional User Seat', sku: 'ADDON-SEAT', categoryId: categoryMap['Add-on'], unitPrice: 15, billingType: 'subscription' },
     ];
 
     for (const p of demoProducts) {
       const existing = await productRepository.findOne({ where: { sku: p.sku } });
       if (!existing) {
-        await productRepository.save(productRepository.create({ ...p, isActive: true }));
+        const product = productRepository.create({
+          name: p.name,
+          sku: p.sku,
+          categoryId: p.categoryId,
+          unitPrice: p.unitPrice,
+          billingType: p.billingType,
+          isActive: true,
+        });
+        await productRepository.save(product);
       }
     }
 
-    logger.info('Demo products created');
+    logger.info('Demo products and categories created');
 
     // Seed countries
     const countryRepository = AppDataSource.getRepository(Country);

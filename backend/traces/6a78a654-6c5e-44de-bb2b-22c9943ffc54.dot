@@ -1,0 +1,8 @@
+digraph trace_6a78a654_6c5e_44de_bb2b_22c9943ffc54 {
+  rankdir=TB;
+  graph [fontname="Arial"];
+  node [fontname="Arial", shape=box];
+  edge [fontname="Arial"];
+
+  "b66ed441-79ca-4ebc-930b-7e5742eff3b1" [label="api.GET /favicon.ico\n0ms", fillcolor="#51cf66", style=filled];
+}

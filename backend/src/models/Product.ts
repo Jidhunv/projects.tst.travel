@@ -4,7 +4,10 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
+import { ProductCategory } from './ProductCategory';
 
 @Entity('products')
 export class Product {
@@ -20,8 +23,13 @@ export class Product {
   @Column({ nullable: true, type: 'text' })
   description: string;
 
+  // Foreign key to ProductCategory (replaces simple string category)
+  @ManyToOne(() => ProductCategory, (category) => category.products)
+  @JoinColumn({ name: 'categoryId' })
+  category: ProductCategory;
+
   @Column({ nullable: true })
-  category: string;
+  categoryId: string;
 
   @Column({ type: 'numeric', precision: 15, scale: 2, default: 0 })
   unitPrice: number;

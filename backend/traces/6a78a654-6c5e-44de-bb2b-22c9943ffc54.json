@@ -1,0 +1,24 @@
+{
+  "traceId": "6a78a654-6c5e-44de-bb2b-22c9943ffc54",
+  "startTime": 1784018241432,
+  "endTime": 1784018241432,
+  "spans": [
+    {
+      "id": "b66ed441-79ca-4ebc-930b-7e5742eff3b1",
+      "operation": "api.GET /favicon.ico",
+      "startTime": 1784018241432,
+      "input": {
+        "method": "GET",
+        "path": "/favicon.ico",
+        "query": {}
+      },
+      "status": "completed",
+      "endTime": 1784018241432,
+      "duration": 0,
+      "output": {
+        "statusCode": 404,
+        "contentLength": 150
+      }
+    }
+  ]
+}
