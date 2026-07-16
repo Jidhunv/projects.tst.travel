@@ -66,6 +66,27 @@ export const AuditLogsPage: React.FC = () => {
     return colors[action] || 'default';
   };
 
+  const getModuleName = (entityType: string): string => {
+    const moduleNames: Record<string, string> = {
+      accounts: 'Accounts',
+      leads: 'Leads',
+      opportunities: 'Opportunities',
+      contacts: 'Contacts',
+      invoices: 'Invoices',
+      expenses: 'Expenses',
+      projects: 'Projects',
+      contracts: 'Contracts',
+      tickets: 'Tickets',
+      products: 'Products',
+      suppliers: 'Suppliers',
+      categories: 'Categories',
+      users: 'Users',
+      roles: 'Roles',
+      sales_visits: 'Sales Visits',
+    };
+    return moduleNames[entityType] || entityType.charAt(0).toUpperCase() + entityType.slice(1);
+  };
+
   return (
     <Layout>
       <Box sx={{ p: 3 }}>
@@ -136,7 +157,7 @@ export const AuditLogsPage: React.FC = () => {
               <TableHead sx={{ backgroundColor: '#f5f5f5' }}>
                 <TableRow>
                   <TableCell>Timestamp</TableCell>
-                  <TableCell>Entity Type</TableCell>
+                  <TableCell>Module</TableCell>
                   <TableCell>Entity ID</TableCell>
                   <TableCell>Action</TableCell>
                   <TableCell>User</TableCell>
@@ -148,7 +169,7 @@ export const AuditLogsPage: React.FC = () => {
                 {logs.map((log) => (
                   <TableRow key={log.id}>
                     <TableCell>{new Date(log.createdAt).toLocaleString()}</TableCell>
-                    <TableCell>{log.entityType}</TableCell>
+                    <TableCell><strong>{getModuleName(log.entityType)}</strong></TableCell>
                     <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.85rem' }}>
                       {log.entityId.substring(0, 8)}...
                     </TableCell>
@@ -179,7 +200,7 @@ export const AuditLogsPage: React.FC = () => {
                 </Typography>
                 <Box sx={{ mb: 2, p: 2, bgcolor: '#f5f5f5', borderRadius: 1 }}>
                   <Typography variant="body2">
-                    <strong>Entity:</strong> {selectedLog.entityType} ({selectedLog.entityId})
+                    <strong>Module:</strong> {getModuleName(selectedLog.entityType)} ({selectedLog.entityId})
                   </Typography>
                   <Typography variant="body2">
                     <strong>Action:</strong> {selectedLog.action}
