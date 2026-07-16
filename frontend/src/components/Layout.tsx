@@ -64,7 +64,8 @@ export default function Layout({ children }: LayoutProps) {
 
   // State for collapsible menu groups
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
-    crm: true,
+    accountsManagement: true,
+    billing: true,
     projectManagement: true,
     masters: false,
     sales: false,
@@ -104,15 +105,24 @@ export default function Layout({ children }: LayoutProps) {
     },
     { key: 'divider1', type: 'divider', show: true },
     {
-      key: 'crm',
+      key: 'accountsManagement',
       type: 'group',
-      title: 'CRM',
+      title: 'Accounts Management',
       icon: <BusinessIcon />,
       show: true,
       items: [
         { text: 'Accounts', icon: <BusinessIcon />, path: '/accounts', show: canViewModule('accounts') },
         { text: 'Leads', icon: <PeopleIcon />, path: '/leads', show: canViewModule('leads') },
         { text: 'Opportunities', icon: <OpportunityIcon />, path: '/opportunities', show: canViewModule('opportunities') },
+      ],
+    },
+    {
+      key: 'billing',
+      type: 'group',
+      title: 'Billing & Operations',
+      icon: <InvoiceIcon />,
+      show: true,
+      items: [
         { text: 'Invoices', icon: <InvoiceIcon />, path: '/invoices', show: true },
         { text: 'Expenses', icon: <ExpenseIcon />, path: '/expenses', show: canViewModule('expenses') },
       ],
