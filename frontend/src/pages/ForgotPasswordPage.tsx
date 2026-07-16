@@ -89,7 +89,7 @@ export const ForgotPasswordPage: React.FC = () => {
               </Button>
             </Box>
 
-            <Box sx={{ mt: 3, p: 2, backgroundColor: '#f5f5f5', borderRadius: 1 }}>
+            <Box sx={{ mt: 3, p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
               <Typography variant="caption" sx={{ color: '#666' }}>
                 <strong>Didn't receive an email?</strong>
               </Typography>

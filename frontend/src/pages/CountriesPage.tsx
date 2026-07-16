@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   Box, Typography, Button, Paper, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, Dialog, DialogTitle, DialogContent, DialogActions, TextField,
-  Stack, Card, CardContent, InputAdornment, OutlinedInput, useTheme,
+  Stack, Card, CardContent, InputAdornment, OutlinedInput,
 } from '@mui/material';
 import { Search as SearchIcon } from '@mui/icons-material';
 import Layout from '@components/Layout';
@@ -12,8 +12,6 @@ import useAuth from '@hooks/useAuth';
 const empty = { code: '', name: '', region: '' };
 
 export const CountriesPage: React.FC = () => {
-  const theme = useTheme();
-  const isDarkMode = theme.palette.mode === 'dark';
 
   // The backend restricts creating countries to Admins.
   const { user } = useAuth();
@@ -112,11 +110,11 @@ export const CountriesPage: React.FC = () => {
             </Typography>
             <TableContainer component={Paper}>
               <Table size="small">
-                <TableHead sx={{ backgroundColor: isDarkMode ? '#263238' : '#f5f5f5' }}>
+                <TableHead>
                   <TableRow>
-                    <TableCell sx={{ fontWeight: 'bold', color: isDarkMode ? '#e2e8f0' : 'inherit' }}>Code</TableCell>
-                    <TableCell sx={{ fontWeight: 'bold', color: isDarkMode ? '#e2e8f0' : 'inherit' }}>Name</TableCell>
-                    <TableCell sx={{ fontWeight: 'bold', color: isDarkMode ? '#e2e8f0' : 'inherit' }}>Region</TableCell>
+                    <TableCell>Code</TableCell>
+                    <TableCell>Name</TableCell>
+                    <TableCell>Region</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>

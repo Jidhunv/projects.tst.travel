@@ -117,7 +117,7 @@ export default function DataTable({
           <TableContainer component={Paper}>
             <Table>
               <TableHead>
-                <TableRow sx={{ bgcolor: '#f5f5f5' }}>
+                <TableRow sx={{ bgcolor: 'action.hover' }}>
                   {columns.map((column) => (
                     <TableCell
                       key={column.id}

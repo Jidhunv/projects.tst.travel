@@ -238,7 +238,7 @@ export const SettingsPage: React.FC = () => {
                 </Button>
               </Stack>
 
-              <Box sx={{ mt: 3, p: 2, backgroundColor: '#f5f5f5', borderRadius: 1 }}>
+              <Box sx={{ mt: 3, p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
                 <Typography variant="body2">
                   <strong>Setup Guide:</strong>
                 </Typography>

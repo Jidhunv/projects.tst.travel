@@ -335,7 +335,7 @@ export default function OpportunitiesPage() {
         {viewMode === 'list' && (
           <TableContainer component={Paper}>
             <Table>
-              <TableHead sx={{ backgroundColor: '#f5f5f5' }}>
+              <TableHead>
                 <TableRow>
                   <TableCell>Opportunity Name</TableCell>
                   <TableCell align="right">Amount</TableCell>

@@ -142,11 +142,11 @@ export const NotificationsPage: React.FC = () => {
               <ListItem
                 key={notification.id}
                 sx={{
-                  bgcolor: notification.isRead ? 'transparent' : '#f5f5f5',
+                  bgcolor: notification.isRead ? 'transparent' : 'action.hover',
                   borderBottom: '1px solid #eee',
                   cursor: 'pointer',
                   '&:hover': {
-                    bgcolor: notification.isRead ? '#fafafa' : '#f0f0f0',
+                    bgcolor: 'action.selected',
                   },
                 }}
                 onClick={() => handleViewDetails(notification)}

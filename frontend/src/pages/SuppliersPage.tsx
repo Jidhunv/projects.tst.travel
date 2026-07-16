@@ -84,7 +84,7 @@ export const SuppliersPage: React.FC = () => {
 
         <TableContainer component={Paper}>
           <Table size="small">
-            <TableHead sx={{ backgroundColor: '#f5f5f5' }}>
+            <TableHead>
               <TableRow>
                 <TableCell><TableSortLabel active>Name</TableSortLabel></TableCell>
                 <TableCell>Contact Person</TableCell>

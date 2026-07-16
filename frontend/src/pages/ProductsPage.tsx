@@ -112,7 +112,7 @@ export const ProductsPage: React.FC = () => {
         ) : (
           <TableContainer component={Paper}>
             <Table>
-              <TableHead sx={{ backgroundColor: '#f5f5f5' }}>
+              <TableHead>
                 <TableRow>
                   <TableCell>Product Name</TableCell>
                   <TableCell>Category</TableCell>

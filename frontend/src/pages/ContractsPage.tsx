@@ -167,7 +167,7 @@ export const ContractsPage: React.FC = () => {
       ) : (
         <TableContainer component={Paper}>
           <Table>
-            <TableHead sx={{ backgroundColor: '#f5f5f5' }}>
+            <TableHead>
               <TableRow>
                 <TableCell>Contract Number</TableCell>
                 <TableCell>Title</TableCell>
@@ -353,7 +353,7 @@ export const ContractsPage: React.FC = () => {
             {uploadedFiles.length > 0 && (
               <Box sx={{ mt: 1 }}>
                 {uploadedFiles.map((file, idx) => (
-                  <Box key={idx} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 0.5, bgcolor: '#f5f5f5', borderRadius: 1, mb: 0.5 }}>
+                  <Box key={idx} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 0.5, bgcolor: 'action.hover', borderRadius: 1, mb: 0.5 }}>
                     <Typography variant="caption">{file.name}</Typography>
                     <Button
                       size="small"

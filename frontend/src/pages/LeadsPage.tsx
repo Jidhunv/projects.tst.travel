@@ -412,7 +412,7 @@ export default function LeadsPage() {
         {viewMode === 'list' && (
           <TableContainer component={Paper}>
             <Table>
-              <TableHead sx={{ backgroundColor: '#f5f5f5' }}>
+              <TableHead>
                 <TableRow>
                   <TableCell>Name</TableCell>
                   <TableCell>Email</TableCell>
@@ -472,7 +472,7 @@ export default function LeadsPage() {
                   key={column.key}
                   sx={{
                     flex: '0 0 320px',
-                    bgcolor: '#f5f5f5',
+                    bgcolor: 'action.hover',
                     borderRadius: 2,
                     p: 2,
                   }}
@@ -535,7 +535,7 @@ export default function LeadsPage() {
         <Dialog open={openCreate || !!openEdit} onClose={() => { setOpenCreate(false); setOpenEdit(null); }} maxWidth="sm" fullWidth>
           <DialogTitle>{openEdit ? 'Edit Lead' : 'Add New Lead'}</DialogTitle>
           <DialogContent sx={{ pt: 2 }}>
-            <Box sx={{ mb: 3, p: 2, bgcolor: '#f5f5f5', borderRadius: 1 }}>
+            <Box sx={{ mb: 3, p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
               <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
                 Step 1: Select Account
               </Typography>
@@ -769,7 +769,7 @@ export default function LeadsPage() {
               ))}
             </TextField>
             {form.productIds.length > 0 && (
-              <Box sx={{ mb: 2, p: 1, bgcolor: '#f5f5f5', borderRadius: 1 }}>
+              <Box sx={{ mb: 2, p: 1, bgcolor: 'action.hover', borderRadius: 1 }}>
                 <Typography variant="caption" sx={{ display: 'block', mb: 1, fontWeight: 600 }}>
                   Selected Products:
                 </Typography>

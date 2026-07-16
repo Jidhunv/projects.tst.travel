@@ -312,7 +312,7 @@ function SummaryCell({
 }) {
   return (
     <Grid item xs={6}>
-      <Box sx={{ p: 1.5, borderLeft: `4px solid ${color}`, bgcolor: '#fafafa', borderRadius: 1 }}>
+      <Box sx={{ p: 1.5, borderLeft: `4px solid ${color}`, bgcolor: 'action.hover', borderRadius: 1 }}>
         <Typography variant="body2" color="textSecondary">
           {label}
         </Typography>

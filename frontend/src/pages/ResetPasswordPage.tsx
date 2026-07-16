@@ -203,7 +203,7 @@ export const ResetPasswordPage: React.FC = () => {
               </Box>
             )}
 
-            <Box sx={{ mb: 3, p: 2, backgroundColor: '#f5f5f5', borderRadius: 1 }}>
+            <Box sx={{ mb: 3, p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
               <Typography variant="caption" sx={{ color: '#666', display: 'block', mb: 1 }}>
                 <strong>Password Requirements:</strong>
               </Typography>

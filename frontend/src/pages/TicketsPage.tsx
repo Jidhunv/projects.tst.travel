@@ -278,7 +278,7 @@ export const TicketsPage: React.FC = () => {
         ) : viewMode === 'list' ? (
           <TableContainer component={Paper}>
             <Table>
-              <TableHead sx={{ backgroundColor: '#f5f5f5' }}>
+              <TableHead>
                 <TableRow>
                   <TableCell>Ticket #</TableCell>
                   <TableCell>Title</TableCell>
@@ -348,7 +348,7 @@ export const TicketsPage: React.FC = () => {
                   key={status}
                   sx={{
                     flex: '0 0 320px',
-                    bgcolor: '#f5f5f5',
+                    bgcolor: 'action.hover',
                     borderRadius: 2,
                     p: 2,
                   }}

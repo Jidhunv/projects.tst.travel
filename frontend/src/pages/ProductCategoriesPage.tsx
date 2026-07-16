@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   Box, Typography, Button, Paper, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, Dialog, DialogTitle, DialogContent, DialogActions, TextField,
-  Stack, Chip, Card, CardContent, useTheme,
+  Stack, Chip, Card, CardContent,
 } from '@mui/material';
 import Layout from '@components/Layout';
 import { api } from '@services/api';
@@ -11,8 +11,6 @@ import useAuth from '@hooks/useAuth';
 const empty = { name: '', code: '', description: '', displayOrder: 0 };
 
 export const ProductCategoriesPage: React.FC = () => {
-  const theme = useTheme();
-  const isDarkMode = theme.palette.mode === 'dark';
 
   // Categories are product master data, so they follow the products permissions.
   const { hasPermission } = useAuth();
@@ -120,14 +118,14 @@ export const ProductCategoriesPage: React.FC = () => {
         ) : (
           <TableContainer component={Paper}>
             <Table>
-              <TableHead sx={{ backgroundColor: isDarkMode ? '#263238' : '#f5f5f5' }}>
+              <TableHead>
                 <TableRow>
-                  <TableCell sx={{ fontWeight: 'bold', color: isDarkMode ? '#e2e8f0' : 'inherit' }}>Name</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold', color: isDarkMode ? '#e2e8f0' : 'inherit' }}>Code</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold', color: isDarkMode ? '#e2e8f0' : 'inherit' }}>Description</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold', color: isDarkMode ? '#e2e8f0' : 'inherit' }}>Order</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold', color: isDarkMode ? '#e2e8f0' : 'inherit' }}>Status</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold', color: isDarkMode ? '#e2e8f0' : 'inherit' }}>Actions</TableCell>
+                  <TableCell>Name</TableCell>
+                  <TableCell>Code</TableCell>
+                  <TableCell>Description</TableCell>
+                  <TableCell>Order</TableCell>
+                  <TableCell>Status</TableCell>
+                  <TableCell>Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>

@@ -170,7 +170,7 @@ export const SalesVisitsPage: React.FC = () => {
 
         <TableContainer component={Paper}>
           <Table size="small">
-            <TableHead sx={{ backgroundColor: '#f5f5f5' }}>
+            <TableHead>
               <TableRow>
                 <TableCell>Company</TableCell>
                 <TableCell>Type</TableCell>
@@ -314,7 +314,7 @@ export const SalesVisitsPage: React.FC = () => {
                     ]
                       .sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime())
                       .map((item) => item.kind === 'visit' ? (
-                        <Card key={item.id} sx={{ bgcolor: '#f5f5f5', border: '1px solid #e0e0e0' }}>
+                        <Card key={item.id} sx={{ bgcolor: 'action.hover', border: 1, borderColor: 'divider' }}>
                           <CardContent sx={{ pb: 2, '&:last-child': { pb: 2 } }}>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                               <Box>

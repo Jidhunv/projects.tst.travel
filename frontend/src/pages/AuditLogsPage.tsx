@@ -154,7 +154,7 @@ export const AuditLogsPage: React.FC = () => {
         ) : (
           <TableContainer component={Paper}>
             <Table size="small">
-              <TableHead sx={{ backgroundColor: '#f5f5f5' }}>
+              <TableHead>
                 <TableRow>
                   <TableCell>Timestamp</TableCell>
                   <TableCell>Module</TableCell>
@@ -198,7 +198,7 @@ export const AuditLogsPage: React.FC = () => {
                 <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>
                   Basic Information
                 </Typography>
-                <Box sx={{ mb: 2, p: 2, bgcolor: '#f5f5f5', borderRadius: 1 }}>
+                <Box sx={{ mb: 2, p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
                   <Typography variant="body2">
                     <strong>Module:</strong> {getModuleName(selectedLog.entityType)} ({selectedLog.entityId})
                   </Typography>

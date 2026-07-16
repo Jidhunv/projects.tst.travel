@@ -239,7 +239,7 @@ export const UsersPage: React.FC = () => {
         ) : (
           <TableContainer component={Paper}>
             <Table>
-              <TableHead sx={{ backgroundColor: '#f5f5f5' }}>
+              <TableHead>
                 <TableRow>
                   <TableCell>Name</TableCell>
                   <TableCell>Email</TableCell>
@@ -392,7 +392,7 @@ export const UsersPage: React.FC = () => {
             <Typography variant="body2" sx={{ mb: 2 }}>
               Temporary password has been generated for this user:
             </Typography>
-            <Card sx={{ p: 2, backgroundColor: '#f5f5f5', mb: 2 }}>
+            <Card sx={{ p: 2, bgcolor: 'action.hover', mb: 2 }}>
               <Typography variant="body1" sx={{ fontFamily: 'monospace', fontSize: '18px', fontWeight: 'bold' }}>
                 {tempPassword || 'Loading...'}
               </Typography>
