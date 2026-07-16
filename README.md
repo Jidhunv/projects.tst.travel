@@ -49,6 +49,6 @@ Seeded logins are `admin@tst.travel`, `manager@tst.travel` and `sales@tst.travel
 
 Open items worth knowing before building on this:
 
-- **`contracts`, `projects` and `tickets` permissions are not enforced.** They appear in Role Management and can be toggled, but no controller checks them, so any authenticated user has full access. See [docs/SECURITY.md](docs/SECURITY.md).
+- **Only Admin currently has `contracts`, `projects`, `tickets` and `invoices` access.** These are now enforced from Role Management; grant them per role there. `activities` remains unenforced. See [docs/SECURITY.md](docs/SECURITY.md).
 - **Migrations are applied by hand.** The `.sql` files in `backend/migrations/` are not run by TypeORM, and models do not shape the database (`DB_SYNC` is off). A model/schema mismatch surfaces as a 500 on that resource.
 - **`LOGIN_CREDENTIALS.md`** (untracked, if present locally) lists stale passwords that no longer work — delete it.

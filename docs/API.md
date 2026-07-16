@@ -38,11 +38,13 @@ JWT in an **HttpOnly** `authToken` cookie, also accepted as `Authorization: Bear
 
 ## Authorisation
 
-Enforcement is **per controller and opt-in** — see [RBAC.md](RBAC.md). Coverage is uneven:
+Enforcement is **per controller and opt-in** — see [RBAC.md](RBAC.md):
 
 | Enforced | Not enforced (any authenticated user has full access) |
 |---|---|
-| accounts, leads, opportunities, expenses, invoices, suppliers, sales_visits, reports | **contracts, projects, tickets, activities** |
+| accounts, leads, opportunities, contracts, projects, tickets, invoices, expenses, suppliers, sales_visits, reports | **activities** |
+
+Only **Admin** currently holds `contracts`, `projects`, `tickets` and `invoices` permissions; other roles get `403` there until granted in Role Management.
 
 `users`, `roles`, `audit-logs`, `email-settings` and `traces` are gated at the route with `requireRole('Admin')`. Admin bypasses all checks.
 
@@ -57,12 +59,12 @@ List endpoints take `?page` & `?limit` plus per-module filters (commonly `search
 | **Leads** `/leads` | `POST /` · `GET /` · `GET /:id` · `PATCH /:id` · `DELETE /:id` · `PATCH /:id/status` · `PATCH /:id/assign` · `POST /:id/convert-to-account` · `POST /:id/convert-to-opportunity` · `PATCH /:id/lost` · `POST /bulk-import` |
 | **Accounts** `/accounts` | `POST /` · `GET /` · `GET /:id` · `PATCH /:id` · `PATCH /:id/assign` · `DELETE /:id`<br>Contacts: `POST|GET /:accountId/contacts` · `PATCH|DELETE /:accountId/contacts/:contactId` · `PATCH /:accountId/contacts/:contactId/set-primary` |
 | **Opportunities** `/opportunities` | `POST /` · `GET /` · `GET /:id` · `PATCH /:id` · `DELETE /:id` · `PATCH /:id/stage` · `PATCH /:id/assign` · `POST /:id/close`<br>Line items: `POST /:opportunityId/line-items` · `PATCH|DELETE /:opportunityId/line-items/:lineItemId`<br>`GET /pipeline/view` · `GET /pipeline/forecast` · `GET /meta/rejection-reasons` |
-| **Contracts** `/contracts` | `POST /` · `GET /` · `GET /:id` · `PATCH /:id` · `PATCH /:id/approve` · `DELETE /:id` — **unenforced** |
-| **Projects** `/projects` | CRUD — **unenforced** |
+| **Contracts** `/contracts` | `POST /` · `GET /` · `GET /:id` · `PATCH /:id` · `PATCH /:id/approve` (needs `contracts:update`) · `DELETE /:id` |
+| **Projects** `/projects` | CRUD · `POST|GET /:id/milestones` · `PATCH /milestones/:milestoneId/approve` (milestone writes need `projects:update`) |
 | **Invoices** `/invoices` | `POST /` · `GET /` · `GET /:id` · `PATCH /:id` · `DELETE /:id` · `POST|GET /:id/payments` · `GET /contract/:contractId/summary` |
-| **Tickets** `/tickets` | CRUD — **unenforced** |
+| **Tickets** `/tickets` | CRUD · assign / resolve / close / attachment upload (all need `tickets:update`) |
 
-**Invoice scoping:** an invoice has no owner column; `self` scope means *invoices whose account you own*. Recording a payment needs `invoices:update`, since it mutates the invoice.
+**Scoping without an owner column.** Invoices, contracts, projects and tickets have no `ownerId`; `self` derives from the account plus the natural personal link (contract creator, project manager, ticket reporter/assignee). See [RBAC.md](RBAC.md#ownership-is-not-always-a-column).
 
 ### Operations
 

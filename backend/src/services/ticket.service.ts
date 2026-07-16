@@ -33,6 +33,9 @@ class TicketService {
     assigneeId?: string;
     status?: string;
     priority?: string;
+    // "self" scope: a Ticket has no owner column, so restrict to tickets for an
+    // account this user owns, or that they reported or are assigned to.
+    scopeUserId?: string;
   }) {
     const page = filters.page || 1;
     const limit = filters.limit || 20;
@@ -55,6 +58,12 @@ class TicketService {
     }
     if (filters.priority) {
       query.andWhere('ticket.priority = :priority', { priority: filters.priority });
+    }
+    if (filters.scopeUserId) {
+      query.andWhere(
+        '(account.ownerId = :scopeUserId OR ticket.reporterId = :scopeUserId OR ticket.assigneeId = :scopeUserId)',
+        { scopeUserId: filters.scopeUserId }
+      );
     }
 
     const [data, total] = await query

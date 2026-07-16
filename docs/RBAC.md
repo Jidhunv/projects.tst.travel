@@ -47,7 +47,16 @@ if (!canAccessRecord(req.user, 'leads', lead.ownerId, 'update', lead.assigneeIds
 
 ### Ownership is not always a column
 
-Most records carry `ownerId`. **Invoices do not** — an invoice inherits ownership through `accountId → Account.ownerId`, so `self` means *invoices for accounts you own*, and scoping joins the account. Check the model before assuming an owner column exists.
+Most records carry `ownerId`. Four do not, and derive `self` scope from their account plus the natural personal link:
+
+| Module | `self` means |
+|---|---|
+| invoices | account you own |
+| contracts | account you own, **or** you created it (`createdById`) |
+| projects | account you own, **or** you manage it (`projectManagerId`) |
+| tickets | account you own, **or** you are the reporter/assignee (incl. `assigneeIds`) |
+
+Their services take a `scopeUserId` / `accountOwnerId` filter for this. Check the model before assuming an owner column exists.
 
 ## Adding a module
 
@@ -83,6 +92,10 @@ This is **cosmetic only** — it hides UI. The backend check is the real control
 
 Roles are editable at runtime in Role Management (`/roles`), so these are only starting points. `Admin`, `Manager` and `Sales Rep` cannot be deleted.
 
+## Current state
+
+Only **Admin** holds `contracts`, `projects`, `tickets` and `invoices` permissions. Every other role is blocked on those modules until granted here — deliberate, pending configuration.
+
 ## Known gaps
 
-`contracts`, `projects`, `tickets` and `activities` have permissions defined and displayed **but not enforced** — any authenticated user has full access. See [SECURITY.md](SECURITY.md#1-contracts-projects-tickets-are-not-enforced--high-open).
+`activities` has no permission module and is not enforced; any authenticated user can read and write all activities and notes. See [SECURITY.md](SECURITY.md#7-activities-is-unenforced--low-open).

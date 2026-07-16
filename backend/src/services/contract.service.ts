@@ -6,6 +6,9 @@ interface ContractFilters {
   accountId?: string;
   opportunityId?: string;
   status?: string;
+  // "self" scope: a Contract has no owner column, so restrict to contracts for
+  // an account this user owns, or that they created themselves.
+  scopeUserId?: string;
   page?: number;
   limit?: number;
   search?: string;
@@ -77,6 +80,12 @@ export class ContractService {
     }
     if (where.status) {
       query.andWhere('contract.status = :status', { status: where.status });
+    }
+    if (where.scopeUserId) {
+      query.andWhere(
+        '(account.ownerId = :scopeUserId OR contract.createdById = :scopeUserId)',
+        { scopeUserId: where.scopeUserId }
+      );
     }
 
     const [data, total] = await query

@@ -51,7 +51,9 @@ On a `User` **entity** loaded from the DB with its relation, `user.role` *is* an
 
 Permissions are `module:action:scope`, scope is `all` or `self`. See [docs/RBAC.md](docs/RBAC.md).
 
-Enforcement is **per-controller and opt-in** — it is not automatic. A route with only `verifyToken` is open to every logged-in user, regardless of what Role Management shows. Several modules are currently unenforced; see [docs/SECURITY.md](docs/SECURITY.md).
+Enforcement is **per-controller and opt-in** — it is not automatic. A route with only `verifyToken` is open to every logged-in user, regardless of what Role Management shows. `activities` is still in that state; see [docs/SECURITY.md](docs/SECURITY.md).
+
+Invoices, contracts, projects and tickets have **no owner column** — `self` scope derives from the account plus the natural personal link (creator / project manager / ticket assignee). Their services take a `scopeUserId` filter. Only Admin currently holds permissions for these four.
 
 Pattern:
 ```ts

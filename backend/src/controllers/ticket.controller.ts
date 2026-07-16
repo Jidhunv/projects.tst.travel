@@ -1,12 +1,41 @@
 import { Response, NextFunction } from 'express';
 import ticketService from '../services/ticket.service';
-import { AuthRequest, canReassign } from '../middleware/auth';
+import { AuthRequest, canReassign, canPerformAction, getOwnerScope } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
 import logger from '../utils/logger';
 
 export class TicketController {
+  // A Ticket has no owner column; it inherits ownership from its account. At
+  // "self" scope a user may only touch tickets for an account they own, or that
+  // they reported or are assigned to (including multi-assign).
+  private async assertCanAccess(
+    req: AuthRequest,
+    ticket: {
+      account?: { ownerId?: string };
+      reporter?: { id?: string };
+      assignee?: { id?: string };
+      assigneeIds?: string[];
+    },
+    action: string
+  ) {
+    if (getOwnerScope(req.user, 'tickets') === undefined) return; // "all" scope
+    const me = req.user!.id;
+    const mine =
+      ticket.account?.ownerId === me ||
+      ticket.reporter?.id === me ||
+      ticket.assignee?.id === me ||
+      (Array.isArray(ticket.assigneeIds) && ticket.assigneeIds.includes(me));
+    if (!mine) {
+      throw new AppError(403, `You can only ${action} tickets for your own accounts`);
+    }
+  }
+
   async createTicket(req: AuthRequest, res: Response, next: NextFunction) {
     try {
+      if (!canPerformAction(req.user, 'tickets', 'create')) {
+        throw new AppError(403, 'You do not have permission to create tickets');
+      }
+
       const { title, description, priority, category, accountId, contactId, productId, moduleType, slaResponseHours, slaResolutionHours } = req.body;
 
       if (!title || !description || !accountId) {
@@ -49,6 +78,11 @@ export class TicketController {
       const ticketId = req.params.id;
       const filePath = file.path;
 
+      if (!canPerformAction(req.user, 'tickets', 'update')) {
+        throw new AppError(403, 'You do not have permission to attach files to tickets');
+      }
+      await this.assertCanAccess(req, await ticketService.getTicketById(ticketId), 'attach files to');
+
       const ticket = await ticketService.addAttachment(ticketId, filePath);
 
       logger.info(`Attachment added to ticket ${ticketId} by ${req.user?.email}`);
@@ -60,6 +94,10 @@ export class TicketController {
 
   async getTickets(req: AuthRequest, res: Response, next: NextFunction) {
     try {
+      if (!canPerformAction(req.user, 'tickets', 'read')) {
+        throw new AppError(403, 'You do not have permission to view tickets');
+      }
+
       const { page = 1, limit = 20, accountId, assigneeId, status, priority } = req.query;
       const { data, total } = await ticketService.getTickets({
         page: Number(page),
@@ -68,6 +106,8 @@ export class TicketController {
         assigneeId: assigneeId as string,
         status: status as string,
         priority: priority as string,
+        // undefined at "all" scope; the user's id at "self" scope.
+        scopeUserId: getOwnerScope(req.user, 'tickets'),
       });
 
       return res.json({
@@ -82,7 +122,11 @@ export class TicketController {
 
   async getTicket(req: AuthRequest, res: Response, next: NextFunction) {
     try {
+      if (!canPerformAction(req.user, 'tickets', 'read')) {
+        throw new AppError(403, 'You do not have permission to view tickets');
+      }
       const ticket = await ticketService.getTicketById(req.params.id);
+      await this.assertCanAccess(req, ticket, 'view');
       return res.json({ success: true, data: ticket });
     } catch (error) {
       next(error);
@@ -91,6 +135,11 @@ export class TicketController {
 
   async updateTicket(req: AuthRequest, res: Response, next: NextFunction) {
     try {
+      if (!canPerformAction(req.user, 'tickets', 'update')) {
+        throw new AppError(403, 'You do not have permission to update tickets');
+      }
+      await this.assertCanAccess(req, await ticketService.getTicketById(req.params.id), 'update');
+
       const ticket = await ticketService.updateTicket(req.params.id, req.body);
       logger.info(`Ticket updated: ${ticket.id} by ${req.user?.email}`);
       return res.json({ success: true, data: ticket });
@@ -111,6 +160,11 @@ export class TicketController {
         throw new AppError(400, 'assigneeIds is required');
       }
 
+      if (!canPerformAction(req.user, 'tickets', 'update')) {
+        throw new AppError(403, 'You do not have permission to assign tickets');
+      }
+      await this.assertCanAccess(req, await ticketService.getTicketById(req.params.id), 'assign');
+
       const ticket = await ticketService.assignTicket(req.params.id, ids);
       logger.info(`Ticket assigned: ${ticket.id} to [${ids.join(', ')}] by ${req.user?.email}`);
       return res.json({ success: true, data: ticket });
@@ -126,6 +180,11 @@ export class TicketController {
         throw new AppError(400, 'resolutionNotes is required');
       }
 
+      if (!canPerformAction(req.user, 'tickets', 'update')) {
+        throw new AppError(403, 'You do not have permission to resolve tickets');
+      }
+      await this.assertCanAccess(req, await ticketService.getTicketById(req.params.id), 'resolve');
+
       const ticket = await ticketService.resolveTicket(req.params.id, resolutionNotes);
       logger.info(`Ticket resolved: ${ticket.id} by ${req.user?.email}`);
       return res.json({ success: true, data: ticket });
@@ -136,6 +195,11 @@ export class TicketController {
 
   async closeTicket(req: AuthRequest, res: Response, next: NextFunction) {
     try {
+      if (!canPerformAction(req.user, 'tickets', 'update')) {
+        throw new AppError(403, 'You do not have permission to close tickets');
+      }
+      await this.assertCanAccess(req, await ticketService.getTicketById(req.params.id), 'close');
+
       const ticket = await ticketService.closeTicket(req.params.id);
       logger.info(`Ticket closed: ${ticket.id} by ${req.user?.email}`);
       return res.json({ success: true, data: ticket });
@@ -146,6 +210,11 @@ export class TicketController {
 
   async deleteTicket(req: AuthRequest, res: Response, next: NextFunction) {
     try {
+      if (!canPerformAction(req.user, 'tickets', 'delete')) {
+        throw new AppError(403, 'You do not have permission to delete tickets');
+      }
+      await this.assertCanAccess(req, await ticketService.getTicketById(req.params.id), 'delete');
+
       await ticketService.deleteTicket(req.params.id);
       logger.info(`Ticket deleted: ${req.params.id} by ${req.user?.email}`);
       return res.json({ success: true, data: { message: 'Ticket deleted' } });

@@ -7,6 +7,9 @@ interface ProjectFilters {
   accountId?: string;
   contractId?: string;
   status?: string;
+  // "self" scope: a Project has no owner column, so restrict to projects for an
+  // account this user owns, or that they manage.
+  scopeUserId?: string;
   page?: number;
   limit?: number;
   search?: string;
@@ -69,6 +72,12 @@ export class ProjectService {
     if (where.status) {
       query.andWhere('project.status = :status', { status: where.status });
     }
+    if (where.scopeUserId) {
+      query.andWhere(
+        '(account.ownerId = :scopeUserId OR project.projectManagerId = :scopeUserId)',
+        { scopeUserId: where.scopeUserId }
+      );
+    }
 
     const [data, total] = await query
       .orderBy('project.createdAt', 'DESC')
@@ -111,6 +120,14 @@ export class ProjectService {
       relations: ['responsibleUser'],
       order: { createdAt: 'ASC' },
     });
+  }
+
+  async getMilestoneById(milestoneId: string): Promise<ProjectMilestone> {
+    const milestone = await this.milestoneRepository.findOne({ where: { id: milestoneId } });
+    if (!milestone) {
+      throw new AppError(404, 'Milestone not found');
+    }
+    return milestone;
   }
 
   async approveMilestone(milestoneId: string, approvedBy: string): Promise<ProjectMilestone> {

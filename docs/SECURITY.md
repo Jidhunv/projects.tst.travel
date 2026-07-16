@@ -8,37 +8,45 @@ Every finding below was **reproduced against the running app**, not inferred fro
 
 | # | Finding | Severity | Status |
 |---|---|---|---|
-| 1 | `contracts`, `projects`, `tickets` permissions are not enforced | **High** | **Open** |
+| 1 | `contracts`, `projects`, `tickets` permissions were not enforced | **High** | Fixed |
 | 2 | `/api/traces` was reachable with no authentication | Medium | Fixed |
 | 3 | Invoice endpoints had no permission checks | **High** | Fixed |
 | 4 | Country create rejected everyone, including Admin | Medium | Fixed |
 | 5 | `LOGIN_CREDENTIALS.md` holds working-looking passwords | Low | **Open** |
 | 6 | Login falls back to the `Sales Rep` role when none resolves | Low | **Open** |
+| 7 | `activities` has no permission module and is unenforced | Low | **Open** |
 
 Baseline hardening is sound: `helmet` and `cors` are configured, login and password-reset have rate limiters, queries are parameterised (no string-interpolated SQL found), no `dangerouslySetInnerHTML` or `eval` in the frontend, `.env` is gitignored and absent from git history, passwords are bcrypt-hashed (cost 13), JWTs live in an HttpOnly cookie, CSRF tokens are enforced on writes, and a global sanitizer strips password fields from responses.
 
 ---
 
-## 1. `contracts`, `projects`, `tickets` are not enforced — High, OPEN
+## 1. `contracts`, `projects`, `tickets` were not enforced — High, FIXED
 
-Permissions for these modules exist in the database and render as toggles in Role Management, but **no controller checks them**. Any authenticated user has full access regardless of role.
+Permissions for these modules existed in the database and rendered as toggles in Role Management, but **no controller checked them**. Any authenticated user had full access regardless of role.
 
-Reproduced as `sales@tst.travel` (Sales Rep), whose role grants permissions for `accounts, contacts, expenses, leads, opportunities, reports, sales_visits, suppliers, users` — and nothing else:
+Originally reproduced as `sales@tst.travel` (Sales Rep), whose role grants permissions for `accounts, contacts, expenses, leads, opportunities, reports, sales_visits, suppliers, users` — and nothing else:
 
-| Module | Has permission? | `GET` result | |
+| Module | Has permission? | before | after |
 |---|---|---|---|
-| contracts | **no** | `200` | not enforced |
-| projects | **no** | `200` | not enforced |
-| tickets | **no** | `200` | not enforced |
-| invoices | no | `403` | correctly blocked |
+| contracts | **no** | `200` — not enforced | `403` |
+| projects | **no** | `200` — not enforced | `403` |
+| tickets | **no** | `200` — not enforced | `403` |
 
-**Impact.** The Role Management UI misrepresents actual access for three modules: an administrator can revoke `contracts` and the user keeps full read/write. This is worse than having no toggle, because it invites false confidence.
+**Impact.** The Role Management UI misrepresented actual access: an administrator could revoke `contracts` and the user kept full read/write. Worse than having no toggle, because it invited false confidence.
 
-**Why.** Enforcement is opt-in per controller. `routes/contracts.ts`, `routes/projects.ts` and `routes/tickets.ts` apply only `verifyToken`, and their controllers never call `canPerformAction`.
+**Fixed** by enforcing all four actions in each controller with `canPerformAction`, matching the `expenses`/`invoices` pattern. State-changing sub-actions require `update`: contract approve, milestone add/approve, ticket assign/resolve/close/attach.
 
-**Fix.** Apply the pattern already used by `expense.controller.ts` and `invoice.controller.ts`. Note this **changes access for real users** — every non-admin role currently has permissions for none of these, so strict enforcement locks them out until granted. Decide between granting existing roles their current access first, or enforcing strictly. Same trade-off as invoices (finding 3).
+None of the three has an owner column, so `self` scope derives from the account plus the natural personal link:
 
-`activities` is likewise unenforced; it returned `400` only because the endpoint requires query parameters.
+| Module | `self` means |
+|---|---|
+| contracts | account you own, **or** `createdById` is you |
+| projects | account you own, **or** you are the `projectManagerId` |
+| tickets | account you own, **or** you are the reporter/assignee (incl. multi-assign) |
+
+Verified end to end: Admin gets `200` on all four modules; a Sales Rep with no permissions gets `403` on all four; granting `contracts:read:self` returns `200`. Scoping was checked in both directions — with the Sales Rep temporarily owning an account holding 3 of the 5 contracts, they saw exactly those 3 and not the other 2 (test state reverted afterwards).
+
+**Access as it now stands:** only **Admin** holds `contracts`/`projects`/`tickets`/`invoices` permissions. Every other role is blocked until granted in Role Management — deliberate, pending configuration.
 
 ## 2. `/api/traces` unauthenticated — Medium, FIXED
 
@@ -81,6 +89,12 @@ A repo-root file tabulates accounts against plaintext passwords (`admin123`, `ma
 const token = generateToken(user.id, user.email, user.role?.name || 'Sales Rep');
 ```
 If a user's role fails to resolve, they are silently issued a `Sales Rep` token rather than being refused. It fails toward low privilege, so impact is limited, but authentication should not invent a role. Prefer rejecting with a clear error.
+
+## 7. `activities` is unenforced — Low, OPEN
+
+`routes/activities.ts` carries only `verifyToken`, and there is no `activities` permission module to enforce, so every authenticated user can read and write all activities and notes. It surfaced as `400` rather than `200` in testing only because the endpoint requires query parameters.
+
+Lower severity than finding 1 because no toggle claims otherwise — nothing in Role Management implies activities are restricted. To close it, seed an `activities` module and gate the controller as above.
 
 ---
 
