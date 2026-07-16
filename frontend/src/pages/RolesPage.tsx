@@ -21,11 +21,15 @@ import {
   Stack,
   FormControlLabel,
   Checkbox,
+  useTheme,
 } from '@mui/material';
 import Layout from '@components/Layout';
 import { apiClient } from '../services/api';
 
 export const RolesPage: React.FC = () => {
+  const theme = useTheme();
+  const isDarkMode = theme.palette.mode === 'dark';
+
   const [roles, setRoles] = useState<any[]>([]);
   const [permissions, setPermissions] = useState<any[]>([]);
   const [openDialog, setOpenDialog] = useState(false);
@@ -177,12 +181,12 @@ export const RolesPage: React.FC = () => {
         ) : (
           <TableContainer component={Paper}>
             <Table>
-              <TableHead sx={{ backgroundColor: '#f5f5f5' }}>
+              <TableHead sx={{ backgroundColor: isDarkMode ? '#263238' : '#f5f5f5' }}>
                 <TableRow>
-                  <TableCell>Role Name</TableCell>
-                  <TableCell>Description</TableCell>
-                  <TableCell>Permissions</TableCell>
-                  <TableCell>Actions</TableCell>
+                  <TableCell sx={{ color: isDarkMode ? '#e2e8f0' : 'inherit', fontWeight: 'bold' }}>Role Name</TableCell>
+                  <TableCell sx={{ color: isDarkMode ? '#e2e8f0' : 'inherit', fontWeight: 'bold' }}>Description</TableCell>
+                  <TableCell sx={{ color: isDarkMode ? '#e2e8f0' : 'inherit', fontWeight: 'bold' }}>Permissions</TableCell>
+                  <TableCell sx={{ color: isDarkMode ? '#e2e8f0' : 'inherit', fontWeight: 'bold' }}>Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -278,18 +282,18 @@ export const RolesPage: React.FC = () => {
                       {module}
                     </Typography>
                     <TableContainer component={Paper} variant="outlined">
-                      <Table size="small" sx={{ backgroundColor: '#fafafa' }}>
+                      <Table size="small" sx={{ backgroundColor: isDarkMode ? '#1e293b' : '#fafafa' }}>
                         <TableHead>
-                          <TableRow sx={{ backgroundColor: '#e3f2fd' }}>
-                            <TableCell sx={{ fontWeight: 'bold', width: '150px' }}>Action</TableCell>
-                            <TableCell align="center" sx={{ fontWeight: 'bold' }}>Self</TableCell>
-                            <TableCell align="center" sx={{ fontWeight: 'bold' }}>All</TableCell>
+                          <TableRow sx={{ backgroundColor: isDarkMode ? '#263238' : '#e3f2fd' }}>
+                            <TableCell sx={{ fontWeight: 'bold', width: '150px', color: isDarkMode ? '#e2e8f0' : 'inherit' }}>Action</TableCell>
+                            <TableCell align="center" sx={{ fontWeight: 'bold', color: isDarkMode ? '#e2e8f0' : 'inherit' }}>Self</TableCell>
+                            <TableCell align="center" sx={{ fontWeight: 'bold', color: isDarkMode ? '#e2e8f0' : 'inherit' }}>All</TableCell>
                           </TableRow>
                         </TableHead>
                         <TableBody>
                           {actions.map((action) => (
                             <TableRow key={`${module}-${action}`}>
-                              <TableCell sx={{ fontWeight: 500 }}>
+                              <TableCell sx={{ fontWeight: 500, color: isDarkMode ? '#e2e8f0' : 'inherit' }}>
                                 {actionLabels[action]}
                               </TableCell>
                               {['self', 'all'].map((scope) => {
@@ -302,7 +306,7 @@ export const RolesPage: React.FC = () => {
                                         onChange={(e) => handlePermissionChange(perm.id, e.target.checked)}
                                       />
                                     ) : (
-                                      <Typography variant="caption" color="textSecondary">-</Typography>
+                                      <Typography variant="caption" color="textSecondary" sx={{ color: isDarkMode ? '#94a3b8' : 'inherit' }}>-</Typography>
                                     )}
                                   </TableCell>
                                 );
