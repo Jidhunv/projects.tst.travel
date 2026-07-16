@@ -55,43 +55,21 @@ export const auditMiddleware = async (req: AuthRequest, res: Response, next: Nex
       const responseData = typeof data === 'string' ? JSON.parse(data) : data;
 
       if (responseData?.success && responseData?.data) {
-        // Extract entity type from path
-        // Paths: /api/leads -> "leads", /api/leads/123 -> "leads", /api/leads/123/assign -> "leads"
-        const pathSegments = req.path.split('/').filter(p => p); // Remove empty strings
-
-        let entity = 'unknown';
-
-        // pathSegments after split will be like: ['api', 'leads'] or ['api', 'leads', 'id'] or ['api', 'leads', 'id', 'assign']
-        if (pathSegments.length > 0) {
-          // Skip 'api' prefix if present, get the first non-numeric, non-action segment
-          let startIdx = pathSegments[0] === 'api' ? 1 : 0;
-
-          if (startIdx < pathSegments.length) {
-            const potentialEntity = pathSegments[startIdx];
-
-            // Check if this is actually an entity name (not a number/ID)
-            if (potentialEntity && isNaN(parseInt(potentialEntity))) {
-              // Make sure it's not a special action name
-              const actionNames = ['assign', 'convert', 'close', 'resolve', 'upload', 'download', 'me'];
-              const isAction = actionNames.some(action => potentialEntity === action);
-
-              if (!isAction) {
-                entity = potentialEntity;
-              }
-            }
-          }
-        }
-
-        // If entity is still unknown, try to infer from request body or response data
-        if (entity === 'unknown' && responseData?.data) {
-          if (responseData.data.email) {
-            entity = 'users';
-          } else if (responseData.data.companyName || responseData.data.accountName) {
-            entity = 'accounts';
-          } else if (responseData.data.status === 'open' || responseData.data.status === 'closed' || responseData.data.ticketNumber) {
-            entity = 'tickets';
-          }
-        }
+        // Derive the module from the URL. Use originalUrl, NOT req.path: Express
+        // rewrites req.url/req.path to be relative to the mount point when a
+        // request is dispatched into a mounted router, and this runs inside the
+        // res.send wrapper (i.e. after that rewrite). For PATCH /api/users/<id>
+        // req.path is already just "/<id>", so reading it stored the record id
+        // as the module. originalUrl is never rewritten.
+        //
+        // The module is always the first segment after the /api prefix:
+        //   /api/leads                        -> "leads"
+        //   /api/leads/<id>                   -> "leads"
+        //   /api/leads/<id>/convert-to-opportunity -> "leads"
+        const fullPath = (req.originalUrl || req.url || '').split('?')[0];
+        const pathSegments = fullPath.split('/').filter((p) => p);
+        const startIdx = pathSegments[0] === 'api' ? 1 : 0;
+        const entity = pathSegments[startIdx] || 'unknown';
 
         const entityId = req.params.id || responseData.data.id || responseData.data?.ticketId;
         const action = req.method === 'POST' ? 'CREATE' : req.method === 'PATCH' ? 'UPDATE' : 'DELETE';
