@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   AppBar,
@@ -13,6 +13,9 @@ import {
   Menu,
   MenuItem,
   Typography,
+  Collapse,
+  ListItemButton,
+  Divider,
 } from '@mui/material';
 import {
   Dashboard as DashboardIcon,
@@ -35,6 +38,10 @@ import {
   RequestQuote as ExpenseIcon,
   DarkMode as DarkModeIcon,
   LightMode as LightModeIcon,
+  ExpandLess as ExpandLessIcon,
+  ExpandMore as ExpandMoreIcon,
+  Category as CategoryIcon,
+  AdminPanelSettings as AdminIcon,
 } from '@mui/icons-material';
 import useAuth from '@hooks/useAuth';
 import NotificationCenter from './NotificationCenter';
@@ -55,6 +62,15 @@ export default function Layout({ children }: LayoutProps) {
   const { pendingCount } = usePendingFollowups();
   const { isDarkMode, toggleTheme } = useThemeContext();
 
+  // State for collapsible menu groups
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
+    masters: true,
+    crm: true,
+    userManagement: false,
+    logs: false,
+    reports: false,
+  });
+
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
   };
@@ -68,29 +84,96 @@ export default function Layout({ children }: LayoutProps) {
     navigate('/login');
   };
 
-  // `show` gates each item by the user's View permission for its module.
-  // Items with no permission module (Dashboard, Notifications, and reference
-  // pages without a permission entry) are always visible.
-  const allMenuItems = [
-    { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard', show: true },
-    { text: 'Accounts', icon: <BusinessIcon />, path: '/accounts', show: canViewModule('accounts') },
-    { text: 'Leads', icon: <PeopleIcon />, path: '/leads', show: canViewModule('leads') },
-    { text: 'Opportunities', icon: <OpportunityIcon />, path: '/opportunities', show: canViewModule('opportunities') },
-    { text: 'Contracts', icon: <ContractIcon />, path: '/contracts', show: canViewModule('contracts') },
-    { text: 'Projects', icon: <ProjectIcon />, path: '/projects', show: canViewModule('projects') },
-    { text: 'Invoices', icon: <InvoiceIcon />, path: '/invoices', show: true },
-    { text: 'Tickets', icon: <TicketIcon />, path: '/tickets', show: canViewModule('tickets') },
-    { text: 'Products', icon: <ProductIcon />, path: '/products', show: true },
-    { text: 'Suppliers', icon: <SupplierIcon />, path: '/suppliers', show: canViewModule('suppliers') },
-    { text: 'Sales Report', icon: <VisitIcon />, path: '/sales-visits', show: canViewModule('sales_visits') },
-    { text: 'Expenses', icon: <ExpenseIcon />, path: '/expenses', show: canViewModule('expenses') },
-    { text: 'Notifications', icon: <NotificationIcon />, path: '/notifications', show: true },
-    { text: 'Audit Logs', icon: <AuditIcon />, path: '/audit-logs', show: canViewModule('audit_log') || hasPermission('admin', 'view_audit_log') },
-    { text: 'Users', icon: <UserIcon />, path: '/users', show: canViewModule('users') || hasPermission('admin', 'manage_users') },
-    { text: 'Roles', icon: <SecurityIcon />, path: '/roles', show: hasPermission('admin', 'manage_roles') },
-    { text: 'Reports', icon: <ReportsIcon />, path: '/reports', show: canViewModule('reports') },
+  const toggleGroup = (groupKey: string) => {
+    setExpandedGroups((prev) => ({
+      ...prev,
+      [groupKey]: !prev[groupKey],
+    }));
+  };
+
+  // Organized menu structure with categories
+  const menuStructure = [
+    {
+      key: 'main',
+      type: 'item',
+      text: 'Dashboard',
+      icon: <DashboardIcon />,
+      path: '/dashboard',
+      show: true,
+    },
+    { key: 'divider1', type: 'divider', show: true },
+    {
+      key: 'crm',
+      type: 'group',
+      title: 'CRM',
+      icon: <BusinessIcon />,
+      show: true,
+      items: [
+        { text: 'Accounts', icon: <BusinessIcon />, path: '/accounts', show: canViewModule('accounts') },
+        { text: 'Leads', icon: <PeopleIcon />, path: '/leads', show: canViewModule('leads') },
+        { text: 'Opportunities', icon: <OpportunityIcon />, path: '/opportunities', show: canViewModule('opportunities') },
+        { text: 'Contracts', icon: <ContractIcon />, path: '/contracts', show: canViewModule('contracts') },
+        { text: 'Projects', icon: <ProjectIcon />, path: '/projects', show: canViewModule('projects') },
+        { text: 'Invoices', icon: <InvoiceIcon />, path: '/invoices', show: true },
+        { text: 'Tickets', icon: <TicketIcon />, path: '/tickets', show: canViewModule('tickets') },
+        { text: 'Expenses', icon: <ExpenseIcon />, path: '/expenses', show: canViewModule('expenses') },
+      ],
+    },
+    {
+      key: 'masters',
+      type: 'group',
+      title: 'Masters',
+      icon: <CategoryIcon />,
+      show: true,
+      items: [
+        { text: 'Products', icon: <ProductIcon />, path: '/products', show: true },
+        { text: 'Suppliers', icon: <SupplierIcon />, path: '/suppliers', show: canViewModule('suppliers') },
+        { text: 'Categories', icon: <CategoryIcon />, path: '/categories', show: true },
+      ],
+    },
+    {
+      key: 'sales',
+      type: 'group',
+      title: 'Sales & Reports',
+      icon: <ReportsIcon />,
+      show: true,
+      items: [
+        { text: 'Sales Report', icon: <VisitIcon />, path: '/sales-visits', show: canViewModule('sales_visits'), badge: pendingCount },
+        { text: 'Reports', icon: <ReportsIcon />, path: '/reports', show: canViewModule('reports') },
+      ],
+    },
+    { key: 'divider2', type: 'divider', show: true },
+    {
+      key: 'userManagement',
+      type: 'group',
+      title: 'User Management',
+      icon: <AdminIcon />,
+      show: hasPermission('admin', 'manage_users') || hasPermission('admin', 'manage_roles'),
+      items: [
+        { text: 'Users', icon: <UserIcon />, path: '/users', show: canViewModule('users') || hasPermission('admin', 'manage_users') },
+        { text: 'Roles', icon: <SecurityIcon />, path: '/roles', show: hasPermission('admin', 'manage_roles') },
+      ],
+    },
+    {
+      key: 'logs',
+      type: 'group',
+      title: 'Logs',
+      icon: <AuditIcon />,
+      show: canViewModule('audit_log') || hasPermission('admin', 'view_audit_log'),
+      items: [
+        { text: 'Audit Logs', icon: <AuditIcon />, path: '/audit-logs', show: canViewModule('audit_log') || hasPermission('admin', 'view_audit_log') },
+      ],
+    },
+    { key: 'divider3', type: 'divider', show: true },
+    {
+      key: 'notifications',
+      type: 'item',
+      text: 'Notifications',
+      icon: <NotificationIcon />,
+      path: '/notifications',
+      show: true,
+    },
   ];
-  const menuItems = allMenuItems.filter((item) => item.show);
 
   return (
     <Box sx={{ display: 'flex' }}>
@@ -143,33 +226,100 @@ export default function Layout({ children }: LayoutProps) {
             width: DRAWER_WIDTH,
             boxSizing: 'border-box',
             marginTop: '64px',
+            bgcolor: isDarkMode ? '#1e293b' : '#ffffff',
+            color: isDarkMode ? '#e2e8f0' : '#000000',
+          },
+          '& .MuiListItemText-primary': {
+            color: isDarkMode ? '#e2e8f0' : 'inherit',
+          },
+          '& .MuiListItemIcon-root': {
+            color: isDarkMode ? '#94a3b8' : 'inherit',
           },
         }}
       >
-        <List>
-          {menuItems.map((item) => (
-            <ListItem
-              button
-              key={item.text}
-              onClick={() => navigate(item.path)}
-              sx={{
-                '&:hover': {
-                  bgcolor: '#f0f0f0',
-                },
-              }}
-            >
-              <ListItemIcon>
-                {item.text === 'Sales Report' && pendingCount > 0 ? (
-                  <Badge badgeContent={pendingCount} color="error">
-                    {item.icon}
-                  </Badge>
-                ) : (
-                  item.icon
-                )}
-              </ListItemIcon>
-              <ListItemText primary={item.text} />
-            </ListItem>
-          ))}
+        <List sx={{ pt: 1 }}>
+          {menuStructure.map((section) => {
+            if (!section.show) return null;
+
+            if (section.type === 'divider') {
+              return <Divider key={section.key} sx={{ my: 1 }} />;
+            }
+
+            if (section.type === 'item') {
+              return (
+                <ListItem
+                  button
+                  key={section.key}
+                  onClick={() => navigate(section.path!)}
+                  sx={{
+                    '&:hover': {
+                      bgcolor: isDarkMode ? '#2a3441' : '#f0f0f0',
+                    },
+                  }}
+                >
+                  <ListItemIcon>{section.icon}</ListItemIcon>
+                  <ListItemText primary={section.text} />
+                </ListItem>
+              );
+            }
+
+            if (section.type === 'group') {
+              const visibleItems = section.items!.filter((item) => item.show);
+              if (visibleItems.length === 0) return null;
+
+              return (
+                <React.Fragment key={section.key}>
+                  <ListItemButton
+                    onClick={() => toggleGroup(section.key)}
+                    sx={{
+                      '&:hover': {
+                        bgcolor: isDarkMode ? '#2a3441' : '#f0f0f0',
+                      },
+                    }}
+                  >
+                    <ListItemIcon>{section.icon}</ListItemIcon>
+                    <ListItemText
+                      primary={section.title}
+                      primaryTypographyProps={{
+                        sx: { fontWeight: 600, fontSize: '0.95rem' }
+                      }}
+                    />
+                    {expandedGroups[section.key] ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                  </ListItemButton>
+                  <Collapse in={expandedGroups[section.key]} timeout="auto" unmountOnExit>
+                    <List component="div" disablePadding>
+                      {visibleItems.map((item) => (
+                        <ListItem
+                          button
+                          key={item.text}
+                          onClick={() => navigate(item.path)}
+                          sx={{
+                            pl: 4,
+                            '&:hover': {
+                              bgcolor: isDarkMode ? '#2a3441' : '#f0f0f0',
+                            },
+                          }}
+                        >
+                          <ListItemIcon>
+                            {item.badge && item.badge > 0 ? (
+                              <Badge badgeContent={item.badge} color="error">
+                                {item.icon}
+                              </Badge>
+                            ) : (
+                              item.icon
+                            )}
+                          </ListItemIcon>
+                          <ListItemText primary={item.text} />
+                        </ListItem>
+                      ))}
+                    </List>
+                  </Collapse>
+                </React.Fragment>
+              );
+            }
+
+            return null;
+          })}
         </List>
       </Drawer>
 
