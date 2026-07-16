@@ -50,3 +50,6 @@ postgres_data/
 # Misc
 .cache
 .eslintcache
+
+# Runtime request traces (written by middleware/tracing.ts)
+backend/traces/

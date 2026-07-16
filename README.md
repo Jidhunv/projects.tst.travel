@@ -1,338 +1,54 @@
-# CRM System for Software Companies
+# CRM
 
-A purpose-built Customer Relationship Management (CRM) system designed specifically for software and SaaS companies. This CRM prioritizes simplicity, operational efficiency, and tight integration with development workflows.
+A CRM for a travel business: **Lead → Opportunity → Account → Contract → Project → Invoice**, plus tickets, expenses, suppliers, sales visits, reporting, and role-based access control.
 
-## Tech Stack
+| | Stack | Port |
+|---|---|---|
+| `backend/` | Express · TypeORM · PostgreSQL · JWT | 3001 |
+| `frontend/` | React 18 · Vite · MUI v5 | 3000 |
 
-- **Backend**: Node.js + Express + TypeScript
-- **Frontend**: React + TypeScript
-- **Database**: PostgreSQL
-- **ORM**: TypeORM
-- **Deployment**: Docker (self-hosted)
+## Quick start
 
-## Project Structure
+No root `package.json` — each app installs and runs on its own.
 
-```
-crm-platform/
-├── backend/                 # Express API server
-│   ├── src/
-│   │   ├── config/         # Database configuration
-│   │   ├── models/         # TypeORM entities
-│   │   ├── controllers/    # API handlers
-│   │   ├── services/       # Business logic
-│   │   ├── middleware/     # Auth, validation, error handling
-│   │   ├── routes/         # API routes
-│   │   ├── utils/          # Utilities
-│   │   └── app.ts          # Express app setup
-│   ├── migrations/         # Database migrations
-│   └── package.json
-├── frontend/               # React application
-│   ├── src/
-│   │   ├── components/     # React components
-│   │   ├── pages/          # Page components
-│   │   ├── services/       # API client
-│   │   ├── hooks/          # Custom hooks
-│   │   ├── types/          # TypeScript types
-│   │   ├── utils/          # Utilities
-│   │   └── App.tsx
-│   └── package.json
-└── README.md
-```
-
-## Features (MVP Phase 1)
-
-### Lead Management
-- Create, read, update, delete leads
-- Lead scoring and qualification
-- Bulk import from CSV
-- Assign leads to sales reps
-- Activity tracking (calls, emails, meetings)
-
-### Account Management
-- Create and manage customer accounts
-- Add multiple contacts per account
-- Track account relationships with leads and opportunities
-- Activity timeline
-
-### Contact Management
-- Create and manage contacts
-- Set contact roles and hierarchy
-- Track contact interactions
-- Primary contact designation
-
-### Opportunity Management
-- Sales pipeline tracking
-- Opportunity stages (Prospecting → Closed)
-- Add products/services with pricing
-- Discount management
-- Close deals (Won/Lost)
-
-### Sales Pipeline
-- Kanban view of opportunities by stage
-- Drag-and-drop stage movement
-- Pipeline filtering and forecasting
-- Revenue calculations
-
-### Core Features
-- JWT authentication
-- Role-based access control (Admin, Manager, Rep)
-- Activity logging (audit trail)
-- Search and filtering
-- Pagination
-- CSV export
-- Responsive UI
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js 16+ and npm or yarn
-- PostgreSQL 13+ (local installation)
-
-### Installation
-
-1. **Clone the repository**
 ```bash
-git clone <repository-url>
-cd crm-platform
+# 1. Install
+cd backend  && npm install
+cd frontend && npm install
+
+# 2. Configure — copy backend/.env.example to backend/.env and set
+#    DB_* and JWT_SECRET. (.env is gitignored; never commit it.)
+
+# 3. Database — create it, apply backend/migrations/*.sql in numeric order
+#    with psql, then:
+cd backend && npm run seed
+
+# 4. Run
+cd backend  && npm run build && npm start   # :3001
+cd frontend && npm run dev                  # :3000
 ```
 
-2. **Setup Database**
+Open http://localhost:3000.
 
-Ensure PostgreSQL is running locally. If not installed:
-- **Windows:** Download from https://www.postgresql.org/download/windows/
-- **Mac:** `brew install postgresql`
-- **Linux:** `sudo apt-get install postgresql`
+Seeded logins are `admin@tst.travel`, `manager@tst.travel` and `sales@tst.travel`, with passwords from `ADMIN_DEFAULT_PASSWORD` / `MANAGER_DEFAULT_PASSWORD` / `SALES_DEFAULT_PASSWORD`, defaulting to `ChangeMe@<Role>2026!`. The seed only creates users that don't already exist, so **it will not reset a password that has since been changed**.
 
-Create the database:
-```bash
-createdb -U postgres crm_db
-```
+> `npm start` runs the compiled `dist/`. After editing backend source, `npm run build` **and restart** — otherwise you are still running the old code. Full list of traps: [CLAUDE.md](CLAUDE.md#gotchas-that-will-cost-you-an-hour).
 
-3. **Setup Backend**
-```bash
-cd backend
-cp .env.example .env
-npm install
-npm run migration:run
-npm run seed  # Optional: seed with demo data
-npm run dev
-```
+## Documentation
 
-Backend will run on `http://localhost:3001`
+| | |
+|---|---|
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | How it fits together: layering, data model, middleware, schema management |
+| [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Setup, running, migrations, verifying a change |
+| [docs/RBAC.md](docs/RBAC.md) | The permission model and how to enforce it |
+| [docs/API.md](docs/API.md) | Endpoints, conventions, auth, CSRF |
+| [docs/SECURITY.md](docs/SECURITY.md) | Audit findings and current posture |
+| [CLAUDE.md](CLAUDE.md) | Orientation for AI agents |
 
-4. **Setup Frontend**
-```bash
-cd frontend
-npm install
-npm start
-```
+## Status
 
-Frontend will run on `http://localhost:3000`
+Open items worth knowing before building on this:
 
-### Environment Variables
-
-**Backend (.env)**
-```
-DB_HOST=localhost
-DB_PORT=5432
-DB_USERNAME=crm_user
-DB_PASSWORD=crm_password
-DB_NAME=crm_db
-PORT=3001
-NODE_ENV=development
-JWT_SECRET=your-secret-key
-CORS_ORIGIN=http://localhost:3000
-```
-
-## Development
-
-### Backend Development
-```bash
-cd backend
-
-# Development server with hot reload
-npm run dev
-
-# Build for production
-npm run build
-
-# Run migrations
-npm run migration:run
-
-# Create new migration
-npm run migration:create
-
-# Tests
-npm test
-npm run test:watch
-
-# Linting
-npm run lint
-npm run format
-```
-
-### Frontend Development
-```bash
-cd frontend
-
-# Development server
-npm start
-
-# Build for production
-npm run build
-
-# Tests
-npm test
-
-# Linting
-npm run lint
-npm run format
-```
-
-## API Documentation
-
-### Authentication
-```
-POST /api/auth/login
-POST /api/auth/logout
-POST /api/auth/password-reset
-```
-
-### Leads
-```
-GET    /api/leads                    # List leads
-POST   /api/leads                    # Create lead
-GET    /api/leads/:id                # Get lead detail
-PATCH  /api/leads/:id                # Update lead
-DELETE /api/leads/:id                # Delete lead
-PATCH  /api/leads/:id/status         # Update lead status
-POST   /api/leads/:id/convert-to-account  # Convert to account
-```
-
-### Accounts
-```
-GET    /api/accounts                 # List accounts
-POST   /api/accounts                 # Create account
-GET    /api/accounts/:id             # Get account detail
-PATCH  /api/accounts/:id             # Update account
-DELETE /api/accounts/:id             # Delete account
-```
-
-### Opportunities
-```
-GET    /api/opportunities            # List opportunities
-POST   /api/opportunities            # Create opportunity
-GET    /api/opportunities/:id        # Get opportunity detail
-PATCH  /api/opportunities/:id        # Update opportunity
-PATCH  /api/opportunities/:id/stage  # Move to stage
-POST   /api/opportunities/:id/close  # Close opportunity
-```
-
-### Pipeline
-```
-GET    /api/pipeline                 # Kanban data
-GET    /api/pipeline/forecast        # Forecast view
-```
-
-## Database Schema
-
-Key entities:
-- **User** - Team members
-- **Role** - Permission groups
-- **Permission** - Granular access control
-- **Lead** - Sales leads
-- **Account** - Customer/prospect accounts
-- **Contact** - People at accounts
-- **Opportunity** - Sales deals
-- **LineItem** - Products in opportunities
-- **Activity** - Audit trail
-- **Note** - Internal notes
-
-## Testing
-
-### Backend
-```bash
-cd backend
-npm test                    # Run all tests
-npm run test:watch         # Watch mode
-```
-
-### Frontend
-```bash
-cd frontend
-npm test                    # Run all tests
-npm test -- --coverage     # With coverage report
-```
-
-## Deployment
-
-### Production Build
-```bash
-# Backend
-cd backend
-npm run build
-npm start
-
-# Frontend
-cd frontend
-npm run build
-# Serve the build/ directory with a static server
-```
-
-### Cloud Deployment (AWS, Heroku, etc.)
-- Use the built code from `backend/dist` and `frontend/build`
-- Set PostgreSQL connection string in environment variables
-- Deploy frontend to CDN (S3 + CloudFront, Netlify, Vercel)
-- Deploy backend to EC2, Lambda, Heroku, or similar
-
-### Production Checklist
-- [ ] Update environment variables for production
-- [ ] Set strong JWT_SECRET
-- [ ] Enable HTTPS
-- [ ] Configure CORS for production domain
-- [ ] Setup database backups
-- [ ] Configure logging and monitoring
-- [ ] Security audit
-- [ ] Performance testing
-
-## Roadmap
-
-### Phase 1 (Current) - MVP: Sales Pipeline
-- [x] Lead management
-- [x] Account & contact management
-- [x] Opportunity/pipeline tracking
-- [ ] Dashboard & reporting
-
-### Phase 2 - Operations
-- [ ] Contracts management
-- [ ] Billing & invoicing
-- [ ] Client onboarding
-- [ ] Project tracking
-
-### Phase 3 - Advanced
-- [ ] Support ticketing
-- [ ] Jira integration
-- [ ] Customer success
-- [ ] Advanced analytics
-- [ ] Email integration
-- [ ] Workflow automation
-
-## Contributing
-
-1. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-2. Commit changes (`git commit -m 'Add AmazingFeature'`)
-3. Push to branch (`git push origin feature/AmazingFeature`)
-4. Open a Pull Request
-
-## License
-
-MIT
-
-## Support
-
-For issues and feature requests, please open a GitHub issue.
-
----
-
-**Built with ❤️ for software companies**
+- **`contracts`, `projects` and `tickets` permissions are not enforced.** They appear in Role Management and can be toggled, but no controller checks them, so any authenticated user has full access. See [docs/SECURITY.md](docs/SECURITY.md).
+- **Migrations are applied by hand.** The `.sql` files in `backend/migrations/` are not run by TypeORM, and models do not shape the database (`DB_SYNC` is off). A model/schema mismatch surfaces as a 500 on that resource.
+- **`LOGIN_CREDENTIALS.md`** (untracked, if present locally) lists stale passwords that no longer work — delete it.
