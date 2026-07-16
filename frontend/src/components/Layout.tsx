@@ -41,6 +41,7 @@ import {
   ExpandLess as ExpandLessIcon,
   ExpandMore as ExpandMoreIcon,
   Category as CategoryIcon,
+  Public as CountryIcon,
   AdminPanelSettings as AdminIcon,
 } from '@mui/icons-material';
 import useAuth from '@hooks/useAuth';
@@ -155,8 +156,9 @@ export default function Layout({ children }: LayoutProps) {
       show: true,
       items: [
         { text: 'Products', icon: <ProductIcon />, path: '/products', show: true },
+        { text: 'Product Categories', icon: <CategoryIcon />, path: '/product-categories', show: true },
         { text: 'Suppliers', icon: <SupplierIcon />, path: '/suppliers', show: canViewModule('suppliers') },
-        { text: 'Categories', icon: <CategoryIcon />, path: '/categories', show: true },
+        { text: 'Country Master', icon: <CountryIcon />, path: '/countries', show: true },
       ],
     },
     {

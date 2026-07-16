@@ -248,9 +248,19 @@ export const api = {
   updateSupplier: (id: string, data: any) => apiClient.patch<ApiResponse<any>>(`/suppliers/${id}`, data),
   deleteSupplier: (id: string) => apiClient.delete<ApiResponse<void>>(`/suppliers/${id}`),
 
-  // Countries (master data - public, read-only)
+  // Product categories (master data)
+  getProductCategories: (filters?: Record<string, any>) =>
+    apiClient.get<ApiResponse<any[]>>('/product-categories', { params: filters }),
+  createProductCategory: (data: any) => apiClient.post<ApiResponse<any>>('/product-categories', data),
+  updateProductCategory: (id: string, data: any) =>
+    apiClient.patch<ApiResponse<any>>(`/product-categories/${id}`, data),
+  deleteProductCategory: (id: string) =>
+    apiClient.delete<ApiResponse<void>>(`/product-categories/${id}`),
+
+  // Countries (master data)
   getCountries: (filters?: Record<string, any>) =>
     apiClient.get<ApiResponse<any[]>>('/countries', { params: filters }),
+  createCountry: (data: any) => apiClient.post<ApiResponse<any>>('/countries', data),
 
   // Sales visits / calls (Sales Report source)
   getSalesVisits: (filters?: Record<string, any>) =>

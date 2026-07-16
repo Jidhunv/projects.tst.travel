@@ -29,8 +29,10 @@ export class CountryController {
 
   async create(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      // Only admins can create countries
-      if (!req.user || (req.user as any).role?.name !== 'Admin') {
+      // Only admins can create countries. req.user.role is the role NAME string
+      // from the JWT, not a Role object — reading .name off it yielded undefined
+      // and rejected every caller, including actual admins.
+      if (!req.user || req.user.role !== 'Admin') {
         throw new AppError(403, 'Only admins can add countries');
       }
 

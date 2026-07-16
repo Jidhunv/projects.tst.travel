@@ -22,6 +22,8 @@ import { NotificationsPage } from '@pages/NotificationsPage';
 import { UsersPage } from '@pages/UsersPage';
 import { RolesPage } from '@pages/RolesPage';
 import { ProductsPage } from '@pages/ProductsPage';
+import { ProductCategoriesPage } from '@pages/ProductCategoriesPage';
+import { CountriesPage } from '@pages/CountriesPage';
 import { SuppliersPage } from '@pages/SuppliersPage';
 import { SalesVisitsPage } from '@pages/SalesVisitsPage';
 import { ExpensesPage } from '@pages/ExpensesPage';
@@ -236,6 +238,22 @@ function App() {
             element={
               <ProtectedRoute>
                 <ProductsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/product-categories"
+            element={
+              <ProtectedRoute module="products">
+                <ProductCategoriesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/countries"
+            element={
+              <ProtectedRoute>
+                <CountriesPage />
               </ProtectedRoute>
             }
           />
