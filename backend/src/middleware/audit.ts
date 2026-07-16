@@ -72,13 +72,24 @@ export const auditMiddleware = async (req: AuthRequest, res: Response, next: Nex
             // Check if this is actually an entity name (not a number/ID)
             if (potentialEntity && isNaN(parseInt(potentialEntity))) {
               // Make sure it's not a special action name
-              const actionNames = ['assign', 'convert', 'close', 'resolve', 'upload', 'download'];
-              const isAction = actionNames.some(action => potentialEntity.includes(action));
+              const actionNames = ['assign', 'convert', 'close', 'resolve', 'upload', 'download', 'me'];
+              const isAction = actionNames.some(action => potentialEntity === action);
 
               if (!isAction) {
                 entity = potentialEntity;
               }
             }
+          }
+        }
+
+        // If entity is still unknown, try to infer from request body or response data
+        if (entity === 'unknown' && responseData?.data) {
+          if (responseData.data.email) {
+            entity = 'users';
+          } else if (responseData.data.companyName || responseData.data.accountName) {
+            entity = 'accounts';
+          } else if (responseData.data.status === 'open' || responseData.data.status === 'closed' || responseData.data.ticketNumber) {
+            entity = 'tickets';
           }
         }
 
