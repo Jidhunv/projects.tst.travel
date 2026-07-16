@@ -130,7 +130,11 @@ export class UserService {
     }
 
     Object.assign(user, data);
-    return await this.userRepository.save(user);
+    await this.userRepository.save(user);
+
+    // Reload the user with fresh role relationship after saving
+    // This ensures roleId changes are reflected in the role object
+    return await this.getUserById(id);
   }
 
   async deleteUser(id: string): Promise<User> {
@@ -185,13 +189,17 @@ export class UserService {
   async deactivateUser(id: string): Promise<User> {
     const user = await this.getUserById(id);
     user.isActive = false;
-    return await this.userRepository.save(user);
+    await this.userRepository.save(user);
+    // Reload to ensure all relationships are fresh
+    return await this.getUserById(id);
   }
 
   async activateUser(id: string): Promise<User> {
     const user = await this.getUserById(id);
     user.isActive = true;
-    return await this.userRepository.save(user);
+    await this.userRepository.save(user);
+    // Reload to ensure all relationships are fresh
+    return await this.getUserById(id);
   }
 
   async hasPermission(userId: string, module: string, action: string): Promise<boolean> {
