@@ -129,15 +129,20 @@ export class UserController {
       }
 
       const user = await userService.updateUser(req.params.id, updates);
+      // Fetch full user with role to return in response
+      const fullUser = await userService.getUserById(user.id);
       logger.info(`User updated: ${user.id} by ${req.user!.email}`);
       return res.json({
         success: true,
         data: {
-          id: user.id,
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          isActive: user.isActive,
+          id: fullUser.id,
+          email: fullUser.email,
+          firstName: fullUser.firstName,
+          lastName: fullUser.lastName,
+          phoneNumber: fullUser.phoneNumber,
+          isActive: fullUser.isActive,
+          role: fullUser.role?.name,
+          roleId: fullUser.roleId,
         },
       });
     } catch (error) {
@@ -148,8 +153,21 @@ export class UserController {
   async activateUser(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       await userService.activateUser(req.params.id);
+      const fullUser = await userService.getUserById(req.params.id);
       logger.info(`User activated: ${req.params.id} by ${req.user!.email}`);
-      return res.json({ success: true, data: { message: 'User activated' } });
+      return res.json({
+        success: true,
+        data: {
+          id: fullUser.id,
+          email: fullUser.email,
+          firstName: fullUser.firstName,
+          lastName: fullUser.lastName,
+          phoneNumber: fullUser.phoneNumber,
+          isActive: fullUser.isActive,
+          role: fullUser.role?.name,
+          roleId: fullUser.roleId,
+        },
+      });
     } catch (error) {
       next(error);
     }
@@ -158,8 +176,21 @@ export class UserController {
   async deactivateUser(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const user = await userService.deactivateUser(req.params.id);
+      const fullUser = await userService.getUserById(user.id);
       logger.info(`User deactivated: ${user.email} by ${req.user!.email}`);
-      return res.json({ success: true, data: { message: 'User deactivated' } });
+      return res.json({
+        success: true,
+        data: {
+          id: fullUser.id,
+          email: fullUser.email,
+          firstName: fullUser.firstName,
+          lastName: fullUser.lastName,
+          phoneNumber: fullUser.phoneNumber,
+          isActive: fullUser.isActive,
+          role: fullUser.role?.name,
+          roleId: fullUser.roleId,
+        },
+      });
     } catch (error) {
       next(error);
     }
