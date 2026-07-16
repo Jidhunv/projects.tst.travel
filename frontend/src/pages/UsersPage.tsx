@@ -257,7 +257,12 @@ export const UsersPage: React.FC = () => {
                     </TableCell>
                     <TableCell>{user.email}</TableCell>
                     <TableCell>
-                      <Chip label={user.role} size="small" color="primary" variant="outlined" />
+                      <Chip
+                        label={typeof user.role === 'object' ? user.role?.name : user.role || 'No Role'}
+                        size="small"
+                        color="primary"
+                        variant="outlined"
+                      />
                     </TableCell>
                     <TableCell>
                       <Chip
