@@ -23,16 +23,22 @@ export class UserController {
         roleId,
       });
 
+      // Fetch full user with role to return in response
+      const fullUser = await userService.getUserById(user.id);
+
       logger.info(`User created: ${user.email} by ${req.user!.email}`);
 
       return res.status(201).json({
         success: true,
         data: {
-          id: user.id,
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          isActive: user.isActive,
+          id: fullUser.id,
+          email: fullUser.email,
+          firstName: fullUser.firstName,
+          lastName: fullUser.lastName,
+          phoneNumber: fullUser.phoneNumber,
+          isActive: fullUser.isActive,
+          role: fullUser.role?.name,
+          roleId: fullUser.roleId,
         },
       });
     } catch (error) {
