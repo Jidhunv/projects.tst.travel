@@ -1,10 +1,17 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import TraceController from '../controllers/trace.controller';
 import { TracedRequest } from '../middleware/tracing';
+import { verifyToken, requireRole } from '../middleware/auth';
 
 const router = Router();
 
-// Tracing endpoints don't require auth (for debugging)
+// Traces expose an inventory of every endpoint called, with query strings and
+// timings. That was previously readable by anyone with the URL ("don't require
+// auth (for debugging)"), which is unauthenticated information disclosure.
+// It is a debugging tool, so restrict it to authenticated admins.
+router.use(verifyToken);
+router.use(requireRole('Admin'));
+
 router.get('/', (req: any, res, next) =>
   TraceController.getTraceList(req as TracedRequest, res)
 );
