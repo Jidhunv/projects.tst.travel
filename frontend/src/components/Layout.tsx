@@ -64,11 +64,12 @@ export default function Layout({ children }: LayoutProps) {
 
   // State for collapsible menu groups
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
-    masters: true,
     crm: true,
+    projectManagement: true,
+    masters: false,
+    sales: false,
     userManagement: false,
     logs: false,
-    reports: false,
   });
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
@@ -112,11 +113,20 @@ export default function Layout({ children }: LayoutProps) {
         { text: 'Accounts', icon: <BusinessIcon />, path: '/accounts', show: canViewModule('accounts') },
         { text: 'Leads', icon: <PeopleIcon />, path: '/leads', show: canViewModule('leads') },
         { text: 'Opportunities', icon: <OpportunityIcon />, path: '/opportunities', show: canViewModule('opportunities') },
-        { text: 'Contracts', icon: <ContractIcon />, path: '/contracts', show: canViewModule('contracts') },
-        { text: 'Projects', icon: <ProjectIcon />, path: '/projects', show: canViewModule('projects') },
         { text: 'Invoices', icon: <InvoiceIcon />, path: '/invoices', show: true },
-        { text: 'Tickets', icon: <TicketIcon />, path: '/tickets', show: canViewModule('tickets') },
         { text: 'Expenses', icon: <ExpenseIcon />, path: '/expenses', show: canViewModule('expenses') },
+      ],
+    },
+    {
+      key: 'projectManagement',
+      type: 'group',
+      title: 'Project Management',
+      icon: <ProjectIcon />,
+      show: true,
+      items: [
+        { text: 'Projects', icon: <ProjectIcon />, path: '/projects', show: canViewModule('projects') },
+        { text: 'Contracts', icon: <ContractIcon />, path: '/contracts', show: canViewModule('contracts') },
+        { text: 'Tickets', icon: <TicketIcon />, path: '/tickets', show: canViewModule('tickets') },
       ],
     },
     {
