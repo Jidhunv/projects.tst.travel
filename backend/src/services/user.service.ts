@@ -123,17 +123,22 @@ export class UserService {
   }
 
   async updateUser(id: string, data: Partial<User>): Promise<User> {
-    const user = await this.getUserById(id);
+    // Ensure the user exists (throws 404 otherwise).
+    await this.getUserById(id);
 
     if (data.password) {
       data.password = await bcrypt.hash(data.password, 13);
     }
 
-    Object.assign(user, data);
-    await this.userRepository.save(user);
+    // Use a column-level UPDATE rather than loading the entity and calling
+    // save(). If we load the user (which eager-loads the `role` relation) and
+    // then only change `roleId`, TypeORM gives the stale `role` relation object
+    // precedence over the changed FK column on save() and writes the OLD roleId
+    // back — so the role change silently never persists. update() writes exactly
+    // the columns given, so roleId changes take effect.
+    await this.userRepository.update(id, data);
 
-    // Reload the user with fresh role relationship after saving
-    // This ensures roleId changes are reflected in the role object
+    // Reload with the fresh role relationship for the response.
     return await this.getUserById(id);
   }
 
