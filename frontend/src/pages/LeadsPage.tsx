@@ -53,6 +53,8 @@ export default function LeadsPage() {
   const [loading, setLoading] = useState(false);
   const [products, setProducts] = useState<any[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [accountsLoading, setAccountsLoading] = useState(false);
+  const [accountsError, setAccountsError] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list');
 
   // Filters
@@ -118,11 +120,33 @@ export default function LeadsPage() {
     fetchLeads();
   }, [fetchLeads]);
 
+  // Accounts drive the required "Select Account" step, so a failed load must be
+  // visible and retryable rather than leaving an unexplained empty dropdown.
+  const loadAccounts = React.useCallback(async () => {
+    setAccountsLoading(true);
+    try {
+      const r = await api.getAccounts(1, 200);
+      setAccounts(r.data.data || []);
+      setAccountsError(false);
+    } catch (error) {
+      console.error('Error loading accounts:', error);
+      setAccountsError(true);
+    } finally {
+      setAccountsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     apiClient.get('/products').then((r) => setProducts(r.data.data || []));
     apiClient.get('/suppliers').then((r) => setSuppliers(r.data.data || [])).catch(() => {});
-    api.getAccounts(1, 200).then((r) => setAccounts(r.data.data || [])).catch(() => {});
-  }, []);
+    loadAccounts();
+  }, [loadAccounts]);
+
+  // Refetch when the create dialog opens so a load that failed on mount, or an
+  // account added since, doesn't leave the dropdown stuck empty until a reload.
+  useEffect(() => {
+    if (openCreate) loadAccounts();
+  }, [openCreate, loadAccounts]);
 
   const handleCreate = async () => {
     try {
@@ -561,8 +585,18 @@ export default function LeadsPage() {
 
                   setForm(updatedForm);
                 }}
-                disabled={!!openEdit}
+                disabled={!!openEdit || accountsLoading}
                 required
+                error={accountsError}
+                helperText={
+                  accountsLoading
+                    ? 'Loading accounts…'
+                    : accountsError
+                      ? 'Could not load accounts. Use Retry below.'
+                      : accounts.length === 0
+                        ? 'No accounts available to you. You can only select accounts you own — ask an admin to assign one to you, or create one from the Accounts page.'
+                        : ' '
+                }
               >
                 <MenuItem value="">-- Select Company --</MenuItem>
                 {accounts.map((a) => (
@@ -571,6 +605,11 @@ export default function LeadsPage() {
                   </MenuItem>
                 ))}
               </TextField>
+              {(accountsError || (!accountsLoading && accounts.length === 0)) && (
+                <Button size="small" variant="text" onClick={loadAccounts} sx={{ mt: 1 }}>
+                  Retry
+                </Button>
+              )}
               {!openEdit && form.accountId && (
                 <Button
                   size="small"
