@@ -86,13 +86,17 @@ export const RolesPage: React.FC = () => {
       if (selectedRole) {
         const response = await apiClient.patch(`/roles/${selectedRole.id}`, formData);
         setRoles(roles.map((r) => (r.id === selectedRole.id ? response.data.data : r)));
+        setSelectedRole(response.data.data);
+        alert('Role updated successfully!');
       } else {
         const response = await apiClient.post('/roles', formData);
         setRoles([...roles, response.data.data]);
+        alert('Role created successfully!');
       }
       setOpenDialog(false);
     } catch (error) {
       console.error('Error saving role:', error);
+      alert('Error saving role: ' + (error as any).message);
     }
   };
 
@@ -129,7 +133,10 @@ export const RolesPage: React.FC = () => {
       if (response.data.success) {
         alert('Permissions saved successfully!');
         setRoles(roles.map((r) => (r.id === selectedRole.id ? response.data.data : r)));
+        setSelectedRole(response.data.data);
         setOpenPermissionDialog(false);
+        // Refresh permissions list to reflect any changes
+        await fetchPermissions();
       } else {
         alert('Failed to save permissions: ' + (response.data.error || 'Unknown error'));
       }
