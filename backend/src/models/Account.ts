@@ -47,6 +47,9 @@ export class Account {
   @Column({ nullable: true })
   phoneNumber: string;
 
+  @Column({ nullable: true })
+  alternatePhoneNumber: string;
+
   @Column({ unique: true, nullable: true })
   email: string;
 

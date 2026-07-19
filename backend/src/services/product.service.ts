@@ -42,7 +42,10 @@ export class ProductService {
   }
 
   async getProductById(id: string): Promise<Product> {
-    const product = await this.productRepository.findOne({ where: { id } });
+    const product = await this.productRepository.findOne({
+      where: { id },
+      relations: ['category'],
+    });
     if (!product) {
       throw new AppError(404, 'Product not found');
     }
@@ -53,7 +56,9 @@ export class ProductService {
     const { page = 1, limit = 20, search, ...where } = filters;
     const skip = (page - 1) * limit;
 
-    const query = this.productRepository.createQueryBuilder('product');
+    const query = this.productRepository
+      .createQueryBuilder('product')
+      .leftJoinAndSelect('product.category', 'category');
 
     if (search) {
       query.where('(product.name ILIKE :search OR product.sku ILIKE :search)', {
@@ -77,9 +82,16 @@ export class ProductService {
   }
 
   async updateProduct(id: string, data: Partial<Product>): Promise<Product> {
-    const product = await this.getProductById(id);
-    Object.assign(product, data);
-    return await this.productRepository.save(product);
+    // Ensure it exists (throws 404 otherwise).
+    await this.getProductById(id);
+
+    // Column-level update. getProductById eager-loads the `category` relation,
+    // and save() gives a loaded relation precedence over its FK column -- so
+    // assigning only categoryId would be silently overwritten by the stale
+    // relation. update() writes exactly the columns given.
+    await this.productRepository.update(id, data);
+
+    return await this.getProductById(id);
   }
 
   async deleteProduct(id: string): Promise<void> {

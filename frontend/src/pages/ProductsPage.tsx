@@ -18,24 +18,41 @@ import {
   CardContent,
   Typography,
   Chip,
+  MenuItem,
 } from '@mui/material';
 import Layout from '@components/Layout';
-import { apiClient } from '../services/api';
+import { apiClient, api } from '../services/api';
 
 export const ProductsPage: React.FC = () => {
   const [products, setProducts] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [categoriesError, setCategoriesError] = useState('');
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
+  // Field names must match the API: the column is unitPrice, and the category
+  // is a categoryId FK onto product_categories (not the old free-text string).
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    category: '',
-    price: '',
+    categoryId: '',
+    unitPrice: '',
   });
 
   useEffect(() => {
     fetchProducts();
+    fetchCategories();
   }, []);
+
+  const fetchCategories = async () => {
+    try {
+      const response = await api.getProductCategories({ isActive: true });
+      setCategories(response.data.data || []);
+      setCategoriesError('');
+    } catch (error) {
+      console.error('Error fetching product categories:', error);
+      setCategoriesError('Could not load categories.');
+    }
+  };
 
   const fetchProducts = async () => {
     try {
@@ -52,16 +69,16 @@ export const ProductsPage: React.FC = () => {
       setFormData({
         name: product.name,
         description: product.description || '',
-        category: product.category || '',
-        price: product.price?.toString() || '',
+        categoryId: product.categoryId || '',
+        unitPrice: product.unitPrice?.toString() || '',
       });
     } else {
       setSelectedProduct(null);
       setFormData({
         name: '',
         description: '',
-        category: '',
-        price: '',
+        categoryId: '',
+        unitPrice: '',
       });
     }
     setOpenDialog(true);
@@ -125,8 +142,10 @@ export const ProductsPage: React.FC = () => {
                 {products.map((product) => (
                   <TableRow key={product.id}>
                     <TableCell sx={{ fontWeight: 'bold' }}>{product.name}</TableCell>
-                    <TableCell>{product.category || '-'}</TableCell>
-                    <TableCell align="right">${product.price ? parseFloat(product.price).toFixed(2) : '0.00'}</TableCell>
+                    <TableCell>{product.category?.name || '-'}</TableCell>
+                    <TableCell align="right">
+                      {product.unitPrice != null ? `$${parseFloat(product.unitPrice).toFixed(2)}` : '-'}
+                    </TableCell>
                     <TableCell>{product.description || '-'}</TableCell>
                     <TableCell>
                       <Button size="small" variant="text" onClick={() => handleOpenDialog(product)}>
@@ -156,19 +175,35 @@ export const ProductsPage: React.FC = () => {
             />
             <TextField
               fullWidth
+              select
               label="Category"
-              value={formData.category}
-              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+              value={formData.categoryId}
+              onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
               sx={{ mb: 2 }}
-            />
+              error={!!categoriesError}
+              helperText={
+                categoriesError
+                  ? categoriesError
+                  : categories.length === 0
+                    ? 'No categories yet — add one under Masters > Product Categories.'
+                    : ' '
+              }
+            >
+              <MenuItem value="">-- None --</MenuItem>
+              {categories.map((c) => (
+                <MenuItem key={c.id} value={c.id}>
+                  {c.name}
+                </MenuItem>
+              ))}
+            </TextField>
             <TextField
               fullWidth
-              label="Price"
+              label="Unit Price"
               type="number"
-              value={formData.price}
-              onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+              value={formData.unitPrice}
+              onChange={(e) => setFormData({ ...formData, unitPrice: e.target.value })}
               sx={{ mb: 2 }}
-              inputProps={{ step: '0.01' }}
+              inputProps={{ step: '0.01', min: '0' }}
             />
             <TextField
               fullWidth

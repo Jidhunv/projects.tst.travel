@@ -166,8 +166,12 @@ export class OpportunityService {
       }
     }
 
-    Object.assign(opp, data);
-    return await this.oppRepository.save(opp);
+    // Column-level update: the getById above eager-loads relations, and save()
+    // gives a loaded relation precedence over its FK column -- so changing only
+    // the FK would be silently overwritten by the stale relation object.
+    // update() writes exactly the columns given.
+    await this.oppRepository.update(id, data as any);
+    return await this.getOpportunityById(id);
   }
 
   async updateStage(id: string, stage: string): Promise<Opportunity> {

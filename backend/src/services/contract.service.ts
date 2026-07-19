@@ -98,9 +98,13 @@ export class ContractService {
   }
 
   async updateContract(id: string, data: Partial<Contract>): Promise<Contract> {
-    const contract = await this.getContractById(id);
-    Object.assign(contract, data);
-    return await this.contractRepository.save(contract);
+    await this.getContractById(id);
+    // Column-level update: the getById above eager-loads relations, and save()
+    // gives a loaded relation precedence over its FK column -- so changing only
+    // the FK would be silently overwritten by the stale relation object.
+    // update() writes exactly the columns given.
+    await this.contractRepository.update(id, data);
+    return await this.getContractById(id);
   }
 
   async approveContract(id: string, approvedBy: string): Promise<Contract> {

@@ -102,11 +102,20 @@ export class InvoiceService {
 
   async updateInvoice(id: string, data: Partial<Invoice>): Promise<Invoice> {
     const invoice = await this.getInvoiceById(id);
-    Object.assign(invoice, data);
-    if (data.amount || data.tax) {
-      invoice.totalAmount = (data.amount || invoice.amount) + (data.tax || invoice.tax);
+    const updates: any = { ...data };
+    if (data.amount !== undefined || data.tax !== undefined) {
+      // Postgres returns numeric columns as strings, so coerce before adding --
+      // otherwise 2000 + '50.00' concatenates to '200050.00' instead of 2050.
+      const amount = Number(data.amount ?? invoice.amount);
+      const tax = Number(data.tax ?? invoice.tax);
+      updates.totalAmount = amount + tax;
     }
-    return await this.invoiceRepository.save(invoice);
+    // Column-level update: the getById above eager-loads relations, and save()
+    // gives a loaded relation precedence over its FK column -- so changing only
+    // the FK would be silently overwritten by the stale relation object.
+    // update() writes exactly the columns given.
+    await this.invoiceRepository.update(id, updates);
+    return await this.getInvoiceById(id);
   }
 
   // Payment tracking

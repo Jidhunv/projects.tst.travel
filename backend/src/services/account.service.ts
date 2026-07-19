@@ -25,6 +25,7 @@ export class AccountService {
     size?: string;
     website?: string;
     phoneNumber?: string;
+    alternatePhoneNumber?: string;
     email?: string;
     remark?: string;
     type?: string;
@@ -151,8 +152,12 @@ export class AccountService {
       }
     }
 
-    Object.assign(account, data);
-    return await this.accountRepository.save(account);
+    // Column-level update: the getById above eager-loads relations, and save()
+    // gives a loaded relation precedence over its FK column -- so changing only
+    // the FK would be silently overwritten by the stale relation object.
+    // update() writes exactly the columns given.
+    await this.accountRepository.update(id, data as any);
+    return await this.getAccountById(id);
   }
 
   async deleteAccount(id: string): Promise<void> {

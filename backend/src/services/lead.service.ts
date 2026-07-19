@@ -157,9 +157,13 @@ export class LeadService {
   }
 
   async updateLead(id: string, data: Partial<Lead>): Promise<Lead> {
-    const lead = await this.getLeadById(id);
-    Object.assign(lead, data);
-    return await this.leadRepository.save(lead);
+    await this.getLeadById(id);
+    // Column-level update: the getById above eager-loads relations, and save()
+    // gives a loaded relation precedence over its FK column -- so changing only
+    // the FK would be silently overwritten by the stale relation object.
+    // update() writes exactly the columns given.
+    await this.leadRepository.update(id, data);
+    return await this.getLeadById(id);
   }
 
   async updateLeadStatus(id: string, status: string): Promise<Lead> {

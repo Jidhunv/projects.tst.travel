@@ -9,7 +9,7 @@ import logger from '../utils/logger';
 export class AccountController {
   async createAccount(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const { name, industry, size, website, phoneNumber, email, remark, type, contactPerson, city, region, country } = req.body;
+      const { name, industry, size, website, phoneNumber, alternatePhoneNumber, email, remark, type, contactPerson, city, region, country } = req.body;
 
       // Validate required fields
       const nameValidation = InputValidator.validateString(name, 'Account name', 1, 100);
@@ -45,6 +45,7 @@ export class AccountController {
         size,
         website,
         phoneNumber,
+        alternatePhoneNumber,
         // The column is unique, so omit an empty address entirely (stored as
         // NULL) rather than saving "" -- a second blank would collide.
         email: email || undefined,
@@ -139,7 +140,7 @@ export class AccountController {
       // will appear to save and then not persist -- which is exactly what happened
       // to email and remark. Keep this in step with the Account model.
       const allowed = [
-        'name', 'industry', 'size', 'website', 'phoneNumber', 'email', 'remark', 'type', 'status',
+        'name', 'industry', 'size', 'website', 'phoneNumber', 'alternatePhoneNumber', 'email', 'remark', 'type', 'status',
         'contactPerson', 'city', 'region', 'country',
         'billingStreet', 'billingCity', 'billingState', 'billingZip', 'billingCountry',
         'shippingStreet', 'shippingCity', 'shippingState', 'shippingZip', 'shippingCountry',

@@ -102,8 +102,12 @@ class TicketService {
       data.respondedAt = new Date();
     }
 
-    Object.assign(ticket, data);
-    return await this.repository.save(ticket);
+    // Column-level update: the getById above eager-loads relations, and save()
+    // gives a loaded relation precedence over its FK column -- so changing only
+    // the FK would be silently overwritten by the stale relation object.
+    // update() writes exactly the columns given.
+    await this.repository.update(id, data as any);
+    return await this.getTicketById(id);
   }
 
   async assignTicket(id: string, assigneeIds: string[]) {

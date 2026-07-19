@@ -89,9 +89,13 @@ export class ProjectService {
   }
 
   async updateProject(id: string, data: Partial<Project>): Promise<Project> {
-    const project = await this.getProjectById(id);
-    Object.assign(project, data);
-    return await this.projectRepository.save(project);
+    await this.getProjectById(id);
+    // Column-level update: the getById above eager-loads relations, and save()
+    // gives a loaded relation precedence over its FK column -- so changing only
+    // the FK would be silently overwritten by the stale relation object.
+    // update() writes exactly the columns given.
+    await this.projectRepository.update(id, data);
+    return await this.getProjectById(id);
   }
 
   // Milestone tracking
