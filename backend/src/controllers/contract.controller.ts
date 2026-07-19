@@ -1,25 +1,29 @@
 import { Response, NextFunction } from 'express';
 import contractService from '../services/contract.service';
-import { AuthRequest, canPerformAction, getOwnerScope } from '../middleware/auth';
+import { AuthRequest, canPerformAction, getOwnerScope, assertOwnsViaAccount } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
+import pick from '../utils/pick';
 import logger from '../utils/logger';
 
+// approvedBy/approvedDate are set by the approve endpoint; createdById at
+// creation; documentPath by upload. None may be set by the client.
+const CONTRACT_UPDATABLE = [
+  'title',
+  'type',
+  'value',
+  'startDate',
+  'endDate',
+  'renewalDate',
+  'paymentTerms',
+  'slaTerms',
+  'remarks',
+  'status',
+  'accountId',
+  'opportunityId',
+  'contractNumber',
+] as const;
+
 export class ContractController {
-  // A Contract has no owner column; it inherits ownership from its account.
-  // At "self" scope a user may only touch contracts for an account they own, or
-  // that they created themselves.
-  private async assertCanAccess(
-    req: AuthRequest,
-    contract: { account?: { ownerId?: string }; createdById?: string },
-    action: string
-  ) {
-    if (getOwnerScope(req.user, 'contracts') === undefined) return; // "all" scope
-    const mine =
-      contract.account?.ownerId === req.user!.id || contract.createdById === req.user!.id;
-    if (!mine) {
-      throw new AppError(403, `You can only ${action} contracts for your own accounts`);
-    }
-  }
 
   async createContract(req: AuthRequest, res: Response, next: NextFunction) {
     try {
@@ -88,7 +92,7 @@ export class ContractController {
         throw new AppError(403, 'You do not have permission to view contracts');
       }
       const contract = await contractService.getContractById(req.params.id);
-      await this.assertCanAccess(req, contract, 'view');
+      assertOwnsViaAccount(req.user, 'contracts', 'view', contract.account?.ownerId, [contract.createdById]);
       return res.json({ success: true, data: contract });
     } catch (error) {
       next(error);
@@ -100,9 +104,10 @@ export class ContractController {
       if (!canPerformAction(req.user, 'contracts', 'update')) {
         throw new AppError(403, 'You do not have permission to update contracts');
       }
-      await this.assertCanAccess(req, await contractService.getContractById(req.params.id), 'update');
+      const record = await contractService.getContractById(req.params.id);
+      assertOwnsViaAccount(req.user, 'contracts', 'update', record.account?.ownerId, [record.createdById]);
 
-      const contract = await contractService.updateContract(req.params.id, req.body);
+      const contract = await contractService.updateContract(req.params.id, pick(req.body, CONTRACT_UPDATABLE));
       logger.info(`Contract updated: ${contract.id} by ${req.user?.email}`);
       return res.json({ success: true, data: contract });
     } catch (error) {
@@ -116,7 +121,8 @@ export class ContractController {
       if (!canPerformAction(req.user, 'contracts', 'update')) {
         throw new AppError(403, 'You do not have permission to approve contracts');
       }
-      await this.assertCanAccess(req, await contractService.getContractById(req.params.id), 'approve');
+      const record = await contractService.getContractById(req.params.id);
+      assertOwnsViaAccount(req.user, 'contracts', 'approve', record.account?.ownerId, [record.createdById]);
 
       const contract = await contractService.approveContract(req.params.id, req.user?.email || 'Unknown');
       logger.info(`Contract approved: ${contract.id} by ${req.user?.email}`);
@@ -131,7 +137,8 @@ export class ContractController {
       if (!canPerformAction(req.user, 'contracts', 'delete')) {
         throw new AppError(403, 'You do not have permission to delete contracts');
       }
-      await this.assertCanAccess(req, await contractService.getContractById(req.params.id), 'delete');
+      const record = await contractService.getContractById(req.params.id);
+      assertOwnsViaAccount(req.user, 'contracts', 'delete', record.account?.ownerId, [record.createdById]);
 
       await contractService.deleteContract(req.params.id);
       logger.info(`Contract deleted: ${req.params.id} by ${req.user?.email}`);

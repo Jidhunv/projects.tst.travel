@@ -1,9 +1,25 @@
 import { Response, NextFunction } from 'express';
 import userService from '../services/user.service';
+import { User } from '../models/User';
 import { AuthRequest } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
+import pick from '../utils/pick';
 import logger from '../utils/logger';
 import { PasswordValidator } from '../utils/passwordValidator';
+
+
+// One response shape for a user, so every endpoint returns the same fields and
+// none of them can accidentally leak the password hash.
+const toUserResponse = (user: User) => ({
+  id: user.id,
+  email: user.email,
+  firstName: user.firstName,
+  lastName: user.lastName,
+  phoneNumber: user.phoneNumber,
+  isActive: user.isActive,
+  role: user.role?.name,
+  roleId: user.roleId,
+});
 
 export class UserController {
   async createUser(req: AuthRequest, res: Response, next: NextFunction) {
@@ -30,16 +46,7 @@ export class UserController {
 
       return res.status(201).json({
         success: true,
-        data: {
-          id: fullUser.id,
-          email: fullUser.email,
-          firstName: fullUser.firstName,
-          lastName: fullUser.lastName,
-          phoneNumber: fullUser.phoneNumber,
-          isActive: fullUser.isActive,
-          role: fullUser.role?.name,
-          roleId: fullUser.roleId,
-        },
+        data: toUserResponse(fullUser),
       });
     } catch (error) {
       next(error);
@@ -85,16 +92,7 @@ export class UserController {
       const user = await userService.getUserById(req.params.id);
       return res.json({
         success: true,
-        data: {
-          id: user.id,
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          phoneNumber: user.phoneNumber,
-          isActive: user.isActive,
-          role: user.role?.name,
-          roleId: user.role?.id,
-        },
+        data: toUserResponse(user),
       });
     } catch (error) {
       next(error);
@@ -106,10 +104,7 @@ export class UserController {
       // Whitelist updatable fields to prevent mass assignment.
       const allowed = ['firstName', 'lastName', 'phoneNumber', 'email', 'isActive',
         'emailNotificationsEnabled', 'emailNotificationPreferences'];
-      const updates: any = {};
-      for (const key of allowed) {
-        if (key in req.body) updates[key] = req.body[key];
-      }
+      const updates: any = pick(req.body, allowed);
 
       // Only Admins may (re)assign roles — prevents privilege escalation by Managers.
       if ('roleId' in req.body) {
@@ -134,16 +129,7 @@ export class UserController {
       logger.info(`User updated: ${user.id} by ${req.user!.email}`);
       return res.json({
         success: true,
-        data: {
-          id: fullUser.id,
-          email: fullUser.email,
-          firstName: fullUser.firstName,
-          lastName: fullUser.lastName,
-          phoneNumber: fullUser.phoneNumber,
-          isActive: fullUser.isActive,
-          role: fullUser.role?.name,
-          roleId: fullUser.roleId,
-        },
+        data: toUserResponse(fullUser),
       });
     } catch (error) {
       next(error);
@@ -157,16 +143,7 @@ export class UserController {
       logger.info(`User activated: ${req.params.id} by ${req.user!.email}`);
       return res.json({
         success: true,
-        data: {
-          id: fullUser.id,
-          email: fullUser.email,
-          firstName: fullUser.firstName,
-          lastName: fullUser.lastName,
-          phoneNumber: fullUser.phoneNumber,
-          isActive: fullUser.isActive,
-          role: fullUser.role?.name,
-          roleId: fullUser.roleId,
-        },
+        data: toUserResponse(fullUser),
       });
     } catch (error) {
       next(error);
@@ -180,16 +157,7 @@ export class UserController {
       logger.info(`User deactivated: ${user.email} by ${req.user!.email}`);
       return res.json({
         success: true,
-        data: {
-          id: fullUser.id,
-          email: fullUser.email,
-          firstName: fullUser.firstName,
-          lastName: fullUser.lastName,
-          phoneNumber: fullUser.phoneNumber,
-          isActive: fullUser.isActive,
-          role: fullUser.role?.name,
-          roleId: fullUser.roleId,
-        },
+        data: toUserResponse(fullUser),
       });
     } catch (error) {
       next(error);

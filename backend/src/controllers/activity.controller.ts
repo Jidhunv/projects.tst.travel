@@ -1,7 +1,7 @@
 import { Response, NextFunction } from 'express';
 import activityService from '../services/activity.service';
 import noteService from '../services/note.service';
-import { AuthRequest } from '../middleware/auth';
+import { AuthRequest, canPerformAction } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
 import logger from '../utils/logger';
 
@@ -11,6 +11,9 @@ export class ActivityController {
 
   async createActivity(req: AuthRequest, res: Response, next: NextFunction) {
     try {
+      if (!canPerformAction(req.user, 'activities', 'create')) {
+        throw new AppError(403, 'You do not have permission to create activities');
+      }
       const { type, title, description, resourceType, resourceId, dueDate } = req.body;
 
       if (!type || !title || !resourceType || !resourceId) {
@@ -36,6 +39,9 @@ export class ActivityController {
 
   async getActivities(req: AuthRequest, res: Response, next: NextFunction) {
     try {
+      if (!canPerformAction(req.user, 'activities', 'read')) {
+        throw new AppError(403, 'You do not have permission to view activities');
+      }
       const { resourceType, resourceId } = req.query;
       if (!resourceType || !resourceId) {
         throw new AppError(400, 'resourceType and resourceId query params are required');
@@ -52,6 +58,9 @@ export class ActivityController {
 
   async getMyFollowUps(req: AuthRequest, res: Response, next: NextFunction) {
     try {
+      if (!canPerformAction(req.user, 'activities', 'read')) {
+        throw new AppError(403, 'You do not have permission to view activities');
+      }
       const followUps = await activityService.getUpcomingFollowUps(req.user!.id);
       return res.json({ success: true, data: followUps });
     } catch (error) {
@@ -61,6 +70,9 @@ export class ActivityController {
 
   async completeActivity(req: AuthRequest, res: Response, next: NextFunction) {
     try {
+      if (!canPerformAction(req.user, 'activities', 'update')) {
+        throw new AppError(403, 'You do not have permission to update activities');
+      }
       const activity = await activityService.completeActivity(req.params.id);
       return res.json({ success: true, data: activity });
     } catch (error) {
@@ -70,6 +82,9 @@ export class ActivityController {
 
   async deleteActivity(req: AuthRequest, res: Response, next: NextFunction) {
     try {
+      if (!canPerformAction(req.user, 'activities', 'delete')) {
+        throw new AppError(403, 'You do not have permission to delete activities');
+      }
       await activityService.deleteActivity(req.params.id);
       return res.json({ success: true, data: { message: 'Activity deleted' } });
     } catch (error) {
@@ -81,6 +96,9 @@ export class ActivityController {
 
   async createNote(req: AuthRequest, res: Response, next: NextFunction) {
     try {
+      if (!canPerformAction(req.user, 'activities', 'create')) {
+        throw new AppError(403, 'You do not have permission to create notes');
+      }
       const { content, resourceType, resourceId } = req.body;
       if (!content || !resourceType || !resourceId) {
         throw new AppError(400, 'content, resourceType and resourceId are required');
@@ -100,6 +118,9 @@ export class ActivityController {
 
   async getNotes(req: AuthRequest, res: Response, next: NextFunction) {
     try {
+      if (!canPerformAction(req.user, 'activities', 'read')) {
+        throw new AppError(403, 'You do not have permission to view notes');
+      }
       const { resourceType, resourceId } = req.query;
       if (!resourceType || !resourceId) {
         throw new AppError(400, 'resourceType and resourceId query params are required');
@@ -116,6 +137,9 @@ export class ActivityController {
 
   async deleteNote(req: AuthRequest, res: Response, next: NextFunction) {
     try {
+      if (!canPerformAction(req.user, 'activities', 'delete')) {
+        throw new AppError(403, 'You do not have permission to delete notes');
+      }
       await noteService.deleteNote(req.params.id);
       return res.json({ success: true, data: { message: 'Note deleted' } });
     } catch (error) {

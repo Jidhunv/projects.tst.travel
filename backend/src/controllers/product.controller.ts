@@ -2,7 +2,19 @@ import { Response, NextFunction } from 'express';
 import productService from '../services/product.service';
 import { AuthRequest } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
+import pick from '../utils/pick';
 import logger from '../utils/logger';
+
+// Every product column is user-editable.
+const PRODUCT_UPDATABLE = [
+  'name',
+  'sku',
+  'description',
+  'categoryId',
+  'unitPrice',
+  'billingType',
+  'isActive',
+] as const;
 
 export class ProductController {
   async createProduct(req: AuthRequest, res: Response, next: NextFunction) {
@@ -68,7 +80,7 @@ export class ProductController {
 
   async updateProduct(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const product = await productService.updateProduct(req.params.id, req.body);
+      const product = await productService.updateProduct(req.params.id, pick(req.body, PRODUCT_UPDATABLE));
       logger.info(`Product updated: ${product.id} by ${req.user!.email}`);
       return res.json({ success: true, data: product });
     } catch (error) {

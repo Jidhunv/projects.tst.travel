@@ -1,25 +1,48 @@
 import { Response, NextFunction } from 'express';
 import projectService from '../services/project.service';
-import { AuthRequest, canPerformAction, getOwnerScope } from '../middleware/auth';
+import { AuthRequest, canPerformAction, getOwnerScope, assertOwnsViaAccount } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
+import pick from '../utils/pick';
 import logger from '../utils/logger';
 
+// The full project workflow is user-editable; only id/createdAt/updatedAt
+// are withheld, which pick() drops by omission.
+const PROJECT_UPDATABLE = [
+  'projectName',
+  'description',
+  'status',
+  'startDate',
+  'endDate',
+  'budget',
+  'revenue',
+  'progressPercent',
+  'accountId',
+  'contractId',
+  'projectManagerId',
+  'isLoaded',
+  'loadedBy',
+  'loadedDate',
+  'demoConducted',
+  'demoDate',
+  'conductedBy',
+  'clientDemoApproval',
+  'uatStatus',
+  'uatStartDate',
+  'uatCompletedDate',
+  'uatSignoffBy',
+  'uatRemarks',
+  'prodDeploymentStatus',
+  'prodDeploymentDate',
+  'prodDeploymentBy',
+  'goLiveApproval',
+  'goLiveDate',
+  'projectClosureSigned',
+  'projectClosureSignDate',
+  'projectClosureSignedBy',
+  'closureRemarks',
+] as const;
+
 export class ProjectController {
-  // A Project has no owner column; it inherits ownership from its account.
-  // At "self" scope a user may only touch projects for an account they own, or
-  // that they manage.
-  private async assertCanAccess(
-    req: AuthRequest,
-    project: { account?: { ownerId?: string }; projectManagerId?: string },
-    action: string
-  ) {
-    if (getOwnerScope(req.user, 'projects') === undefined) return; // "all" scope
-    const mine =
-      project.account?.ownerId === req.user!.id || project.projectManagerId === req.user!.id;
-    if (!mine) {
-      throw new AppError(403, `You can only ${action} projects for your own accounts`);
-    }
-  }
 
   async createProject(req: AuthRequest, res: Response, next: NextFunction) {
     try {
@@ -85,7 +108,7 @@ export class ProjectController {
         throw new AppError(403, 'You do not have permission to view projects');
       }
       const project = await projectService.getProjectById(req.params.id);
-      await this.assertCanAccess(req, project, 'view');
+      assertOwnsViaAccount(req.user, 'projects', 'view', project.account?.ownerId, [project.projectManagerId]);
       return res.json({ success: true, data: project });
     } catch (error) {
       next(error);
@@ -97,9 +120,10 @@ export class ProjectController {
       if (!canPerformAction(req.user, 'projects', 'update')) {
         throw new AppError(403, 'You do not have permission to update projects');
       }
-      await this.assertCanAccess(req, await projectService.getProjectById(req.params.id), 'update');
+      const record = await projectService.getProjectById(req.params.id);
+      assertOwnsViaAccount(req.user, 'projects', 'update', record.account?.ownerId, [record.projectManagerId]);
 
-      const project = await projectService.updateProject(req.params.id, req.body);
+      const project = await projectService.updateProject(req.params.id, pick(req.body, PROJECT_UPDATABLE));
       logger.info(`Project updated: ${project.id} by ${req.user?.email}`);
       return res.json({ success: true, data: project });
     } catch (error) {
@@ -112,7 +136,8 @@ export class ProjectController {
       if (!canPerformAction(req.user, 'projects', 'update')) {
         throw new AppError(403, 'You do not have permission to change project milestones');
       }
-      await this.assertCanAccess(req, await projectService.getProjectById(req.params.id), 'update');
+      const record = await projectService.getProjectById(req.params.id);
+      assertOwnsViaAccount(req.user, 'projects', 'update', record.account?.ownerId, [record.projectManagerId]);
 
       const { milestoneType, milestoneName, completedDate, responsibleUserId, remarks } = req.body;
 
@@ -140,7 +165,8 @@ export class ProjectController {
       if (!canPerformAction(req.user, 'projects', 'read')) {
         throw new AppError(403, 'You do not have permission to view projects');
       }
-      await this.assertCanAccess(req, await projectService.getProjectById(req.params.id), 'view');
+      const record = await projectService.getProjectById(req.params.id);
+      assertOwnsViaAccount(req.user, 'projects', 'view', record.account?.ownerId, [record.projectManagerId]);
 
       const milestones = await projectService.getMilestones(req.params.id);
       return res.json({ success: true, data: milestones });
@@ -157,7 +183,8 @@ export class ProjectController {
         throw new AppError(403, 'You do not have permission to approve milestones');
       }
       const parent = await projectService.getMilestoneById(req.params.milestoneId);
-      await this.assertCanAccess(req, await projectService.getProjectById(parent.projectId), 'approve milestones on');
+      const record = await projectService.getProjectById(parent.projectId);
+      assertOwnsViaAccount(req.user, 'projects', 'approve milestones on', record.account?.ownerId, [record.projectManagerId]);
 
       const milestone = await projectService.approveMilestone(req.params.milestoneId, req.user?.email || 'Unknown');
       logger.info(`Milestone approved: ${req.params.milestoneId}`);
@@ -172,7 +199,8 @@ export class ProjectController {
       if (!canPerformAction(req.user, 'projects', 'delete')) {
         throw new AppError(403, 'You do not have permission to delete projects');
       }
-      await this.assertCanAccess(req, await projectService.getProjectById(req.params.id), 'delete');
+      const record = await projectService.getProjectById(req.params.id);
+      assertOwnsViaAccount(req.user, 'projects', 'delete', record.account?.ownerId, [record.projectManagerId]);
 
       await projectService.deleteProject(req.params.id);
       logger.info(`Project deleted: ${req.params.id} by ${req.user?.email}`);

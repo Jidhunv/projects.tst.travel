@@ -1,34 +1,31 @@
 import { Response, NextFunction } from 'express';
 import ticketService from '../services/ticket.service';
-import { AuthRequest, canReassign, canPerformAction, getOwnerScope } from '../middleware/auth';
+import { AuthRequest, canReassign, canPerformAction, getOwnerScope, assertOwnsViaAccount } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
+import pick from '../utils/pick';
 import logger from '../utils/logger';
 
+// resolvedAt/respondedAt are SLA timestamps stamped by the service -- letting
+// a client set them allowed SLA compliance to be forged. ticketNumber is
+// generated, reporterId fixed at creation, assignees set by /assign, and
+// attachmentPaths by the upload route.
+const TICKET_UPDATABLE = [
+  'title',
+  'description',
+  'priority',
+  'status',
+  'category',
+  'moduleType',
+  'source',
+  'accountId',
+  'contactId',
+  'productId',
+  'resolutionNotes',
+  'slaResponseHours',
+  'slaResolutionHours',
+] as const;
+
 export class TicketController {
-  // A Ticket has no owner column; it inherits ownership from its account. At
-  // "self" scope a user may only touch tickets for an account they own, or that
-  // they reported or are assigned to (including multi-assign).
-  private async assertCanAccess(
-    req: AuthRequest,
-    ticket: {
-      account?: { ownerId?: string };
-      reporter?: { id?: string };
-      assignee?: { id?: string };
-      assigneeIds?: string[];
-    },
-    action: string
-  ) {
-    if (getOwnerScope(req.user, 'tickets') === undefined) return; // "all" scope
-    const me = req.user!.id;
-    const mine =
-      ticket.account?.ownerId === me ||
-      ticket.reporter?.id === me ||
-      ticket.assignee?.id === me ||
-      (Array.isArray(ticket.assigneeIds) && ticket.assigneeIds.includes(me));
-    if (!mine) {
-      throw new AppError(403, `You can only ${action} tickets for your own accounts`);
-    }
-  }
 
   async createTicket(req: AuthRequest, res: Response, next: NextFunction) {
     try {
@@ -81,7 +78,8 @@ export class TicketController {
       if (!canPerformAction(req.user, 'tickets', 'update')) {
         throw new AppError(403, 'You do not have permission to attach files to tickets');
       }
-      await this.assertCanAccess(req, await ticketService.getTicketById(ticketId), 'attach files to');
+      const record = await ticketService.getTicketById(ticketId);
+      assertOwnsViaAccount(req.user, 'tickets', 'attach files to', record.account?.ownerId, [record.reporter?.id, record.assignee?.id, record.assigneeIds]);
 
       const ticket = await ticketService.addAttachment(ticketId, filePath);
 
@@ -126,7 +124,7 @@ export class TicketController {
         throw new AppError(403, 'You do not have permission to view tickets');
       }
       const ticket = await ticketService.getTicketById(req.params.id);
-      await this.assertCanAccess(req, ticket, 'view');
+      assertOwnsViaAccount(req.user, 'tickets', 'view', ticket.account?.ownerId, [ticket.reporter?.id, ticket.assignee?.id, ticket.assigneeIds]);
       return res.json({ success: true, data: ticket });
     } catch (error) {
       next(error);
@@ -138,9 +136,10 @@ export class TicketController {
       if (!canPerformAction(req.user, 'tickets', 'update')) {
         throw new AppError(403, 'You do not have permission to update tickets');
       }
-      await this.assertCanAccess(req, await ticketService.getTicketById(req.params.id), 'update');
+      const record = await ticketService.getTicketById(req.params.id);
+      assertOwnsViaAccount(req.user, 'tickets', 'update', record.account?.ownerId, [record.reporter?.id, record.assignee?.id, record.assigneeIds]);
 
-      const ticket = await ticketService.updateTicket(req.params.id, req.body);
+      const ticket = await ticketService.updateTicket(req.params.id, pick(req.body, TICKET_UPDATABLE));
       logger.info(`Ticket updated: ${ticket.id} by ${req.user?.email}`);
       return res.json({ success: true, data: ticket });
     } catch (error) {
@@ -163,7 +162,8 @@ export class TicketController {
       if (!canPerformAction(req.user, 'tickets', 'update')) {
         throw new AppError(403, 'You do not have permission to assign tickets');
       }
-      await this.assertCanAccess(req, await ticketService.getTicketById(req.params.id), 'assign');
+      const record = await ticketService.getTicketById(req.params.id);
+      assertOwnsViaAccount(req.user, 'tickets', 'assign', record.account?.ownerId, [record.reporter?.id, record.assignee?.id, record.assigneeIds]);
 
       const ticket = await ticketService.assignTicket(req.params.id, ids);
       logger.info(`Ticket assigned: ${ticket.id} to [${ids.join(', ')}] by ${req.user?.email}`);
@@ -183,7 +183,8 @@ export class TicketController {
       if (!canPerformAction(req.user, 'tickets', 'update')) {
         throw new AppError(403, 'You do not have permission to resolve tickets');
       }
-      await this.assertCanAccess(req, await ticketService.getTicketById(req.params.id), 'resolve');
+      const record = await ticketService.getTicketById(req.params.id);
+      assertOwnsViaAccount(req.user, 'tickets', 'resolve', record.account?.ownerId, [record.reporter?.id, record.assignee?.id, record.assigneeIds]);
 
       const ticket = await ticketService.resolveTicket(req.params.id, resolutionNotes);
       logger.info(`Ticket resolved: ${ticket.id} by ${req.user?.email}`);
@@ -198,7 +199,8 @@ export class TicketController {
       if (!canPerformAction(req.user, 'tickets', 'update')) {
         throw new AppError(403, 'You do not have permission to close tickets');
       }
-      await this.assertCanAccess(req, await ticketService.getTicketById(req.params.id), 'close');
+      const record = await ticketService.getTicketById(req.params.id);
+      assertOwnsViaAccount(req.user, 'tickets', 'close', record.account?.ownerId, [record.reporter?.id, record.assignee?.id, record.assigneeIds]);
 
       const ticket = await ticketService.closeTicket(req.params.id);
       logger.info(`Ticket closed: ${ticket.id} by ${req.user?.email}`);
@@ -213,7 +215,8 @@ export class TicketController {
       if (!canPerformAction(req.user, 'tickets', 'delete')) {
         throw new AppError(403, 'You do not have permission to delete tickets');
       }
-      await this.assertCanAccess(req, await ticketService.getTicketById(req.params.id), 'delete');
+      const record = await ticketService.getTicketById(req.params.id);
+      assertOwnsViaAccount(req.user, 'tickets', 'delete', record.account?.ownerId, [record.reporter?.id, record.assignee?.id, record.assigneeIds]);
 
       await ticketService.deleteTicket(req.params.id);
       logger.info(`Ticket deleted: ${req.params.id} by ${req.user?.email}`);

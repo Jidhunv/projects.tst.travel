@@ -1,23 +1,29 @@
 import { Response, NextFunction } from 'express';
 import invoiceService from '../services/invoice.service';
 import accountService from '../services/account.service';
-import { AuthRequest, canPerformAction, getOwnerScope } from '../middleware/auth';
+import { AuthRequest, canPerformAction, getOwnerScope, assertOwnsViaAccount } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
+import pick from '../utils/pick';
 import logger from '../utils/logger';
 
+// totalAmount is derived from amount + tax by the service; accepting it from
+// the client would let the stored total disagree with its components.
+const INVOICE_UPDATABLE = [
+  'invoiceNumber',
+  'amount',
+  'tax',
+  'invoiceDate',
+  'dueDate',
+  'billingCycle',
+  'description',
+  'notes',
+  'status',
+  'accountId',
+  'contractId',
+  'projectId',
+] as const;
+
 export class InvoiceController {
-  // An invoice has no owner column; it inherits ownership from its account.
-  // At "self" scope a user may only touch invoices for accounts they own.
-  private async assertCanAccessInvoice(
-    req: AuthRequest,
-    invoice: { account?: { ownerId?: string } },
-    action: string
-  ) {
-    if (getOwnerScope(req.user, 'invoices') === undefined) return; // "all" scope
-    if (invoice.account?.ownerId !== req.user!.id) {
-      throw new AppError(403, `You can only ${action} invoices for your own accounts`);
-    }
-  }
 
   async createInvoice(req: AuthRequest, res: Response, next: NextFunction) {
     try {
@@ -93,7 +99,7 @@ export class InvoiceController {
         throw new AppError(403, 'You do not have permission to view invoices');
       }
       const invoice = await invoiceService.getInvoiceById(req.params.id);
-      await this.assertCanAccessInvoice(req, invoice, 'view');
+      assertOwnsViaAccount(req.user, 'invoices', 'view', invoice.account?.ownerId);
       return res.json({ success: true, data: invoice });
     } catch (error) {
       next(error);
@@ -106,9 +112,9 @@ export class InvoiceController {
         throw new AppError(403, 'You do not have permission to update invoices');
       }
       const existing = await invoiceService.getInvoiceById(req.params.id);
-      await this.assertCanAccessInvoice(req, existing, 'update');
+      assertOwnsViaAccount(req.user, 'invoices', 'update', existing.account?.ownerId);
 
-      const invoice = await invoiceService.updateInvoice(req.params.id, req.body);
+      const invoice = await invoiceService.updateInvoice(req.params.id, pick(req.body, INVOICE_UPDATABLE));
       logger.info(`Invoice updated: ${invoice.id} by ${req.user?.email}`);
       return res.json({ success: true, data: invoice });
     } catch (error) {
@@ -123,7 +129,7 @@ export class InvoiceController {
         throw new AppError(403, 'You do not have permission to record payments');
       }
       const target = await invoiceService.getInvoiceById(req.params.id);
-      await this.assertCanAccessInvoice(req, target, 'record payments on');
+      assertOwnsViaAccount(req.user, 'invoices', 'record payments on', target.account?.ownerId);
 
       const { amount, paymentDate, paymentMethod, transactionReference } = req.body;
 
@@ -151,7 +157,7 @@ export class InvoiceController {
         throw new AppError(403, 'You do not have permission to view invoices');
       }
       const parent = await invoiceService.getInvoiceById(req.params.id);
-      await this.assertCanAccessInvoice(req, parent, 'view');
+      assertOwnsViaAccount(req.user, 'invoices', 'view', parent.account?.ownerId);
 
       const payments = await invoiceService.getPayments(req.params.id);
       return res.json({ success: true, data: payments });
@@ -178,7 +184,7 @@ export class InvoiceController {
         throw new AppError(403, 'You do not have permission to delete invoices');
       }
       const doomed = await invoiceService.getInvoiceById(req.params.id);
-      await this.assertCanAccessInvoice(req, doomed, 'delete');
+      assertOwnsViaAccount(req.user, 'invoices', 'delete', doomed.account?.ownerId);
 
       await invoiceService.deleteInvoice(req.params.id);
       logger.info(`Invoice deleted: ${req.params.id} by ${req.user?.email}`);

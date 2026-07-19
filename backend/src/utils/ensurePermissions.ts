@@ -31,6 +31,8 @@ function buildCatalog(): PermSpec[] {
     ...crud('expenses', 'expenses'),
     // Approval is an organisation-level action (managers/admins).
     { module: 'expenses', action: 'approve', scope: 'all', description: 'Approve or reject expenses' },
+    ...crud('activities', 'activities and notes'),
+    ...crud('invoices', 'invoices'),
   ];
 }
 

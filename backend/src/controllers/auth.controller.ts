@@ -32,7 +32,13 @@ export class AuthController {
         throw authError;
       }
 
-      const token = generateToken(user.id, user.email, user.role?.name || 'Sales Rep');
+      // Never invent a role: issuing a default token on an unresolved role means
+      // authentication silently guesses at authorisation.
+      if (!user.role?.name) {
+        logger.error(`Login blocked: user ${user.email} has no resolvable role`);
+        throw new AppError(403, 'Your account has no role assigned. Contact an administrator.');
+      }
+      const token = generateToken(user.id, user.email, user.role.name);
 
       logger.info(`User logged in: ${user.email}`);
       logSecurityEvent('LOGIN_SUCCESS', {

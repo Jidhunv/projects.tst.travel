@@ -4,6 +4,7 @@ import { AuthRequest, getOwnerScope, canAccessRecord, canPerformAction, canReass
 import userService from '../services/user.service';
 import { AppError } from '../middleware/errorHandler';
 import InputValidator from '../utils/inputValidator';
+import pick from '../utils/pick';
 import logger from '../utils/logger';
 
 export class AccountController {
@@ -147,10 +148,7 @@ export class AccountController {
         'onboardingStatus', 'onboardingDate', 'onboardingCompletedDate', 'onboardingNotes',
         'contractSignedDate', 'goLiveDate', 'accountManager', 'billingContact', 'technicalContact', 'tags',
       ];
-      const updates: any = {};
-      for (const key of allowed) {
-        if (key in req.body) updates[key] = req.body[key];
-      }
+      const updates: any = pick(req.body, allowed);
 
       // Validate the same fields create does. An empty string clears the value.
       if (updates.email) {

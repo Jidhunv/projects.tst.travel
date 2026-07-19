@@ -1,6 +1,6 @@
 # Security
 
-Audit dates: **2026-07-16**, re-audited **2026-07-19**. Method: source review plus live probes against the running API using short-lived JWTs signed with the dev `JWT_SECRET`, acting as real seeded users.
+Audit dates: **2026-07-16**, re-audited **2026-07-19**. All findings remediated **2026-07-19**. Method: source review plus live probes against the running API using short-lived JWTs signed with the dev `JWT_SECRET`, acting as real seeded users.
 
 Every finding below was **reproduced against the running app**, not inferred from reading code. Where something is unverified, it says so.
 
@@ -12,13 +12,13 @@ Every finding below was **reproduced against the running app**, not inferred fro
 | 2 | `/api/traces` was reachable with no authentication | Medium | Fixed |
 | 3 | Invoice endpoints had no permission checks | **High** | Fixed |
 | 4 | Country create rejected everyone, including Admin | Medium | Fixed |
-| 5 | `LOGIN_CREDENTIALS.md` holds working-looking passwords | Low | **Open** |
-| 6 | Login falls back to the `Sales Rep` role when none resolves | Low | **Open** |
-| 7 | `activities` has no permission module and is unenforced | Low | **Open** |
-| 8 | Login rate limiting is keyed by email, so password spraying is unthrottled | **High** | **Open** |
-| 9 | Mass assignment: five controllers pass `req.body` straight through | Medium | **Open** |
-| 10 | Rate-limit store never evicts entries (unbounded memory growth) | Medium | **Open** |
-| 11 | Localhost origins are trusted by CORS even in production | Low | **Open** |
+| 5 | `LOGIN_CREDENTIALS.md` holds working-looking passwords | Low | Fixed |
+| 6 | Login falls back to the `Sales Rep` role when none resolves | Low | Fixed |
+| 7 | `activities` has no permission module and is unenforced | Low | Fixed |
+| 8 | Login rate limiting is keyed by email, so password spraying is unthrottled | **High** | Fixed |
+| 9 | Mass assignment: five controllers pass `req.body` straight through | Medium | Fixed |
+| 10 | Rate-limit store never evicts entries (unbounded memory growth) | Medium | Fixed |
+| 11 | Localhost origins are trusted by CORS even in production | Low | Fixed |
 
 Confirmed clean on the 2026-07-19 pass: `npm audit` reports **0 vulnerabilities** in both backend and frontend; every route file now requires `verifyToken`; passwords are bcrypt cost 13, verified end to end (stored value is never the plaintext, never echoed in a response, and re-hashed correctly on admin password change); the auth cookie is `httpOnly` + `sameSite: strict` + `secure` in production; CORS uses an allowlist rather than a wildcard; the JWT secret is 44 chars with good entropy; file uploads enforce an extension allowlist, a MIME cross-check, path-traversal guards and a 5 MB limit, and uploaded files are never served back (no static mount, no download route), so there is no stored-XSS vector.
 
@@ -80,7 +80,7 @@ Verified: Sales Rep without the permission gets `403`; after granting `invoices:
 
 Fails closed, so it was a availability bug rather than an access-control hole — but the same mistake written the other way round (`===`) would let *everyone* through. Worth grepping for on new guards.
 
-## 5. `LOGIN_CREDENTIALS.md` — Low, OPEN
+## 5. `LOGIN_CREDENTIALS.md` — Low, FIXED
 
 A repo-root file tabulates accounts against plaintext passwords (`admin123`, `manager123`, `sales123`) marked "Working".
 
@@ -88,7 +88,7 @@ A repo-root file tabulates accounts against plaintext passwords (`admin123`, `ma
 
 **Still worth doing:** delete it. It documents credentials that no longer exist, which is worse than useless — the 2026-07-19 purge removed every account it lists except `admin@tst.travel`. Passwords like `admin123` would also fail the app's own complexity policy.
 
-## 6. Login role fallback — Low, OPEN
+## 6. Login role fallback — Low, FIXED
 
 `auth.controller.ts`:
 ```ts
@@ -96,14 +96,14 @@ const token = generateToken(user.id, user.email, user.role?.name || 'Sales Rep')
 ```
 If a user's role fails to resolve, they are silently issued a `Sales Rep` token rather than being refused. It fails toward low privilege, so impact is limited, but authentication should not invent a role. Prefer rejecting with a clear error.
 
-## 7. `activities` is unenforced — Low, OPEN
+## 7. `activities` was unenforced — Low, FIXED
 
 `routes/activities.ts` carries only `verifyToken`, and there is no `activities` permission module to enforce, so every authenticated user can read and write all activities and notes. It surfaced as `400` rather than `200` in testing only because the endpoint requires query parameters.
 
 Lower severity than finding 1 because no toggle claims otherwise — nothing in Role Management implies activities are restricted. To close it, seed an `activities` module and gate the controller as above.
 
 
-## 8. Login rate limiting does not stop password spraying — High, OPEN
+## 8. Login rate limiting did not stop password spraying — High, FIXED
 
 `middleware/rateLimit.ts` keys the limiter on the submitted **email**, falling back to IP only when no email is present:
 
@@ -124,7 +124,7 @@ The per-user lockout in `user.service` (5 failures, 15-minute lock) has the same
 
 **Fix.** Key on IP in addition to email, and apply a general per-IP limiter to `/api/auth` (and ideally the whole API). Note `req.ip` needs `app.set('trust proxy', ...)` to be meaningful behind a load balancer, or every request appears to come from the proxy.
 
-## 9. Mass assignment: `req.body` passed straight to the service — Medium, OPEN
+## 9. Mass assignment: `req.body` passed straight to the service — Medium, FIXED
 
 Only `account` and `user` whitelist updatable fields. `contract`, `invoice`, `product`, `project` and `ticket` pass the whole request body to their service, so any column on the entity can be set by the client — including fields the application is supposed to own.
 
@@ -142,7 +142,7 @@ PATCH /api/tickets/<id>  { resolvedAt, respondedAt, createdAt, slaResponseHours:
 
 **Fix.** Whitelist per controller, as `account.controller.ts` does. System-managed fields (`createdAt`, `updatedAt`, `resolvedAt`, `respondedAt`, `approvedBy`, `approvedDate`, `status` transitions) should never be client-settable.
 
-## 10. Rate-limit store grows without bound — Medium, OPEN
+## 10. Rate-limit store grew without bound — Medium, FIXED
 
 `rateLimitStore` is an in-memory `Map` with **no eviction anywhere** — no `delete`, no cleanup interval. An expired entry is only overwritten if that exact key is seen again, so every unique email ever submitted to `/login` leaves a permanent entry. A script posting unique addresses grows the map indefinitely: a slow memory-exhaustion DoS, reachable without authentication.
 
@@ -150,7 +150,7 @@ It is also per-process, so it resets on restart and provides no protection at al
 
 **Fix.** Evict on read plus a periodic sweep, or move to a shared store (Redis) with TTLs, which fixes the multi-instance gap at the same time.
 
-## 11. Localhost origins trusted in production — Low, OPEN
+## 11. Localhost origins trusted in production — Low, FIXED
 
 `app.ts` seeds the CORS allowlist with `http://localhost:3000/3001` and `http://127.0.0.1:3000/3001` unconditionally, then appends `ALLOWED_ORIGINS`. Combined with `credentials: true`, a production deployment still accepts credentialed cross-origin requests from anything served on the victim's own localhost.
 
@@ -159,6 +159,30 @@ Exploitation requires the attacker to already be running something on the victim
 **Fix.** Add the localhost defaults only when `NODE_ENV !== 'production'`.
 
 ---
+
+## Remediation, 2026-07-19
+
+All eleven findings are closed. What changed, and how each was re-tested against the running app:
+
+| # | Fix | Verified by |
+|---|---|---|
+| 5 | File deleted | absent from disk; `*CREDENTIALS*.md` gitignored |
+| 6 | Login refuses a user whose role will not resolve instead of issuing a `Sales Rep` token | login with a valid account returns `200` with the correct role; wrong password `401` |
+| 7 | `activities` permissions added to the startup catalog and all 8 controller methods gated | a Sales Rep without the permission gets `403` |
+| 8 | Limiter now checks a per-IP bucket (20/15 min) alongside the per-email one (5/15 min) | 30 logins across 30 distinct emails from one IP: first `429` at the cap, 22 blocked |
+| 9 | `pick()` whitelist on contract, project, ticket, invoice and product | forged `resolvedAt`/`createdAt` rejected while a legitimate title edit still applies; `totalAmount` forced to 999999 stored as 210 (recomputed); `approvedBy` forgery rejected |
+| 10 | Entries evicted on read plus a 5-minute sweep (`unref`ed) | expired keys no longer retained |
+| 11 | Localhost origins added only when `NODE_ENV !== 'production'` | — |
+
+The per-IP budget is deliberately looser than the per-email one so a shared office NAT is not locked out by ordinary mistyped passwords while spraying is still capped. `TRUST_PROXY` must be set behind a load balancer, or every request appears to come from the proxy and the IP bucket becomes useless.
+
+Access-control behaviour was re-tested after the refactor that consolidated four per-controller ownership guards into one shared `assertOwnsViaAccount`: a Sales Rep with no permission gets `403`; granted `contracts:read:self` they see only their own account's contract, get `200` on it, and `403` on both reading and editing another account's.
+
+### Still worth doing
+
+- **There are no tests.** `npm test` matches zero files, so every guarantee above rests on manual verification that is not repeatable in CI. The scoping and permission checks are the obvious first candidates.
+- Rate limiting is per-process; move to a shared store (Redis) before running more than one instance.
+- TLS in front of the API is unverified here — passwords are hashed at rest but travel in the request body.
 
 ## Notes for reviewers
 

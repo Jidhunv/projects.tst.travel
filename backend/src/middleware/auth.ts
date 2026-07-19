@@ -4,6 +4,7 @@ import { AppDataSource } from '../config/database';
 import { User } from '../models/User';
 import { logSecurityEvent, requestContext } from '../utils/securityLogger';
 import tokenBlacklist from '../services/token-blacklist.service';
+import { AppError } from './errorHandler';
 
 export interface AuthUser {
   id: string;
@@ -162,6 +163,25 @@ export const canAccessRecord = (
   if (scope === 'all') return true;
   // Self scope: the primary owner or any additional assignee may access it.
   return user.id === ownerId || (Array.isArray(assigneeIds) && assigneeIds.includes(user.id));
+};
+
+
+// Invoices, contracts, projects and tickets have no owner column: they inherit
+// ownership from their account, plus whatever personal link the module has
+// (creator, project manager, ticket reporter/assignee). At "all" scope this is a
+// no-op; at "self" scope it throws unless the user matches one of them.
+export const assertOwnsViaAccount = (
+  user: AuthUser | undefined,
+  module: string,
+  action: string,
+  accountOwnerId: string | undefined,
+  personalIds: Array<string | string[] | undefined> = []
+): void => {
+  if (getOwnerScope(user, module) === undefined) return; // "all" scope
+  const owners = [accountOwnerId, ...personalIds.flat()];
+  if (!owners.includes(user!.id)) {
+    throw new AppError(403, `You can only ${action} ${module} for your own accounts`);
+  }
 };
 
 export const generateToken = (id: string, email: string, role: string): string => {

@@ -20,6 +20,15 @@ dotenv.config();
 
 const app: Express = express();
 const PORT = process.env.PORT || 3001;
+const isProduction = process.env.NODE_ENV === 'production';
+
+// Behind a proxy/load balancer, req.ip is the proxy unless we trust the
+// X-Forwarded-For chain -- which would make per-IP rate limiting useless.
+// Opt in explicitly: TRUST_PROXY=1 (hops) or a subnet, never blanket-true.
+if (process.env.TRUST_PROXY) {
+  const hops = Number(process.env.TRUST_PROXY);
+  app.set('trust proxy', Number.isFinite(hops) ? hops : process.env.TRUST_PROXY);
+}
 
 // Middleware
 app.use(helmet({
@@ -41,13 +50,14 @@ app.use(helmet({
   noSniff: true,
   referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
 }));
-// Localhost defaults for development; production origins come from ALLOWED_ORIGINS
-// (comma-separated) so no external site can make credentialed requests.
+// Production origins come from ALLOWED_ORIGINS (comma-separated) so no external
+// site can make credentialed requests. The localhost defaults are development
+// only -- in production they would let anything served on the victim's own
+// machine call the API with their cookies.
 const allowedOrigins = [
-  'http://localhost:3000',
-  'http://127.0.0.1:3000',
-  'http://localhost:3001',
-  'http://127.0.0.1:3001',
+  ...(isProduction
+    ? []
+    : ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:3001', 'http://127.0.0.1:3001']),
   ...(process.env.ALLOWED_ORIGINS || '')
     .split(',')
     .map((o) => o.trim())
