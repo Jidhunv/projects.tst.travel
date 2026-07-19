@@ -72,6 +72,35 @@ To change the schema:
 
 Skipping step 2 is silent: nothing errors until a request hits the mismatch and returns **500**. That is how `GET /api/products` broke — the model moved to `categoryId` while the table still had `category`.
 
+## Tests
+
+```bash
+cd backend
+npm run test:setup        # once: creates the crm_test database
+npm test                  # all suites
+npm run test:unit         # fast, no database
+npm run test:integration  # needs the test database
+npm run test:coverage
+```
+
+**Unit** tests (`tests/unit/`) cover pure logic — permission resolution, the
+mass-assignment whitelist, rate limiting — and need no database.
+
+**Integration** tests (`tests/integration/`) run against a real Postgres
+database, because the bugs they guard against cannot be reproduced with mocks:
+TypeORM giving a loaded relation precedence over its FK column, Postgres
+returning `numeric` as a string, and `self`-scope filtering that happens in SQL.
+A mocked repository reports success for all three.
+
+They use **`crm_test`**, never `crm_db`. Two independent guards enforce this:
+`scripts/create-test-db.js` refuses to create a database named `crm_db`, and
+`tests/setup.ts` throws before any suite runs if `DB_NAME` resolves to it.
+Each test truncates every table, so cases cannot leak into one another, and
+`maxWorkers: 1` keeps them from interleaving on the shared database.
+
+`synchronize` is enabled for the test database only — it is disposable and
+rebuilt from the entities. Production still uses hand-applied migrations.
+
 ## Checks
 
 ```bash
@@ -79,7 +108,9 @@ cd backend  && npm run build && npm test && npm run lint
 cd frontend && npm run build && npm run lint    # build = tsc && vite build
 ```
 
-A green `tsc` is not verification — it proves types, not behaviour.
+A green `tsc` is not verification — it proves types, not behaviour. Nor is a
+green test run, unless the test would actually fail without the fix: when adding
+a regression test, reintroduce the bug once and confirm it goes red.
 
 ## Verifying a change
 

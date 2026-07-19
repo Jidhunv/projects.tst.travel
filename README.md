@@ -26,6 +26,9 @@ cd backend && npm run seed
 # 4. Run
 cd backend  && npm run build && npm start   # :3001
 cd frontend && npm run dev                  # :3000
+
+# Tests (backend)
+cd backend && npm run test:setup && npm test
 ```
 
 Open http://localhost:3000.

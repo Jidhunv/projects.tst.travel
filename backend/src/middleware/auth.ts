@@ -214,11 +214,13 @@ export const canPerformAction = (
 };
 
 // May the user reassign a record of this module to another owner?
-// Requires update permission at the "all" scope (i.e. Admin/Manager-style roles);
-// a self-scoped user cannot hand records to other people.
+// Requires update at the "all" scope (Admin/Manager-style roles); a self-scoped
+// user cannot hand records to other people.
+//
+// This checks the *update* scope directly. It previously combined
+// canPerformAction(update) with getOwnerScope(), which resolves the **read**
+// scope -- so a role holding `update:self` plus `read:all` was allowed to
+// reassign, the exact case this is meant to prevent.
 export const canReassign = (user: AuthUser | undefined, module: string): boolean => {
-  return (
-    canPerformAction(user, module, 'update') &&
-    getOwnerScope(user, module) === undefined
-  );
+  return resolvePermission(user, module, 'update').scope === 'all';
 };

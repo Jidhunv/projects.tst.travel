@@ -79,3 +79,5 @@ Adding a module means all four: seed the permissions, enforce in the controller,
 Login is required for UI work and the seeded passwords have been changed, so a browser click-through may not be available. The API can be exercised directly; for auth in a **local dev** script, sign a short-lived JWT with `JWT_SECRET` from `backend/.env`. Do not inject tokens into the browser to bypass login.
 
 Prove behaviour changed — a green `tsc` is not verification. State plainly what you did and did not verify.
+
+There is a test suite (`backend/tests/`). Integration tests run against `crm_test`, never `crm_db` — two guards enforce that. Add a regression test for any bug you fix, and **confirm it fails without the fix**; a test that passes either way protects nothing. The update paths and permission scoping are covered; controllers and the frontend are not.

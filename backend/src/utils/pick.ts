@@ -12,7 +12,11 @@
 export function pick<T extends object>(body: T, allowed: readonly string[]): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const key of allowed) {
-    if (key in body) out[key] = (body as Record<string, unknown>)[key];
+    // hasOwnProperty, not `in`: `in` walks the prototype chain, so an inherited
+    // or prototype-polluted property would be copied into the update payload.
+    if (Object.prototype.hasOwnProperty.call(body, key)) {
+      out[key] = (body as Record<string, unknown>)[key];
+    }
   }
   return out;
 }

@@ -57,3 +57,6 @@ backend/traces/
 # Database dumps - contain password hashes and business data, never commit
 backend/backup_*.sql
 backup_*.sql
+
+# Jest coverage output
+backend/coverage/
