@@ -19,6 +19,8 @@ Every finding below was **reproduced against the running app**, not inferred fro
 | 9 | Mass assignment: five controllers pass `req.body` straight through | Medium | Fixed |
 | 10 | Rate-limit store never evicts entries (unbounded memory growth) | Medium | Fixed |
 | 11 | Localhost origins are trusted by CORS even in production | Low | Fixed |
+| 12 | `canReassign` resolved the read scope, letting a self-scoped user reassign | Medium | Fixed |
+| 13 | User creation skipped the password complexity policy | Medium | Fixed |
 
 Confirmed clean on the 2026-07-19 pass: `npm audit` reports **0 vulnerabilities** in both backend and frontend; every route file now requires `verifyToken`; passwords are bcrypt cost 13, verified end to end (stored value is never the plaintext, never echoed in a response, and re-hashed correctly on admin password change); the auth cookie is `httpOnly` + `sameSite: strict` + `secure` in production; CORS uses an allowlist rather than a wildcard; the JWT secret is 44 chars with good entropy; file uploads enforce an extension allowlist, a MIME cross-check, path-traversal guards and a 5 MB limit, and uploaded files are never served back (no static mount, no download route), so there is no stored-XSS vector.
 
@@ -177,6 +179,18 @@ All eleven findings are closed. What changed, and how each was re-tested against
 The per-IP budget is deliberately looser than the per-email one so a shared office NAT is not locked out by ordinary mistyped passwords while spraying is still capped. `TRUST_PROXY` must be set behind a load balancer, or every request appears to come from the proxy and the IP bucket becomes useless.
 
 Access-control behaviour was re-tested after the refactor that consolidated four per-controller ownership guards into one shared `assertOwnsViaAccount`: a Sales Rep with no permission gets `403`; granted `contracts:read:self` they see only their own account's contract, get `200` on it, and `403` on both reading and editing another account's.
+
+## 12. `canReassign` checked the wrong scope — Medium, FIXED
+
+Its comment stated *"requires update at the `all` scope; a self-scoped user cannot hand records to other people"*, but the implementation combined `canPerformAction(update)` with `getOwnerScope()`, and `getOwnerScope` resolves the **read** scope. A role holding `update:self` together with `read:all` therefore satisfied both halves and **could reassign records to other users** — exactly the case the comment forbids.
+
+Found by writing the unit test for it. Now resolves the update scope directly. Covered by `tests/unit/permissions.test.ts`.
+
+## 13. User creation skipped the password policy — Medium, FIXED
+
+`PasswordValidator.validatePasswordComplexity` guarded six password-setting paths but not `createUser`. Verified against the running API: creating a user with the password `a` returned **201**, while changing that same user's password to `a` returned 400. Any account seeded by an admin could carry a password the user could never have chosen, and would keep it until they changed it.
+
+Now validated at creation too: `a` returns 400, a compliant password still returns 201. Covered by `tests/unit/passwordPolicy.test.ts`.
 
 ### Still worth doing
 

@@ -30,6 +30,14 @@ export class UserController {
         throw new AppError(400, 'email, password, firstName, lastName and roleId are required');
       }
 
+      // Same complexity policy as every other path that sets a password.
+      // Creation was the one route that skipped it, so an admin could seed an
+      // account with a password the user could never have chosen themselves.
+      const validation = PasswordValidator.validatePasswordComplexity(password);
+      if (!validation.valid) {
+        throw new AppError(400, validation.errors.join('; '));
+      }
+
       const user = await userService.createUser({
         email,
         password,
