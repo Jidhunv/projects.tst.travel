@@ -223,23 +223,28 @@ export default function OpportunitiesPage() {
           <Typography variant="h4">
             Opportunities Management
           </Typography>
-          <ToggleButtonGroup
-            value={viewMode}
-            exclusive
-            onChange={(_, newMode) => {
-              if (newMode !== null) setViewMode(newMode);
-            }}
-            size="small"
-          >
-            <ToggleButton value="list" aria-label="list view">
-              <ListIcon sx={{ mr: 0.5 }} />
-              List
-            </ToggleButton>
-            <ToggleButton value="kanban" aria-label="kanban view">
-              <KanbanIcon sx={{ mr: 0.5 }} />
-              Kanban
-            </ToggleButton>
-          </ToggleButtonGroup>
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+            <Button variant="contained" onClick={handleOpenCreate}>
+              Add Opportunity
+            </Button>
+            <ToggleButtonGroup
+              value={viewMode}
+              exclusive
+              onChange={(_, newMode) => {
+                if (newMode !== null) setViewMode(newMode);
+              }}
+              size="small"
+            >
+              <ToggleButton value="list" aria-label="list view">
+                <ListIcon sx={{ mr: 0.5 }} />
+                List
+              </ToggleButton>
+              <ToggleButton value="kanban" aria-label="kanban view">
+                <KanbanIcon sx={{ mr: 0.5 }} />
+                Kanban
+              </ToggleButton>
+            </ToggleButtonGroup>
+          </Box>
         </Box>
 
         {/* Filters */}
@@ -277,11 +282,6 @@ export default function OpportunitiesPage() {
                   <MenuItem value="Closed-Won">Closed-Won</MenuItem>
                   <MenuItem value="Closed-Lost">Closed-Lost</MenuItem>
                 </TextField>
-              </Grid>
-              <Grid item xs={12} sm={6} md={3}>
-                <Button variant="contained" fullWidth onClick={handleOpenCreate}>
-                  Add Opportunity
-                </Button>
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
                 <TextField
