@@ -51,4 +51,6 @@ Open items worth knowing before building on this:
 
 - **Only Admin currently has `contracts`, `projects`, `tickets` and `invoices` access.** These are now enforced from Role Management; grant them per role there. `activities` remains unenforced. See [docs/SECURITY.md](docs/SECURITY.md).
 - **Migrations are applied by hand.** The `.sql` files in `backend/migrations/` are not run by TypeORM, and models do not shape the database (`DB_SYNC` is off). A model/schema mismatch surfaces as a 500 on that resource.
-- **`LOGIN_CREDENTIALS.md`** (untracked, if present locally) lists stale passwords that no longer work — delete it.
+- **Login rate limiting does not stop password spraying.** The limiter is keyed by email, so one IP can try one password against unlimited accounts unthrottled. Highest-priority open item — see [docs/SECURITY.md](docs/SECURITY.md).
+- **Five controllers pass `req.body` straight through**, so clients can forge system-managed fields such as SLA timestamps and `createdAt`.
+- **`LOGIN_CREDENTIALS.md`** (untracked and gitignored, if present locally) lists stale passwords that no longer work — delete it.

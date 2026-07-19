@@ -53,6 +53,8 @@ Permissions are `module:action:scope`, scope is `all` or `self`. See [docs/RBAC.
 
 Enforcement is **per-controller and opt-in** — it is not automatic. A route with only `verifyToken` is open to every logged-in user, regardless of what Role Management shows. `activities` is still in that state; see [docs/SECURITY.md](docs/SECURITY.md).
 
+Only `account` and `user` whitelist updatable fields. The other controllers pass `req.body` straight to the service, so clients can set system-managed columns (`resolvedAt`, `createdAt`, …). Whitelist when you touch one.
+
 Invoices, contracts, projects and tickets have **no owner column** — `self` scope derives from the account plus the natural personal link (creator / project manager / ticket assignee). Their services take a `scopeUserId` filter. Only Admin currently holds permissions for these four.
 
 Pattern:
