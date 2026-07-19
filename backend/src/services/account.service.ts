@@ -25,6 +25,8 @@ export class AccountService {
     size?: string;
     website?: string;
     phoneNumber?: string;
+    email?: string;
+    remark?: string;
     type?: string;
     contactPerson?: string;
     city?: string;
@@ -40,6 +42,15 @@ export class AccountService {
 
     if (existingAccount) {
       throw new AppError(409, `Account "${data.name}" already exists`);
+    }
+
+    // email is a unique column; report a clash as a 409 rather than letting the
+    // constraint surface as an unhandled 500.
+    if (data.email) {
+      const clash = await this.accountRepository.findOne({ where: { email: data.email } });
+      if (clash) {
+        throw new AppError(409, `An account with the email "${data.email}" already exists`);
+      }
     }
 
     const account = this.accountRepository.create({
@@ -124,6 +135,19 @@ export class AccountService {
 
       if (existingAccount) {
         throw new AppError(409, `Account "${data.name}" already exists`);
+      }
+    }
+
+    // Same for the unique email column, ignoring this account's own row.
+    if (data.email && data.email !== account.email) {
+      const clash = await this.accountRepository
+        .createQueryBuilder('account')
+        .where('account.email = :email', { email: data.email })
+        .andWhere('account.id != :id', { id })
+        .getOne();
+
+      if (clash) {
+        throw new AppError(409, `An account with the email "${data.email}" already exists`);
       }
     }
 

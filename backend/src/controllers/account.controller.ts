@@ -9,7 +9,7 @@ import logger from '../utils/logger';
 export class AccountController {
   async createAccount(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const { name, industry, size, website, phoneNumber, type, contactPerson, city, region, country } = req.body;
+      const { name, industry, size, website, phoneNumber, email, remark, type, contactPerson, city, region, country } = req.body;
 
       // Validate required fields
       const nameValidation = InputValidator.validateString(name, 'Account name', 1, 100);
@@ -32,12 +32,23 @@ export class AccountController {
         }
       }
 
+      if (email) {
+        const emailValidation = InputValidator.validateEmail(email);
+        if (!emailValidation.valid) {
+          throw new AppError(400, emailValidation.errors.join(', '));
+        }
+      }
+
       const account = await accountService.createAccount({
         name,
         industry,
         size,
         website,
         phoneNumber,
+        // The column is unique, so omit an empty address entirely (stored as
+        // NULL) rather than saving "" -- a second blank would collide.
+        email: email || undefined,
+        remark,
         type,
         contactPerson,
         city,
@@ -124,8 +135,11 @@ export class AccountController {
       }
 
       // Whitelist updatable fields to prevent mass assignment (e.g. reassigning ownerId).
+      // Anything missing here is silently dropped, so a field the edit form sends
+      // will appear to save and then not persist -- which is exactly what happened
+      // to email and remark. Keep this in step with the Account model.
       const allowed = [
-        'name', 'industry', 'size', 'website', 'phoneNumber', 'alternatePhoneNumber', 'type', 'status',
+        'name', 'industry', 'size', 'website', 'phoneNumber', 'email', 'remark', 'type', 'status',
         'contactPerson', 'city', 'region', 'country',
         'billingStreet', 'billingCity', 'billingState', 'billingZip', 'billingCountry',
         'shippingStreet', 'shippingCity', 'shippingState', 'shippingZip', 'shippingCountry',
@@ -136,6 +150,29 @@ export class AccountController {
       for (const key of allowed) {
         if (key in req.body) updates[key] = req.body[key];
       }
+
+      // Validate the same fields create does. An empty string clears the value.
+      if (updates.email) {
+        const emailCheck = InputValidator.validateEmail(updates.email);
+        if (!emailCheck.valid) {
+          throw new AppError(400, emailCheck.errors.join(', '));
+        }
+      }
+      if (updates.website) {
+        const urlCheck = InputValidator.validateUrl(updates.website);
+        if (!urlCheck.valid) {
+          throw new AppError(400, urlCheck.errors.join(', '));
+        }
+      }
+      if (updates.phoneNumber) {
+        const phoneCheck = InputValidator.validatePhone(updates.phoneNumber);
+        if (!phoneCheck.valid) {
+          throw new AppError(400, phoneCheck.errors.join(', '));
+        }
+      }
+      // The column is unique, so normalise "" to null rather than letting a
+      // second blank collide with the first.
+      if (updates.email === '') updates.email = null;
 
       const account = await accountService.updateAccount(id, updates);
 
