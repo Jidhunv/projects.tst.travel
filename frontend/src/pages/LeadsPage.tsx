@@ -290,23 +290,28 @@ export default function LeadsPage() {
           <Typography variant="h4">
             Leads Management
           </Typography>
-          <ToggleButtonGroup
-            value={viewMode}
-            exclusive
-            onChange={(_, newMode) => {
-              if (newMode !== null) setViewMode(newMode);
-            }}
-            size="small"
-          >
-            <ToggleButton value="list" aria-label="list view">
-              <ListIcon sx={{ mr: 0.5 }} />
-              List
-            </ToggleButton>
-            <ToggleButton value="kanban" aria-label="kanban view">
-              <KanbanIcon sx={{ mr: 0.5 }} />
-              Kanban
-            </ToggleButton>
-          </ToggleButtonGroup>
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+            <Button variant="contained" onClick={() => setOpenCreate(true)}>
+              Add Lead
+            </Button>
+            <ToggleButtonGroup
+              value={viewMode}
+              exclusive
+              onChange={(_, newMode) => {
+                if (newMode !== null) setViewMode(newMode);
+              }}
+              size="small"
+            >
+              <ToggleButton value="list" aria-label="list view">
+                <ListIcon sx={{ mr: 0.5 }} />
+                List
+              </ToggleButton>
+              <ToggleButton value="kanban" aria-label="kanban view">
+                <KanbanIcon sx={{ mr: 0.5 }} />
+                Kanban
+              </ToggleButton>
+            </ToggleButtonGroup>
+          </Box>
         </Box>
 
         {/* Filters */}
@@ -358,11 +363,6 @@ export default function LeadsPage() {
                   <MenuItem value="website">Website</MenuItem>
                   <MenuItem value="event">Event</MenuItem>
                 </TextField>
-              </Grid>
-              <Grid item xs={12} sm={6} md={3}>
-                <Button variant="contained" fullWidth onClick={() => setOpenCreate(true)}>
-                  Add Lead
-                </Button>
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
                 <TextField
