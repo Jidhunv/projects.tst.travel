@@ -41,8 +41,14 @@ export class CountryController {
         throw new AppError(400, 'Country code and name are required');
       }
 
+      const upperCode = code.toUpperCase();
+      const existing = await repo().findOne({ where: { code: upperCode } });
+      if (existing) {
+        throw new AppError(400, `Country with code "${upperCode}" already exists`);
+      }
+
       const country = repo().create({
-        code: code.toUpperCase(),
+        code: upperCode,
         name,
         region,
       });
