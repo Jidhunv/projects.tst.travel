@@ -1,6 +1,6 @@
 import { Response, NextFunction } from 'express';
 import productService from '../services/product.service';
-import { AuthRequest } from '../middleware/auth';
+import { AuthRequest, canPerformAction } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
 import pick from '../utils/pick';
 import logger from '../utils/logger';
@@ -19,6 +19,10 @@ const PRODUCT_UPDATABLE = [
 export class ProductController {
   async createProduct(req: AuthRequest, res: Response, next: NextFunction) {
     try {
+      if (!canPerformAction(req.user, 'products', 'create')) {
+        throw new AppError(403, 'You do not have permission to create products');
+      }
+
       const { name, sku, description, categoryId, unitPrice, billingType } = req.body;
 
       if (!name) {
@@ -44,6 +48,10 @@ export class ProductController {
 
   async getProducts(req: AuthRequest, res: Response, next: NextFunction) {
     try {
+      if (!canPerformAction(req.user, 'products', 'read')) {
+        throw new AppError(403, 'You do not have permission to read products');
+      }
+
       const { page = 1, limit = 20, categoryId, isActive, search } = req.query;
 
       const { data, total } = await productService.getProducts({
@@ -71,6 +79,10 @@ export class ProductController {
 
   async getProduct(req: AuthRequest, res: Response, next: NextFunction) {
     try {
+      if (!canPerformAction(req.user, 'products', 'read')) {
+        throw new AppError(403, 'You do not have permission to read products');
+      }
+
       const product = await productService.getProductById(req.params.id);
       return res.json({ success: true, data: product });
     } catch (error) {
@@ -80,6 +92,10 @@ export class ProductController {
 
   async updateProduct(req: AuthRequest, res: Response, next: NextFunction) {
     try {
+      if (!canPerformAction(req.user, 'products', 'update')) {
+        throw new AppError(403, 'You do not have permission to update products');
+      }
+
       const product = await productService.updateProduct(req.params.id, pick(req.body, PRODUCT_UPDATABLE));
       logger.info(`Product updated: ${product.id} by ${req.user!.email}`);
       return res.json({ success: true, data: product });
@@ -90,6 +106,10 @@ export class ProductController {
 
   async deleteProduct(req: AuthRequest, res: Response, next: NextFunction) {
     try {
+      if (!canPerformAction(req.user, 'products', 'delete')) {
+        throw new AppError(403, 'You do not have permission to delete products');
+      }
+
       await productService.deleteProduct(req.params.id);
       logger.info(`Product deactivated: ${req.params.id} by ${req.user!.email}`);
       return res.json({ success: true, data: { message: 'Product deactivated' } });

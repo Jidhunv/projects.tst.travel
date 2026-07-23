@@ -2,7 +2,7 @@ import { Response, NextFunction } from 'express';
 import { AppDataSource } from '../config/database';
 import { ProductCategory } from '../models/ProductCategory';
 import { Product } from '../models/Product';
-import { AuthRequest } from '../middleware/auth';
+import { AuthRequest, canPerformAction } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
 import InputValidator from '../utils/inputValidator';
 import logger from '../utils/logger';
@@ -12,6 +12,10 @@ const repo = () => AppDataSource.getRepository(ProductCategory);
 export class ProductCategoryController {
   async list(req: AuthRequest, res: Response, next: NextFunction) {
     try {
+      if (!canPerformAction(req.user, 'product_categories', 'read')) {
+        throw new AppError(403, 'You do not have permission to read product categories');
+      }
+
       const { isActive } = req.query;
       const where: any = {};
       if (isActive !== undefined) where.isActive = isActive === 'true';
@@ -28,6 +32,10 @@ export class ProductCategoryController {
 
   async create(req: AuthRequest, res: Response, next: NextFunction) {
     try {
+      if (!canPerformAction(req.user, 'product_categories', 'create')) {
+        throw new AppError(403, 'You do not have permission to create product categories');
+      }
+
       const { name, description, code, displayOrder } = req.body;
 
       const nameCheck = InputValidator.validateString(name, 'Category name', 1, 100);
@@ -60,6 +68,10 @@ export class ProductCategoryController {
 
   async update(req: AuthRequest, res: Response, next: NextFunction) {
     try {
+      if (!canPerformAction(req.user, 'product_categories', 'update')) {
+        throw new AppError(403, 'You do not have permission to update product categories');
+      }
+
       const category = await repo().findOne({ where: { id: req.params.id } });
       if (!category) throw new AppError(404, 'Category not found');
 
@@ -100,6 +112,10 @@ export class ProductCategoryController {
 
   async remove(req: AuthRequest, res: Response, next: NextFunction) {
     try {
+      if (!canPerformAction(req.user, 'product_categories', 'delete')) {
+        throw new AppError(403, 'You do not have permission to delete product categories');
+      }
+
       const category = await repo().findOne({ where: { id: req.params.id } });
       if (!category) throw new AppError(404, 'Category not found');
 
