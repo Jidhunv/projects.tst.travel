@@ -43,12 +43,14 @@ import {
   Category as CategoryIcon,
   Public as CountryIcon,
   AdminPanelSettings as AdminIcon,
+  VpnKey as PasswordIcon,
 } from '@mui/icons-material';
 import useAuth from '@hooks/useAuth';
 import NotificationCenter from './NotificationCenter';
 import { usePendingFollowups } from '@hooks/usePendingFollowups';
 import { Badge, IconButton } from '@mui/material';
 import { useThemeContext } from '@context/ThemeContext';
+import ChangePasswordDialog from './ChangePasswordDialog';
 
 const DRAWER_WIDTH = 240;
 
@@ -60,6 +62,7 @@ export default function Layout({ children }: LayoutProps) {
   const navigate = useNavigate();
   const { logout, canViewModule, hasPermission, user } = useAuth();
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
+  const [openChangePassword, setOpenChangePassword] = useState(false);
   const { pendingCount } = usePendingFollowups();
   const { isDarkMode, toggleTheme } = useThemeContext();
 
@@ -255,11 +258,24 @@ export default function Layout({ children }: LayoutProps) {
               )}
             </Box>
             <Divider />
+            <MenuItem
+              onClick={() => {
+                setOpenChangePassword(true);
+                handleMenuClose();
+              }}
+            >
+              <PasswordIcon sx={{ mr: 1 }} />
+              Change Password
+            </MenuItem>
             <MenuItem onClick={handleLogout}>
               <LogoutIcon sx={{ mr: 1 }} />
               Logout
             </MenuItem>
           </Menu>
+          <ChangePasswordDialog
+            open={openChangePassword}
+            onClose={() => setOpenChangePassword(false)}
+          />
         </Toolbar>
       </AppBar>
 
