@@ -33,6 +33,10 @@ function buildCatalog(): PermSpec[] {
     { module: 'expenses', action: 'approve', scope: 'all', description: 'Approve or reject expenses' },
     ...crud('activities', 'activities and notes'),
     ...crud('invoices', 'invoices'),
+    // Master data modules
+    ...crud('products', 'products'),
+    ...crud('product_categories', 'product categories'),
+    ...crud('countries', 'countries'),
   ];
 }
 
