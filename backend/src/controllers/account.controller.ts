@@ -10,6 +10,12 @@ import logger from '../utils/logger';
 export class AccountController {
   async createAccount(req: AuthRequest, res: Response, next: NextFunction) {
     try {
+      // Enforce RBAC: the account:create toggle must actually gate creation,
+      // otherwise any authenticated user can create accounts regardless of role.
+      if (!canPerformAction(req.user, 'accounts', 'create')) {
+        throw new AppError(403, 'You do not have permission to create accounts');
+      }
+
       const { name, industry, size, website, phoneNumber, alternatePhoneNumber, email, remark, type, contactPerson, city, region, country } = req.body;
 
       // Validate required fields
@@ -230,10 +236,27 @@ export class AccountController {
     }
   }
 
+  // Contacts belong to an account and inherit its ownership. Every contact
+  // operation must therefore verify the caller may act on the parent account,
+  // otherwise a user can read or mutate contacts on accounts they do not own
+  // simply by passing another account's id (IDOR).
+  private async assertCanAccessAccount(
+    req: AuthRequest,
+    accountId: string,
+    action: 'read' | 'update' | 'delete'
+  ) {
+    const account = await accountService.getAccountById(accountId);
+    if (!canAccessRecord(req.user, 'accounts', account.ownerId, action, account.assigneeIds)) {
+      throw new AppError(403, 'You can only manage contacts for your own accounts');
+    }
+    return account;
+  }
+
   // Contact management
   async addContact(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { accountId } = req.params;
+      await this.assertCanAccessAccount(req, accountId, 'update');
       const { firstName, lastName, email, phoneNumber, jobTitle, role } = req.body;
 
       if (!firstName || !lastName || !email) {
@@ -263,6 +286,7 @@ export class AccountController {
   async getContacts(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { accountId } = req.params;
+      await this.assertCanAccessAccount(req, accountId, 'read');
       const contacts = await accountService.getAccountContacts(accountId);
 
       return res.json({
@@ -277,7 +301,11 @@ export class AccountController {
   async updateContact(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { accountId, contactId } = req.params;
-      const updates = req.body;
+      await this.assertCanAccessAccount(req, accountId, 'update');
+
+      // Whitelist updatable fields to prevent mass assignment (e.g. a client
+      // setting isPrimary, accountId, or system columns via the raw body).
+      const updates = pick(req.body, ['firstName', 'lastName', 'email', 'phoneNumber', 'jobTitle', 'role']);
 
       const contact = await accountService.updateContact(accountId, contactId, updates);
 
@@ -295,6 +323,9 @@ export class AccountController {
   async deleteContact(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { accountId, contactId } = req.params;
+      // Removing a contact modifies the parent account's contact list, so it
+      // requires 'update' on the account -- not account-level 'delete'.
+      await this.assertCanAccessAccount(req, accountId, 'update');
       await accountService.deleteContact(accountId, contactId);
 
       logger.info(`Contact deleted: ${contactId} from account ${accountId}`);
@@ -311,6 +342,7 @@ export class AccountController {
   async setPrimaryContact(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { accountId, contactId } = req.params;
+      await this.assertCanAccessAccount(req, accountId, 'update');
 
       const contact = await accountService.setPrimaryContact(accountId, contactId);
 
