@@ -3,7 +3,18 @@ import leadService from '../services/lead.service';
 import { AuthRequest, getOwnerScope, canAccessRecord, canPerformAction, canReassign } from '../middleware/auth';
 import userService from '../services/user.service';
 import { AppError } from '../middleware/errorHandler';
+import pick from '../utils/pick';
 import logger from '../utils/logger';
+
+// System-managed columns (ownerId, assigneeIds, score, accountId, lostReason,
+// createdAt/updatedAt) must never be client-settable; pick() drops them by
+// omission so a raw body cannot reassign a lead or forge its timestamps.
+const LEAD_UPDATABLE = [
+  'firstName', 'lastName', 'email', 'phoneNumber', 'company', 'jobTitle',
+  'source', 'status', 'value', 'expectedCloseDate', 'productId', 'productName',
+  'productIds', 'productNames', 'businessVolume', 'supplierList', 'region',
+  'country', 'remark', 'tags',
+] as const;
 
 export class LeadController {
   async createLead(req: AuthRequest, res: Response, next: NextFunction) {
@@ -14,6 +25,7 @@ export class LeadController {
       }
 
       const {
+        accountId,
         firstName,
         lastName,
         email,
@@ -37,8 +49,15 @@ export class LeadController {
       if (!firstName || !lastName || !email) {
         throw new AppError(400, 'First name, last name, and email are required');
       }
+      // A lead must belong to an account (the column is NOT NULL). Previously
+      // accountId was dropped here, so creation failed with a not-null
+      // violation (or, where the column was nullable, saved an orphaned lead).
+      if (!accountId) {
+        throw new AppError(400, 'An account is required to create a lead');
+      }
 
       const lead = await leadService.createLead({
+        accountId,
         firstName,
         lastName,
         email,
@@ -131,7 +150,6 @@ export class LeadController {
   async updateLead(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      let updates = req.body;
 
       const lead = await leadService.getLeadById(id);
 
@@ -149,6 +167,8 @@ export class LeadController {
         throw new AppError(403, 'You do not have permission to update leads');
       }
 
+      // Whitelist to prevent mass assignment (ownerId, assigneeIds, timestamps).
+      const updates = pick(req.body, LEAD_UPDATABLE);
       const updatedLead = await leadService.updateLead(id, updates);
 
       logger.info(`Lead updated: ${updatedLead.id} by ${req.user!.email}`);
@@ -265,6 +285,12 @@ export class LeadController {
     try {
       const { id } = req.params;
 
+      // Ownership check: without this, any user could convert any lead by id.
+      const lead = await leadService.getLeadById(id);
+      if (!canAccessRecord(req.user, 'leads', lead.ownerId, 'update', lead.assigneeIds)) {
+        throw new AppError(403, 'You can only convert your own leads');
+      }
+
       const opportunity = await leadService.convertLeadToOpportunity(id);
 
       logger.info(
@@ -289,6 +315,12 @@ export class LeadController {
         throw new AppError(400, 'lostReason is required');
       }
 
+      // Ownership check: marking a lead lost mutates it, so verify access first.
+      const existing = await leadService.getLeadById(id);
+      if (!canAccessRecord(req.user, 'leads', existing.ownerId, 'update', existing.assigneeIds)) {
+        throw new AppError(403, 'You can only update your own leads');
+      }
+
       const lead = await leadService.markLeadLost(id, lostReason);
 
       logger.info(`Lead ${id} marked lost (${lostReason}) by ${req.user!.email}`);
@@ -304,6 +336,10 @@ export class LeadController {
 
   async bulkImport(req: AuthRequest, res: Response, next: NextFunction) {
     try {
+      // Bulk import creates leads, so it requires the create permission.
+      if (!canPerformAction(req.user, 'leads', 'create')) {
+        throw new AppError(403, 'You do not have permission to create leads');
+      }
       const { leads } = req.body;
 
       if (!Array.isArray(leads)) {

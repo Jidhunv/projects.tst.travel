@@ -27,6 +27,7 @@ export class LeadService {
   private lineItemRepository = AppDataSource.getRepository(LineItem);
 
   async createLead(data: {
+    accountId: string;
     firstName: string;
     lastName: string;
     email: string;
@@ -332,7 +333,13 @@ export class LeadService {
 
     for (const leadData of leads) {
       try {
+        // A lead requires an account; rows without one fail (counted below)
+        // rather than saving an orphaned lead.
+        if (!leadData.accountId) {
+          throw new AppError(400, 'accountId is required');
+        }
         await this.createLead({
+          accountId: leadData.accountId,
           firstName: leadData.firstName || '',
           lastName: leadData.lastName || '',
           email: leadData.email || '',

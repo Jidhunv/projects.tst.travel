@@ -4,7 +4,24 @@ import { AuthRequest, getOwnerScope, canAccessRecord, canPerformAction, canReass
 import userService from '../services/user.service';
 import { AppError } from '../middleware/errorHandler';
 import { REJECTION_REASONS } from '../utils/constants';
+import pick from '../utils/pick';
 import logger from '../utils/logger';
+
+// ownerId/assigneeIds/accountId/convertedFromLeadId/closedAt and timestamps are
+// system-managed; pick() drops them so a raw body cannot reassign or re-parent
+// an opportunity or forge close/creation data.
+const OPPORTUNITY_UPDATABLE = [
+  'name', 'amount', 'stage', 'status', 'description', 'forecastedCloseDate',
+  'probability', 'primaryContactId', 'businessVolume', 'supplierList', 'region',
+  'country', 'company', 'contactPerson', 'contactEmail', 'contactPhone',
+  'jobTitle', 'source', 'remark', 'tags', 'closedReason',
+] as const;
+
+// Line-item fields a client may set (addLineItem accepts the same set).
+const LINE_ITEM_UPDATABLE = [
+  'productId', 'productName', 'quantity', 'unitPrice', 'discount',
+  'discountPercent', 'description',
+] as const;
 
 export class OpportunityController {
   async createOpportunity(req: AuthRequest, res: Response, next: NextFunction) {
@@ -113,7 +130,6 @@ export class OpportunityController {
   async updateOpportunity(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      const updates = req.body;
 
       const opp = await opportunityService.getOpportunityById(id);
 
@@ -131,6 +147,8 @@ export class OpportunityController {
         throw new AppError(403, 'You do not have permission to update opportunities');
       }
 
+      // Whitelist to prevent mass assignment (ownerId, assigneeIds, timestamps).
+      const updates = pick(req.body, OPPORTUNITY_UPDATABLE);
       const updatedOpp = await opportunityService.updateOpportunity(id, updates);
 
       logger.info(`Opportunity updated: ${updatedOpp.id} by ${req.user!.email}`);
@@ -261,9 +279,24 @@ export class OpportunityController {
     }
   }
 
+  // Line items belong to an opportunity and inherit its ownership. Every line
+  // item operation must verify the caller may update the parent opportunity,
+  // otherwise a user can mutate line items on opportunities they do not own
+  // (IDOR) simply by passing another opportunity's id.
+  private async assertCanEditOpportunity(req: AuthRequest, opportunityId: string) {
+    if (!canPerformAction(req.user, 'opportunities', 'update')) {
+      throw new AppError(403, 'You do not have permission to update opportunities');
+    }
+    const opp = await opportunityService.getOpportunityById(opportunityId);
+    if (!canAccessRecord(req.user, 'opportunities', opp.ownerId, 'update', opp.assigneeIds)) {
+      throw new AppError(403, 'You can only modify your own opportunities');
+    }
+  }
+
   async addLineItem(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { opportunityId } = req.params;
+      await this.assertCanEditOpportunity(req, opportunityId);
       const { productId, productName, quantity, unitPrice, discount, discountPercent, description } =
         req.body;
 
@@ -297,7 +330,8 @@ export class OpportunityController {
   async updateLineItem(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { opportunityId, lineItemId } = req.params;
-      const updates = req.body;
+      await this.assertCanEditOpportunity(req, opportunityId);
+      const updates = pick(req.body, LINE_ITEM_UPDATABLE);
 
       const lineItem = await opportunityService.updateLineItem(
         opportunityId,
@@ -319,6 +353,7 @@ export class OpportunityController {
   async deleteLineItem(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { opportunityId, lineItemId } = req.params;
+      await this.assertCanEditOpportunity(req, opportunityId);
       await opportunityService.deleteLineItem(opportunityId, lineItemId);
 
       logger.info(`Line item deleted: ${lineItemId}`);
@@ -336,8 +371,13 @@ export class OpportunityController {
     try {
       const { ownerId, accountId } = req.query;
 
+      // Self-scoped users only see their own pipeline; the query param cannot
+      // widen that. Admin/Manager (all scope) may filter by any ownerId.
+      const scope = getOwnerScope(req.user, 'opportunities');
+      const effectiveOwnerId = scope ?? (ownerId as string);
+
       const pipeline = await opportunityService.getPipeline({
-        ownerId: ownerId as string,
+        ownerId: effectiveOwnerId,
         accountId: accountId as string,
       });
 
@@ -354,7 +394,11 @@ export class OpportunityController {
     try {
       const { ownerId } = req.query;
 
-      const forecast = await opportunityService.getForecast(ownerId as string);
+      // Self-scoped users only see their own forecast.
+      const scope = getOwnerScope(req.user, 'opportunities');
+      const effectiveOwnerId = scope ?? (ownerId as string);
+
+      const forecast = await opportunityService.getForecast(effectiveOwnerId);
 
       return res.json({
         success: true,

@@ -198,6 +198,27 @@ Now validated at creation too: `a` returns 400, a compliant password still retur
 - Rate limiting is per-process; move to a shared store (Redis) before running more than one instance.
 - TLS in front of the API is unverified here — passwords are hashed at rest but travel in the request body.
 
+## Re-audit, 2026-07-24
+
+A second pass reviewed every controller for the three recurring patterns (broken object-level authorization / IDOR, missing RBAC enforcement, and mass assignment) and exercised the create/update/delete paths with a scripted admin+non-owner test. `contracts`, `invoices`, `projects`, `tickets`, `products`, `product_categories`, `activities`, `expenses`, `sales_visits` were already correctly hardened (whitelists + `assertOwnsViaAccount`/scope checks). The gaps were concentrated in the older `accounts`, `leads`, `opportunities` controllers and `suppliers`.
+
+| # | Finding | Severity | Status |
+|---|---|---|---|
+| 14 | Account contact endpoints (add/get/update/delete/set-primary) had no ownership check — any user could read or mutate contacts on any account by id (IDOR) | **High** | Fixed |
+| 15 | `createAccount` had no permission check — the `accounts:create` toggle was decorative | Medium | Fixed |
+| 16 | `updateContact` passed `req.body` through (mass assignment) | Medium | Fixed |
+| 17 | `lead.convertToOpportunity` and `lead.markLost` had no ownership check (IDOR) | **High** | Fixed |
+| 18 | `lead.updateLead` and `opportunity.updateOpportunity` passed `req.body` through (mass assignment) | Medium | Fixed |
+| 19 | Opportunity line-item endpoints (add/update/delete) had no ownership check on the parent opportunity (IDOR) | **High** | Fixed |
+| 20 | `opportunity.updateLineItem` and `supplier.update` passed the raw body through (mass assignment) | Medium | Fixed |
+| 21 | `getPipeline`/`getForecast` did not apply the read scope, so a self-scoped user could view all owners' aggregates | Medium | Fixed |
+| 22 | `lead.bulkImport` had no create-permission check | Low | Fixed |
+| 23 | `createLead` silently dropped `accountId`, breaking creation (500 where the column is NOT NULL) or orphaning the lead (where nullable) | **High** | Fixed |
+
+**Fixes.** Per-controller field whitelists (`pick`) on lead/opportunity/line-item/supplier/contact updates; ownership checks via `canAccessRecord` (leads/opportunities) and a new `assertCanAccessAccount` helper (account contacts) before every sub-resource operation; `canPerformAction` gates on account create and lead bulk-import; read-scope applied to pipeline/forecast; and `accountId` threaded through lead creation and required.
+
+**Verified (16/16)** against the running API with an admin and a non-owner Sales Rep: legitimate create/update still return 2xx; forged `ownerId`/`createdById` in an update body are ignored; a non-owner gets `403` on contact read/write/delete, lead convert/mark-lost, and opportunity line-item add; and a self-scoped user cannot widen pipeline scope via the `ownerId` query param.
+
 ## Notes for reviewers
 
 - **Admin bypasses every permission check** (`resolvePermission`, `middleware/auth.ts`) as an anti-lockout safety net. Testing RBAC as Admin proves nothing — always test with a non-admin role.

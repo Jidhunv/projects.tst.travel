@@ -4,9 +4,13 @@ import { AppDataSource } from '../config/database';
 import { Supplier } from '../models/Supplier';
 import { AuthRequest, canPerformAction } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
+import pick from '../utils/pick';
 import logger from '../utils/logger';
 
 const repo = () => AppDataSource.getRepository(Supplier);
+
+// createdById and timestamps are system-managed and must not be client-settable.
+const SUPPLIER_UPDATABLE = ['name', 'contactPerson', 'email', 'phoneNumber', 'category', 'region', 'country', 'notes'] as const;
 
 export class SupplierController {
   async list(req: AuthRequest, res: Response, next: NextFunction) {
@@ -62,7 +66,8 @@ export class SupplierController {
       }
       const supplier = await repo().findOne({ where: { id: req.params.id } });
       if (!supplier) throw new AppError(404, 'Supplier not found');
-      Object.assign(supplier, req.body);
+      // Whitelist to prevent mass assignment (e.g. forging createdById).
+      Object.assign(supplier, pick(req.body, SUPPLIER_UPDATABLE));
       await repo().save(supplier);
       return res.json({ success: true, data: supplier });
     } catch (error) {
