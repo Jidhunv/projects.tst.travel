@@ -7,10 +7,14 @@ interface AccountFilters {
   status?: string;
   type?: string;
   ownerId?: string;
-  // "team" (group) scope: the set of owner user-ids the caller may see -- their
-  // own id plus every user who shares a group with them. When present, accounts
-  // owned by any of those users are visible.
+  // "team" (group) scope OR-set. When teamScope is true, an account is visible
+  // if it matches ANY of: owner in ownerIds (self + co-members), the caller is
+  // an assigned user (assigneeSelfId within assigneeIds), or the account is
+  // explicitly assigned to one of the caller's teams (id in teamAccountIds).
+  teamScope?: boolean;
   ownerIds?: string[];
+  assigneeSelfId?: string;
+  teamAccountIds?: string[];
   city?: string;
   region?: string;
   country?: string;
@@ -102,9 +106,24 @@ export class AccountService {
     if (where.type) {
       query.andWhere('account.type = :type', { type: where.type });
     }
-    if (where.ownerIds && where.ownerIds.length) {
-      // Team/group scope: accounts owned by the caller or any group co-member.
-      query.andWhere('account.ownerId IN (:...ownerIds)', { ownerIds: where.ownerIds });
+    if (where.teamScope) {
+      // Team/group scope: visible if owned by self/a co-member, OR the caller is
+      // an assigned user, OR the account is assigned to one of the caller's teams.
+      const clauses: string[] = [];
+      const params: any = {};
+      if (where.ownerIds && where.ownerIds.length) {
+        clauses.push('account.ownerId IN (:...tsOwnerIds)');
+        params.tsOwnerIds = where.ownerIds;
+      }
+      if (where.assigneeSelfId) {
+        clauses.push('account.assigneeIds LIKE :tsSelfLike');
+        params.tsSelfLike = `%${where.assigneeSelfId}%`;
+      }
+      if (where.teamAccountIds && where.teamAccountIds.length) {
+        clauses.push('account.id IN (:...tsAccountIds)');
+        params.tsAccountIds = where.teamAccountIds;
+      }
+      query.andWhere(clauses.length ? `(${clauses.join(' OR ')})` : '1=0', params);
     } else if (where.ownerId) {
       query.andWhere('(account.ownerId = :ownerId OR account.assigneeIds LIKE :ownerIdLike)', {
         ownerId: where.ownerId,
@@ -165,6 +184,38 @@ export class AccountService {
     // update() writes exactly the columns given.
     await this.accountRepository.update(id, data as any);
     return await this.getAccountById(id);
+  }
+
+  // --- Explicit account -> team assignment (account_teams join) ---
+
+  async getAccountTeamIds(accountId: string): Promise<string[]> {
+    const rows: Array<{ teamId: string }> = await this.accountRepository.query(
+      'SELECT "teamId" FROM account_teams WHERE "accountId" = $1',
+      [accountId]
+    );
+    return rows.map((r) => r.teamId);
+  }
+
+  // Replace the account's team assignments with the given set.
+  async setAccountTeams(accountId: string, teamIds: string[]): Promise<void> {
+    const unique = [...new Set((teamIds || []).filter(Boolean))];
+    await this.accountRepository.query('DELETE FROM account_teams WHERE "accountId" = $1', [accountId]);
+    for (const tid of unique) {
+      await this.accountRepository.query(
+        'INSERT INTO account_teams ("accountId", "teamId") VALUES ($1, $2) ON CONFLICT DO NOTHING',
+        [accountId, tid]
+      );
+    }
+  }
+
+  // Ids of accounts explicitly assigned to any of the given teams.
+  async getAccountIdsForTeams(teamIds: string[]): Promise<string[]> {
+    if (!teamIds.length) return [];
+    const rows: Array<{ accountId: string }> = await this.accountRepository.query(
+      'SELECT DISTINCT "accountId" FROM account_teams WHERE "teamId" = ANY($1)',
+      [teamIds]
+    );
+    return rows.map((r) => r.accountId);
   }
 
   async deleteAccount(id: string): Promise<void> {

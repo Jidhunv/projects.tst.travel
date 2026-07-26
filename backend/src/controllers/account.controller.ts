@@ -11,15 +11,22 @@ import logger from '../utils/logger';
 // Access check for a single account that understands "team" (group) scope: a
 // team-scoped user may act on accounts owned by a group co-member, plus their
 // own. Returns silently if allowed, throws 403 otherwise. "all" allows anything.
-async function assertAccountScope(req: AuthRequest, account: { ownerId: string; assigneeIds?: string[] }, action: string) {
+async function assertAccountScope(req: AuthRequest, account: { id: string; ownerId: string; assigneeIds?: string[] }, action: string) {
   const scope = getScope(req.user, 'accounts', action);
   if (scope === 'all') return;
   const uid = req.user!.id;
   const isOwnerOrAssignee = account.ownerId === uid || (Array.isArray(account.assigneeIds) && account.assigneeIds.includes(uid));
   if (scope === 'team') {
+    if (isOwnerOrAssignee) return;
     const coMembers = await teamService.getCoMemberUserIds(uid);
-    if (coMembers.includes(account.ownerId) || isOwnerOrAssignee) return;
-    throw new AppError(403, 'You can only access accounts owned by your group');
+    if (coMembers.includes(account.ownerId)) return;
+    // Explicitly assigned to one of the caller's teams?
+    const [myTeams, acctTeams] = await Promise.all([
+      teamService.getUserTeamIds(uid),
+      accountService.getAccountTeamIds(account.id),
+    ]);
+    if (acctTeams.some((t) => myTeams.includes(t))) return;
+    throw new AppError(403, 'You can only access accounts assigned to you or your group');
   }
   if (scope === 'self') {
     if (isOwnerOrAssignee) return;
@@ -103,16 +110,24 @@ export class AccountController {
 
       // Visibility by read scope:
       //   all  -> everything (optionally filtered by an ownerId query param)
-      //   team -> accounts owned by the caller or any group co-member
+      //   team -> own + owned by a co-member + assigned to my team + assigned to me
       //   self -> only their own accounts
       const scope = getReadScope(req.user, 'accounts');
       let effectiveOwnerId: string | undefined;
+      let teamScope = false;
       let ownerIds: string[] | undefined;
+      let assigneeSelfId: string | undefined;
+      let teamAccountIds: string[] | undefined;
       if (scope === 'all') {
         effectiveOwnerId = ownerId as string;
       } else if (scope === 'team') {
-        const coMembers = await teamService.getCoMemberUserIds(req.user!.id);
-        ownerIds = [...new Set([req.user!.id, ...coMembers])];
+        const uid = req.user!.id;
+        const coMembers = await teamService.getCoMemberUserIds(uid);
+        const myTeamIds = await teamService.getUserTeamIds(uid);
+        teamScope = true;
+        ownerIds = [...new Set([uid, ...coMembers])];
+        assigneeSelfId = uid;
+        teamAccountIds = await accountService.getAccountIdsForTeams(myTeamIds);
       } else {
         effectiveOwnerId = req.user!.id;
       }
@@ -123,7 +138,10 @@ export class AccountController {
         status: status as string,
         type: type as string,
         ownerId: effectiveOwnerId,
+        teamScope,
         ownerIds,
+        assigneeSelfId,
+        teamAccountIds,
         search: search as string,
         city: city as string,
         region: region as string,
@@ -152,9 +170,10 @@ export class AccountController {
 
       await assertAccountScope(req, account as any, 'read');
 
+      const assignedTeamIds = await accountService.getAccountTeamIds(id);
       return res.json({
         success: true,
-        data: account,
+        data: { ...account, assignedTeamIds },
       });
     } catch (error) {
       next(error);
@@ -209,13 +228,22 @@ export class AccountController {
       // second blank collide with the first.
       if (updates.email === '') updates.email = null;
 
+      // Assignment: an account may be assigned to teams (all their members see
+      // it) and/or specific users (assigneeIds). Anyone who can update the
+      // account may set these.
+      if (Array.isArray(req.body.assigneeIds)) updates.assigneeIds = req.body.assigneeIds;
+
       const account = await accountService.updateAccount(id, updates);
+      if (Array.isArray(req.body.assignedTeamIds)) {
+        await accountService.setAccountTeams(id, req.body.assignedTeamIds);
+      }
+      const assignedTeamIds = await accountService.getAccountTeamIds(id);
 
       logger.info(`Account updated: ${account.id} by ${req.user!.email}`);
 
       return res.json({
         success: true,
-        data: account,
+        data: { ...account, assignedTeamIds },
       });
     } catch (error) {
       next(error);

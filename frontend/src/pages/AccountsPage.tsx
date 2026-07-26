@@ -8,6 +8,7 @@ import {
   Button,
   TextField,
   MenuItem,
+  Typography,
   Chip,
   Stack,
   Snackbar,
@@ -70,11 +71,15 @@ export default function AccountsPage() {
     country: '',
     email: '',
     remark: '',
+    assignedTeamIds: [] as string[],
+    assigneeIds: [] as string[],
   });
 
+  const [teams, setTeams] = React.useState<any[]>([]);
+  const [orgUsers, setOrgUsers] = React.useState<any[]>([]);
   const [acctFilters, setAcctFilters] = React.useState({ search: '', city: '', region: '', country: '' });
 
-  // Load countries on component mount
+  // Load countries, teams and users on component mount
   React.useEffect(() => {
     const loadCountries = async () => {
       try {
@@ -86,8 +91,24 @@ export default function AccountsPage() {
         console.error('Error loading countries:', error);
       }
     };
+    const loadAssignable = async () => {
+      try {
+        const [t, u] = await Promise.all([api.getTeams(), api.getUsers(1, 500)]);
+        setTeams(t.data.data || []);
+        setOrgUsers(u.data.data || []);
+      } catch (error) {
+        console.error('Error loading teams/users:', error);
+      }
+    };
     loadCountries();
+    loadAssignable();
   }, []);
+
+  const teamName = (id: string) => teams.find((t) => t.id === id)?.name || id;
+  const userName = (id: string) => {
+    const u = orgUsers.find((x) => x.id === id);
+    return u ? `${u.firstName} ${u.lastName}` : id;
+  };
 
   const [duplicateWarning, setDuplicateWarning] = React.useState('');
 
@@ -157,6 +178,8 @@ export default function AccountsPage() {
       country: '',
       email: '',
       remark: '',
+      assignedTeamIds: [],
+      assigneeIds: [],
     });
     setDuplicateWarning('');
     setOpenCreate(true);
@@ -173,21 +196,29 @@ export default function AccountsPage() {
     }
   };
 
-  const handleEditClick = (account: Account) => {
+  const handleEditClick = async (account: Account) => {
     setEditingAccount(account);
+    // Fetch the full account to get its team assignments (not in the list rows).
+    let full: any = account;
+    try {
+      const res = await api.getAccount(account.id);
+      full = res.data.data || account;
+    } catch { /* fall back to the list row */ }
     setFormData({
-      name: account.name,
-      industry: account.industry || '',
-      website: account.website || '',
-      phoneNumber: account.phoneNumber || '',
-      alternatePhoneNumber: (account as any).alternatePhoneNumber || '',
-      type: account.type,
-      contactPerson: (account as any).contactPerson || '',
-      city: (account as any).city || '',
-      region: (account as any).region || '',
-      country: (account as any).country || '',
-      email: (account as any).email || '',
-      remark: (account as any).remark || '',
+      name: full.name,
+      industry: full.industry || '',
+      website: full.website || '',
+      phoneNumber: full.phoneNumber || '',
+      alternatePhoneNumber: full.alternatePhoneNumber || '',
+      type: full.type,
+      contactPerson: full.contactPerson || '',
+      city: full.city || '',
+      region: full.region || '',
+      country: full.country || '',
+      email: full.email || '',
+      remark: full.remark || '',
+      assignedTeamIds: full.assignedTeamIds || [],
+      assigneeIds: full.assigneeIds || [],
     });
     setOnboardingData({
       onboardingStatus: (account.onboardingStatus as any) || 'Not Started',
@@ -208,6 +239,8 @@ export default function AccountsPage() {
     try {
       await api.updateAccount(editingAccount!.id, {
         ...formData,
+        assignedTeamIds: formData.assignedTeamIds,
+        assigneeIds: formData.assigneeIds,
         ...onboardingData,
         onboardingDate: onboardingData.onboardingDate ? new Date(onboardingData.onboardingDate) : null,
         onboardingCompletedDate: onboardingData.onboardingCompletedDate ? new Date(onboardingData.onboardingCompletedDate) : null,
@@ -470,6 +503,33 @@ export default function AccountsPage() {
                       {c.name}
                     </MenuItem>
                   ))}
+                </TextField>
+
+                <Typography variant="subtitle2" sx={{ mt: 1, fontWeight: 600 }}>Assign account</Typography>
+                <Typography variant="caption" color="textSecondary" sx={{ mt: -1 }}>
+                  The creator/owner always sees it. Assign to teams (all their members can see it) and/or specific users.
+                </Typography>
+                <TextField
+                  label="Assign to Teams"
+                  select
+                  fullWidth
+                  value={formData.assignedTeamIds}
+                  onChange={(e) => setFormData({ ...formData, assignedTeamIds: (typeof e.target.value === 'string' ? [e.target.value] : e.target.value) as any })}
+                  SelectProps={{ multiple: true, renderValue: (sel: any) => (sel as string[]).map(teamName).join(', ') || '— None —' }}
+                  helperText={teams.length === 0 ? 'No teams yet — create them under User Management → Teams' : 'Every member of a selected team can see this account'}
+                >
+                  {teams.map((t) => (<MenuItem key={t.id} value={t.id}>{t.name}</MenuItem>))}
+                </TextField>
+                <TextField
+                  label="Assign to Users"
+                  select
+                  fullWidth
+                  value={formData.assigneeIds}
+                  onChange={(e) => setFormData({ ...formData, assigneeIds: (typeof e.target.value === 'string' ? [e.target.value] : e.target.value) as any })}
+                  SelectProps={{ multiple: true, renderValue: (sel: any) => (sel as string[]).map(userName).join(', ') || '— None —' }}
+                  helperText="These specific users can also see this account"
+                >
+                  {orgUsers.map((u) => (<MenuItem key={u.id} value={u.id}>{u.firstName} {u.lastName} ({u.email})</MenuItem>))}
                 </TextField>
               </Box>
             )}
