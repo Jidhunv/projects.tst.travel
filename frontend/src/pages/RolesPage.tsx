@@ -272,8 +272,12 @@ export const RolesPage: React.FC = () => {
           <DialogContent sx={{ pt: 2, maxHeight: 600, overflow: 'auto' }}>
             <Stack spacing={3}>
               {Object.entries(groupPermissions()).map(([module, perms]) => {
-                // Create matrix: rows are actions (View, Add, Update, Delete, Bulk Update)
-                // columns are scopes (Self, All)
+                // Create matrix: rows are actions (View, Add, Update, Delete)
+                // columns are scopes (Self, Team, All). "Team" only exists for
+                // modules that support supervisor visibility (e.g. accounts);
+                // elsewhere the cell shows a dash.
+                const scopes = ['self', 'team', 'all'];
+                const scopeLabels: { [key: string]: string } = { self: 'Self', team: 'Team', all: 'All' };
                 const actions = ['read', 'create', 'update', 'delete'];
                 const actionLabels: { [key: string]: string } = {
                   read: 'View',
@@ -296,8 +300,9 @@ export const RolesPage: React.FC = () => {
                         <TableHead>
                           <TableRow>
                             <TableCell sx={{ width: '150px' }}>Action</TableCell>
-                            <TableCell align="center">Self</TableCell>
-                            <TableCell align="center">All</TableCell>
+                            {scopes.map((scope) => (
+                              <TableCell align="center" key={`head-${scope}`}>{scopeLabels[scope]}</TableCell>
+                            ))}
                           </TableRow>
                         </TableHead>
                         <TableBody>
@@ -306,7 +311,7 @@ export const RolesPage: React.FC = () => {
                               <TableCell sx={{ fontWeight: 500 }}>
                                 {actionLabels[action]}
                               </TableCell>
-                              {['self', 'all'].map((scope) => {
+                              {scopes.map((scope) => {
                                 const perm = perms.find((p: any) => p.action === action && p.scope === scope);
                                 return (
                                   <TableCell align="center" key={`${module}-${action}-${scope}`}>
