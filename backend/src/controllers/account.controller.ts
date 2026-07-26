@@ -8,18 +8,18 @@ import InputValidator from '../utils/inputValidator';
 import pick from '../utils/pick';
 import logger from '../utils/logger';
 
-// Access check for a single account that understands "team" scope: a team-scoped
-// user may act on any account in their team sub-tree, plus their own. Returns
-// silently if allowed, throws 403 otherwise. "all" scope allows anything.
-async function assertAccountScope(req: AuthRequest, account: { ownerId: string; teamId?: string; assigneeIds?: string[] }, action: string) {
+// Access check for a single account that understands "team" (group) scope: a
+// team-scoped user may act on accounts owned by a group co-member, plus their
+// own. Returns silently if allowed, throws 403 otherwise. "all" allows anything.
+async function assertAccountScope(req: AuthRequest, account: { ownerId: string; assigneeIds?: string[] }, action: string) {
   const scope = getScope(req.user, 'accounts', action);
   if (scope === 'all') return;
   const uid = req.user!.id;
   const isOwnerOrAssignee = account.ownerId === uid || (Array.isArray(account.assigneeIds) && account.assigneeIds.includes(uid));
   if (scope === 'team') {
-    const teamIds = req.user!.teamId ? await teamService.getSubtreeTeamIds(req.user!.teamId) : [];
-    if ((account.teamId && teamIds.includes(account.teamId)) || isOwnerOrAssignee) return;
-    throw new AppError(403, 'You can only access accounts in your team');
+    const coMembers = await teamService.getCoMemberUserIds(uid);
+    if (coMembers.includes(account.ownerId) || isOwnerOrAssignee) return;
+    throw new AppError(403, 'You can only access accounts owned by your group');
   }
   if (scope === 'self') {
     if (isOwnerOrAssignee) return;
@@ -103,13 +103,19 @@ export class AccountController {
 
       // Visibility by read scope:
       //   all  -> everything (optionally filtered by an ownerId query param)
-      //   team -> accounts in the caller's team sub-tree, plus their own
+      //   team -> accounts owned by the caller or any group co-member
       //   self -> only their own accounts
       const scope = getReadScope(req.user, 'accounts');
-      const effectiveOwnerId = scope === 'all' ? (ownerId as string) : req.user!.id;
-      const teamIds = scope === 'team' && req.user!.teamId
-        ? await teamService.getSubtreeTeamIds(req.user!.teamId)
-        : undefined;
+      let effectiveOwnerId: string | undefined;
+      let ownerIds: string[] | undefined;
+      if (scope === 'all') {
+        effectiveOwnerId = ownerId as string;
+      } else if (scope === 'team') {
+        const coMembers = await teamService.getCoMemberUserIds(req.user!.id);
+        ownerIds = [...new Set([req.user!.id, ...coMembers])];
+      } else {
+        effectiveOwnerId = req.user!.id;
+      }
 
       const { data, total } = await accountService.getAccounts({
         page: Number(page),
@@ -117,7 +123,7 @@ export class AccountController {
         status: status as string,
         type: type as string,
         ownerId: effectiveOwnerId,
-        teamIds,
+        ownerIds,
         search: search as string,
         city: city as string,
         region: region as string,
@@ -172,20 +178,13 @@ export class AccountController {
       // to email and remark. Keep this in step with the Account model.
       const allowed = [
         'name', 'industry', 'size', 'website', 'phoneNumber', 'alternatePhoneNumber', 'email', 'remark', 'type', 'status',
-        'contactPerson', 'city', 'region', 'country', 'teamId',
+        'contactPerson', 'city', 'region', 'country',
         'billingStreet', 'billingCity', 'billingState', 'billingZip', 'billingCountry',
         'shippingStreet', 'shippingCity', 'shippingState', 'shippingZip', 'shippingCountry',
         'onboardingStatus', 'onboardingDate', 'onboardingCompletedDate', 'onboardingNotes',
         'contractSignedDate', 'goLiveDate', 'accountManager', 'billingContact', 'technicalContact', 'tags',
       ];
       const updates: any = pick(req.body, allowed);
-
-      // Reassigning an account's team changes who can see it, so it is an
-      // org-level action: only team/all-scoped users (managers/admins) may set
-      // teamId. A self-scoped rep's teamId change is silently dropped.
-      if ('teamId' in updates && getScope(req.user, 'accounts', 'update') === 'self') {
-        delete updates.teamId;
-      }
 
       // Validate the same fields create does. An empty string clears the value.
       if (updates.email) {

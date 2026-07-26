@@ -11,10 +11,9 @@ interface Team {
   id: string;
   name: string;
   description?: string;
-  parentTeamId?: string | null;
 }
 
-const emptyForm = { name: '', description: '', parentTeamId: '' };
+const emptyForm = { name: '', description: '' };
 
 export const TeamsPage: React.FC = () => {
   const [teams, setTeams] = useState<Team[]>([]);
@@ -31,8 +30,6 @@ export const TeamsPage: React.FC = () => {
   const [memberTeam, setMemberTeam] = useState<Team | null>(null);
   const [members, setMembers] = useState<any[]>([]);
   const [addUser, setAddUser] = useState<any>(null);
-
-  const teamName = (id?: string | null) => teams.find((t) => t.id === id)?.name || '—';
 
   const load = async () => {
     setLoading(true);
@@ -53,13 +50,13 @@ export const TeamsPage: React.FC = () => {
   const openCreate = () => { setEditing(null); setForm(emptyForm); setOpen(true); };
   const openEdit = (t: Team) => {
     setEditing(t);
-    setForm({ name: t.name, description: t.description || '', parentTeamId: t.parentTeamId || '' });
+    setForm({ name: t.name, description: t.description || '' });
     setOpen(true);
   };
 
   const save = async () => {
     try {
-      const payload = { name: form.name, description: form.description, parentTeamId: form.parentTeamId || null };
+      const payload = { name: form.name, description: form.description };
       if (editing) await api.updateTeam(editing.id, payload);
       else await api.createTeam(payload);
       setOpen(false);
@@ -113,8 +110,9 @@ export const TeamsPage: React.FC = () => {
         </Box>
 
         <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
-          Teams form a hierarchy. A member of a team sees records for their team and every team below it,
-          so a manager over a parent team sees all of its sub-teams while a rep in a leaf team sees only theirs.
+          A user in a group sees their own records plus those owned by anyone else in the same group.
+          A user can belong to multiple groups; assign membership on the Users page (or via “Members” here).
+          Users in no group see only their own records.
         </Typography>
 
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
@@ -127,7 +125,6 @@ export const TeamsPage: React.FC = () => {
               <TableHead>
                 <TableRow>
                   <TableCell>Team Name</TableCell>
-                  <TableCell>Parent Team</TableCell>
                   <TableCell>Description</TableCell>
                   <TableCell align="right">Actions</TableCell>
                 </TableRow>
@@ -136,7 +133,6 @@ export const TeamsPage: React.FC = () => {
                 {teams.map((t) => (
                   <TableRow key={t.id}>
                     <TableCell sx={{ fontWeight: 'bold' }}>{t.name}</TableCell>
-                    <TableCell>{t.parentTeamId ? <Chip size="small" label={teamName(t.parentTeamId)} /> : <Typography variant="body2" color="textSecondary">Top level</Typography>}</TableCell>
                     <TableCell>{t.description || '—'}</TableCell>
                     <TableCell align="right">
                       <Button size="small" onClick={() => openMembers(t)}>Members</Button>
@@ -156,14 +152,6 @@ export const TeamsPage: React.FC = () => {
           <DialogContent sx={{ pt: 2 }}>
             <TextField fullWidth label="Team Name" value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })} sx={{ mb: 2 }} />
-            <TextField fullWidth select label="Parent Team (optional)" value={form.parentTeamId}
-              onChange={(e) => setForm({ ...form, parentTeamId: e.target.value })} sx={{ mb: 2 }}
-              helperText="Leave blank for a top-level team.">
-              <MenuItem value="">— Top level —</MenuItem>
-              {teams.filter((t) => t.id !== editing?.id).map((t) => (
-                <MenuItem key={t.id} value={t.id}>{t.name}</MenuItem>
-              ))}
-            </TextField>
             <TextField fullWidth label="Description" multiline rows={2} value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })} />
           </DialogContent>

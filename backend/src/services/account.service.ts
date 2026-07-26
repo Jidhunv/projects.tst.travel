@@ -7,10 +7,10 @@ interface AccountFilters {
   status?: string;
   type?: string;
   ownerId?: string;
-  // "team" scope: the set of team ids the caller may see (their team + all
-  // descendants). When present, accounts in any of those teams are visible,
-  // plus the caller's own accounts (ownerId/assigneeIds).
-  teamIds?: string[];
+  // "team" (group) scope: the set of owner user-ids the caller may see -- their
+  // own id plus every user who shares a group with them. When present, accounts
+  // owned by any of those users are visible.
+  ownerIds?: string[];
   city?: string;
   region?: string;
   country?: string;
@@ -102,17 +102,9 @@ export class AccountService {
     if (where.type) {
       query.andWhere('account.type = :type', { type: where.type });
     }
-    if (where.teamIds && where.teamIds.length) {
-      // Team scope: accounts in the caller's team sub-tree, plus their own.
-      query.andWhere(
-        '(account.teamId IN (:...teamIds)' +
-        (where.ownerId ? ' OR account.ownerId = :ownerId OR account.assigneeIds LIKE :ownerIdLike' : '') +
-        ')',
-        {
-          teamIds: where.teamIds,
-          ...(where.ownerId ? { ownerId: where.ownerId, ownerIdLike: `%${where.ownerId}%` } : {}),
-        }
-      );
+    if (where.ownerIds && where.ownerIds.length) {
+      // Team/group scope: accounts owned by the caller or any group co-member.
+      query.andWhere('account.ownerId IN (:...ownerIds)', { ownerIds: where.ownerIds });
     } else if (where.ownerId) {
       query.andWhere('(account.ownerId = :ownerId OR account.assigneeIds LIKE :ownerIdLike)', {
         ownerId: where.ownerId,

@@ -3,15 +3,12 @@ import teamService from '../services/team.service';
 import userService from '../services/user.service';
 import { AuthRequest } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
-import { AppDataSource } from '../config/database';
-import { User } from '../models/User';
 import logger from '../utils/logger';
 
 export class TeamController {
   async list(_req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const data = await teamService.list();
-      return res.json({ success: true, data });
+      return res.json({ success: true, data: await teamService.list() });
     } catch (error) {
       next(error);
     }
@@ -19,8 +16,8 @@ export class TeamController {
 
   async create(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const { name, description, parentTeamId } = req.body;
-      const team = await teamService.create({ name, description, parentTeamId });
+      const { name, description } = req.body;
+      const team = await teamService.create({ name, description });
       logger.info(`Team created: ${team.name} by ${req.user?.email}`);
       return res.status(201).json({ success: true, data: team });
     } catch (error) {
@@ -30,8 +27,8 @@ export class TeamController {
 
   async update(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const { name, description, parentTeamId } = req.body;
-      const team = await teamService.update(req.params.id, { name, description, parentTeamId });
+      const { name, description } = req.body;
+      const team = await teamService.update(req.params.id, { name, description });
       return res.json({ success: true, data: team });
     } catch (error) {
       next(error);
@@ -47,28 +44,32 @@ export class TeamController {
     }
   }
 
-  // Assign a user to this team (or pass teamId: null in the body to unassign).
-  async setUserTeam(req: AuthRequest, res: Response, next: NextFunction) {
+  // Add a user to this team (many-to-many; append).
+  async addMember(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { userId } = req.body;
       if (!userId) throw new AppError(400, 'userId is required');
-      const teamId = req.params.id;
-      await teamService.getById(teamId); // 404 if invalid
       await userService.getUserById(userId); // 404 if invalid
-      await AppDataSource.getRepository(User).update(userId, { teamId } as any);
-      logger.info(`User ${userId} assigned to team ${teamId} by ${req.user?.email}`);
-      return res.json({ success: true, data: { userId, teamId } });
+      await teamService.addUserToTeam(userId, req.params.id);
+      logger.info(`User ${userId} added to team ${req.params.id} by ${req.user?.email}`);
+      return res.json({ success: true, data: { userId, teamId: req.params.id } });
     } catch (error) {
       next(error);
     }
   }
 
-  // List the members of a team (users whose teamId is this team).
+  async removeMember(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      await teamService.removeUserFromTeam(req.params.userId, req.params.id);
+      return res.json({ success: true, data: { message: 'Member removed' } });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async members(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const users = await AppDataSource.getRepository(User).find({ where: { teamId: req.params.id } as any });
-      const data = users.map((u) => ({ id: u.id, email: u.email, firstName: u.firstName, lastName: u.lastName }));
-      return res.json({ success: true, data });
+      return res.json({ success: true, data: await teamService.members(req.params.id) });
     } catch (error) {
       next(error);
     }

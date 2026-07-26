@@ -38,7 +38,7 @@ export const UsersPage: React.FC = () => {
     lastName: '',
     phoneNumber: '',
     roleId: '',
-    teamId: '',
+    teamIds: [] as string[],
     password: '',
   });
 
@@ -86,7 +86,7 @@ export const UsersPage: React.FC = () => {
         lastName: user.lastName,
         phoneNumber: user.phoneNumber || '',
         roleId: user.roleId || '',
-        teamId: user.teamId || '',
+        teamIds: user.teamIds || [],
         password: '',
       });
     } else {
@@ -97,7 +97,7 @@ export const UsersPage: React.FC = () => {
         lastName: '',
         phoneNumber: '',
         roleId: '',
-        teamId: '',
+        teamIds: [],
         password: '',
       });
     }
@@ -112,7 +112,7 @@ export const UsersPage: React.FC = () => {
           lastName: formData.lastName,
           phoneNumber: formData.phoneNumber,
           roleId: formData.roleId,
-          teamId: formData.teamId || null,
+          teamIds: formData.teamIds,
         };
         // Only send the password when the admin actually set one, so we don't
         // overwrite the existing password with an empty value.
@@ -283,8 +283,10 @@ export const UsersPage: React.FC = () => {
                       />
                     </TableCell>
                     <TableCell>
-                      {user.teamId
-                        ? <Chip label={teamName(user.teamId)} size="small" variant="outlined" />
+                      {(user.teamIds && user.teamIds.length)
+                        ? user.teamIds.map((tid: string) => (
+                            <Chip key={tid} label={teamName(tid)} size="small" variant="outlined" sx={{ mr: 0.5, mb: 0.5 }} />
+                          ))
                         : <span style={{ opacity: 0.6 }}>—</span>}
                     </TableCell>
                     <TableCell>
@@ -403,13 +405,13 @@ export const UsersPage: React.FC = () => {
             </TextField>
             <TextField
               fullWidth
-              label="Team / Group"
+              label="Teams / Groups"
               select
-              value={formData.teamId}
-              onChange={(e) => setFormData({ ...formData, teamId: e.target.value })}
-              helperText={teams.length === 0 ? 'No teams yet — create them under User Management → Teams' : 'The team this user belongs to (drives team-scoped visibility)'}
+              value={formData.teamIds}
+              onChange={(e) => setFormData({ ...formData, teamIds: (typeof e.target.value === 'string' ? [e.target.value] : e.target.value) as any })}
+              SelectProps={{ multiple: true, renderValue: (sel: any) => (sel as string[]).map((id) => teamName(id)).join(', ') || '— None —' }}
+              helperText={teams.length === 0 ? 'No teams yet — create them under User Management → Teams' : 'Groups this user belongs to. They will see records owned by anyone sharing a group with them.'}
             >
-              <MenuItem value="">— No team —</MenuItem>
               {teams.map((t) => (
                 <MenuItem key={t.id} value={t.id}>
                   {t.name}

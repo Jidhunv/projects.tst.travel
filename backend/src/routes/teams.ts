@@ -14,6 +14,7 @@ router.get('/:id/members', (req, res, next) => TeamController.members(req, res, 
 router.post('/', requireRole('Admin'), (req, res, next) => TeamController.create(req, res, next));
 router.patch('/:id', requireRole('Admin'), (req, res, next) => TeamController.update(req, res, next));
 router.delete('/:id', requireRole('Admin'), (req, res, next) => TeamController.remove(req, res, next));
-router.post('/:id/members', requireRole('Admin'), (req, res, next) => TeamController.setUserTeam(req, res, next));
+router.post('/:id/members', requireRole('Admin'), (req, res, next) => TeamController.addMember(req, res, next));
+router.delete('/:id/members/:userId', requireRole('Admin'), (req, res, next) => TeamController.removeMember(req, res, next));
 
 export default router;

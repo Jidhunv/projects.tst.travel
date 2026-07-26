@@ -1,5 +1,7 @@
 import { Response, NextFunction } from 'express';
 import userService from '../services/user.service';
+import teamService from '../services/team.service';
+import { AppDataSource } from '../config/database';
 import { User } from '../models/User';
 import { AuthRequest } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
@@ -10,7 +12,7 @@ import { PasswordValidator } from '../utils/passwordValidator';
 
 // One response shape for a user, so every endpoint returns the same fields and
 // none of them can accidentally leak the password hash.
-const toUserResponse = (user: User) => ({
+const toUserResponse = (user: User, teamIds: string[] = []) => ({
   id: user.id,
   email: user.email,
   firstName: user.firstName,
@@ -19,7 +21,7 @@ const toUserResponse = (user: User) => ({
   isActive: user.isActive,
   role: user.role?.name,
   roleId: user.roleId,
-  teamId: (user as any).teamId ?? null,
+  teamIds,
 });
 
 export class UserController {
@@ -74,6 +76,17 @@ export class UserController {
         isActive: isActive === 'true' ? true : isActive === 'false' ? false : undefined,
       });
 
+      // Batch-load group membership for the page in one query.
+      const membershipByUser: Record<string, string[]> = {};
+      if (data.length) {
+        const ids = data.map((u) => u.id);
+        const rows: Array<{ userId: string; teamId: string }> = await AppDataSource.getRepository(User).query(
+          `SELECT "userId", "teamId" FROM user_teams WHERE "userId" = ANY($1)`,
+          [ids]
+        );
+        for (const r of rows) (membershipByUser[r.userId] ||= []).push(r.teamId);
+      }
+
       // Never leak password hashes
       const sanitized = data.map((u) => ({
         id: u.id,
@@ -84,7 +97,7 @@ export class UserController {
         isActive: u.isActive,
         role: u.role?.name,
         roleId: u.roleId,
-        teamId: (u as any).teamId ?? null,
+        teamIds: membershipByUser[u.id] || [],
         createdAt: u.createdAt,
       }));
 
@@ -101,9 +114,10 @@ export class UserController {
   async getUser(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const user = await userService.getUserById(req.params.id);
+      const teamIds = await teamService.getUserTeamIds(user.id);
       return res.json({
         success: true,
-        data: toUserResponse(user),
+        data: toUserResponse(user, teamIds),
       });
     } catch (error) {
       next(error);
@@ -125,13 +139,11 @@ export class UserController {
         updates.roleId = req.body.roleId;
       }
 
-      // Team membership drives what a user can see, so only Admins may set it.
-      // '' -> null so the uuid column is cleared rather than rejected.
-      if ('teamId' in req.body) {
-        if (req.user?.role !== 'Admin') {
-          throw new AppError(403, 'Only an administrator can change a user\'s team');
-        }
-        updates.teamId = req.body.teamId || null;
+      // Group membership drives what a user can see, so only Admins may set it.
+      // Accepts teamIds: string[] (many-to-many); replaces the user's groups.
+      const changingTeams = Array.isArray(req.body.teamIds);
+      if (changingTeams && req.user?.role !== 'Admin') {
+        throw new AppError(403, 'Only an administrator can change a user\'s groups');
       }
 
       // If a new password is provided, enforce the same complexity policy as elsewhere.
@@ -144,12 +156,14 @@ export class UserController {
       }
 
       const user = await userService.updateUser(req.params.id, updates);
+      if (changingTeams) await teamService.setUserTeams(user.id, req.body.teamIds);
       // Fetch full user with role to return in response
       const fullUser = await userService.getUserById(user.id);
+      const teamIds = await teamService.getUserTeamIds(user.id);
       logger.info(`User updated: ${user.id} by ${req.user!.email}`);
       return res.json({
         success: true,
-        data: toUserResponse(fullUser),
+        data: toUserResponse(fullUser, teamIds),
       });
     } catch (error) {
       next(error);
