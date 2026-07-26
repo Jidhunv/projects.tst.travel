@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import accountService from '../services/account.service';
 import teamService from '../services/team.service';
-import { AuthRequest, getOwnerScope, getReadScope, getScope, canAccessRecord, canPerformAction, canReassign } from '../middleware/auth';
+import { AuthRequest, getReadScope, getScope, canAccessRecord, canPerformAction, canReassign } from '../middleware/auth';
 import userService from '../services/user.service';
 import { AppError } from '../middleware/errorHandler';
 import InputValidator from '../utils/inputValidator';
@@ -106,16 +106,10 @@ export class AccountController {
       //   team -> accounts in the caller's team sub-tree, plus their own
       //   self -> only their own accounts
       const scope = getReadScope(req.user, 'accounts');
-      let effectiveOwnerId: string | undefined;
-      let teamIds: string[] | undefined;
-      if (scope === 'all') {
-        effectiveOwnerId = ownerId as string; // honor optional explicit filter
-      } else if (scope === 'team') {
-        effectiveOwnerId = req.user!.id;
-        teamIds = req.user!.teamId ? await teamService.getSubtreeTeamIds(req.user!.teamId) : [];
-      } else {
-        effectiveOwnerId = req.user!.id; // self (or no access -> own only)
-      }
+      const effectiveOwnerId = scope === 'all' ? (ownerId as string) : req.user!.id;
+      const teamIds = scope === 'team' && req.user!.teamId
+        ? await teamService.getSubtreeTeamIds(req.user!.teamId)
+        : undefined;
 
       const { data, total } = await accountService.getAccounts({
         page: Number(page),
@@ -185,6 +179,13 @@ export class AccountController {
         'contractSignedDate', 'goLiveDate', 'accountManager', 'billingContact', 'technicalContact', 'tags',
       ];
       const updates: any = pick(req.body, allowed);
+
+      // Reassigning an account's team changes who can see it, so it is an
+      // org-level action: only team/all-scoped users (managers/admins) may set
+      // teamId. A self-scoped rep's teamId change is silently dropped.
+      if ('teamId' in updates && getScope(req.user, 'accounts', 'update') === 'self') {
+        delete updates.teamId;
+      }
 
       // Validate the same fields create does. An empty string clears the value.
       if (updates.email) {
