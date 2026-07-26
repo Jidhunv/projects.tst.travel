@@ -575,6 +575,20 @@ export default function LeadsPage() {
                           email: firstContact.email || '',
                           phoneNumber: firstContact.phoneNumber || '',
                         };
+                      } else if (selectedAcct?.contactPerson) {
+                        // The account has no structured contacts, only a single
+                        // "contact person" string. Split it into first/last name
+                        // (first word -> firstName, remainder -> lastName) so the
+                        // lead's required name fields are still populated, and fall
+                        // back to the account's own email/phone.
+                        const parts = selectedAcct.contactPerson.trim().split(/\s+/);
+                        updatedForm = {
+                          ...updatedForm,
+                          firstName: parts[0] || '',
+                          lastName: parts.slice(1).join(' ') || '',
+                          email: selectedAcct.email || '',
+                          phoneNumber: selectedAcct.phoneNumber || '',
+                        };
                       }
                     } catch (error) {
                       console.error('Error loading contacts:', error);
@@ -635,26 +649,29 @@ export default function LeadsPage() {
                   fullWidth
                   label="First Name"
                   value={form.firstName}
-                  disabled
+                  onChange={(e) => setForm({ ...form, firstName: e.target.value })}
+                  disabled={accountContacts.length > 0}
                   sx={{ mb: 2 }}
-                  helperText="Auto-populated from account contact"
+                  helperText={accountContacts.length > 0 ? 'Auto-populated from account contact' : "From the account's contact person — edit if needed"}
                 />
                 <TextField
                   fullWidth
                   label="Last Name"
                   value={form.lastName}
-                  disabled
+                  onChange={(e) => setForm({ ...form, lastName: e.target.value })}
+                  disabled={accountContacts.length > 0}
                   sx={{ mb: 2 }}
-                  helperText="Auto-populated from account contact"
+                  helperText={accountContacts.length > 0 ? 'Auto-populated from account contact' : "From the account's contact person — edit if needed"}
                 />
                 <TextField
                   fullWidth
                   label="Email"
                   type="email"
                   value={form.email}
-                  disabled
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  disabled={accountContacts.length > 0}
                   sx={{ mb: 2 }}
-                  helperText="Auto-populated from account contact"
+                  helperText={accountContacts.length > 0 ? 'Auto-populated from account contact' : "From the account — edit if needed"}
                 />
                 <TextField
                   fullWidth
@@ -704,9 +721,10 @@ export default function LeadsPage() {
                   fullWidth
                   label="Phone"
                   value={form.phoneNumber}
-                  disabled
+                  onChange={(e) => setForm({ ...form, phoneNumber: e.target.value })}
+                  disabled={accountContacts.length > 0}
                   sx={{ mb: 2 }}
-                  helperText="Auto-populated from account contact"
+                  helperText={accountContacts.length > 0 ? 'Auto-populated from account contact' : "From the account — edit if needed"}
                 />
             <TextField
               fullWidth
