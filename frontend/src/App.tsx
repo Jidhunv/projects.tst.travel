@@ -244,7 +244,7 @@ function App() {
           <Route
             path="/product-categories"
             element={
-              <ProtectedRoute module="products">
+              <ProtectedRoute module="product_categories">
                 <ProductCategoriesPage />
               </ProtectedRoute>
             }

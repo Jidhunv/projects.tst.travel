@@ -159,7 +159,7 @@ export default function Layout({ children }: LayoutProps) {
       show: true,
       items: [
         { text: 'Products', icon: <ProductIcon />, path: '/products', show: true },
-        { text: 'Product Categories', icon: <CategoryIcon />, path: '/product-categories', show: true },
+        { text: 'Product Categories', icon: <CategoryIcon />, path: '/product-categories', show: canViewModule('product_categories') },
         { text: 'Suppliers', icon: <SupplierIcon />, path: '/suppliers', show: canViewModule('suppliers') },
         { text: 'Country Master', icon: <CountryIcon />, path: '/countries', show: true },
       ],

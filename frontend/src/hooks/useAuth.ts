@@ -105,7 +105,12 @@ const useAuth = create<AuthState>((set, get) => ({
   hasPermission: (module: string, action: string) => {
     const state = get();
     // Admin has full access, mirroring the backend's Admin safety net.
-    if (state.user?.role?.name === 'Admin') return true;
+    // The API returns `role` as the role NAME string (not a Role object), so
+    // `role?.name` was always undefined and silently disabled this Admin bypass.
+    // Handle both shapes defensively.
+    const roleAny: any = state.user?.role;
+    const roleName = typeof roleAny === 'string' ? roleAny : roleAny?.name;
+    if (roleName === 'Admin') return true;
     const perms = state.permissions || [];
     return (
       perms.includes(`${module}:${action}:all`) ||
@@ -120,7 +125,12 @@ const useAuth = create<AuthState>((set, get) => ({
   // Needs update at the "all" scope (Admin/Manager), mirroring the backend.
   canReassign: (module: string) => {
     const state = get();
-    if (state.user?.role?.name === 'Admin') return true;
+    // The API returns `role` as the role NAME string (not a Role object), so
+    // `role?.name` was always undefined and silently disabled this Admin bypass.
+    // Handle both shapes defensively.
+    const roleAny: any = state.user?.role;
+    const roleName = typeof roleAny === 'string' ? roleAny : roleAny?.name;
+    if (roleName === 'Admin') return true;
     return (state.permissions || []).includes(`${module}:update:all`);
   },
 
