@@ -253,8 +253,12 @@ export default function LeadsPage() {
       try {
         await apiClient.delete(`/leads/${leadId}`);
         fetchLeads();
-      } catch (error) {
+      } catch (error: any) {
+        // Surface the real reason (e.g. a 403 permission message) instead of
+        // silently doing nothing, which looks like "I can't delete".
+        const msg = error?.response?.data?.error || error?.message || 'Failed to delete lead';
         console.error('Error deleting lead:', error);
+        alert(msg);
       }
     }
   };
