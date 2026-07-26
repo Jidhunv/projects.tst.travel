@@ -46,8 +46,11 @@ export class LeadController {
         country,
       } = req.body;
 
-      if (!firstName || !lastName || !email) {
-        throw new AppError(400, 'First name, last name, and email are required');
+      // The UI captures a single "contact person" (matching the account model)
+      // which is split into first/last; a one-word name leaves lastName empty,
+      // so only the contact person (firstName) and email are required.
+      if (!firstName || !email) {
+        throw new AppError(400, 'Contact person and email are required');
       }
       // A lead must belong to an account (the column is NOT NULL). Previously
       // accountId was dropped here, so creation failed with a not-null

@@ -647,18 +647,19 @@ export default function LeadsPage() {
                 </Typography>
                 <TextField
                   fullWidth
-                  label="First Name"
-                  value={form.firstName}
-                  onChange={(e) => setForm({ ...form, firstName: e.target.value })}
-                  disabled={accountContacts.length > 0}
-                  sx={{ mb: 2 }}
-                  helperText={accountContacts.length > 0 ? 'Auto-populated from account contact' : "From the account's contact person — edit if needed"}
-                />
-                <TextField
-                  fullWidth
-                  label="Last Name"
-                  value={form.lastName}
-                  onChange={(e) => setForm({ ...form, lastName: e.target.value })}
+                  label="Contact Person"
+                  value={[form.firstName, form.lastName].filter(Boolean).join(' ')}
+                  onChange={(e) => {
+                    // Match the account model, which stores a single contact
+                    // person. Split into first/last for the lead record
+                    // (first word -> firstName, remainder -> lastName).
+                    const parts = e.target.value.replace(/\s+/g, ' ').trimStart().split(' ');
+                    setForm({
+                      ...form,
+                      firstName: parts[0] || '',
+                      lastName: parts.slice(1).join(' ') || '',
+                    });
+                  }}
                   disabled={accountContacts.length > 0}
                   sx={{ mb: 2 }}
                   helperText={accountContacts.length > 0 ? 'Auto-populated from account contact' : "From the account's contact person — edit if needed"}
