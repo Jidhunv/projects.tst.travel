@@ -12,7 +12,7 @@ import { PasswordValidator } from '../utils/passwordValidator';
 
 // One response shape for a user, so every endpoint returns the same fields and
 // none of them can accidentally leak the password hash.
-const toUserResponse = (user: User, teamIds: string[] = []) => ({
+const toUserResponse = (user: User, teamIds: string[] = [], supervisedTeamIds: string[] = []) => ({
   id: user.id,
   email: user.email,
   firstName: user.firstName,
@@ -21,7 +21,8 @@ const toUserResponse = (user: User, teamIds: string[] = []) => ({
   isActive: user.isActive,
   role: user.role?.name,
   roleId: user.roleId,
-  teamIds,
+  teamIds,             // teams this user is a MEMBER of
+  supervisedTeamIds,   // teams this user SUPERVISES
 });
 
 export class UserController {
@@ -76,15 +77,19 @@ export class UserController {
         isActive: isActive === 'true' ? true : isActive === 'false' ? false : undefined,
       });
 
-      // Batch-load group membership for the page in one query.
+      // Batch-load membership + supervision for the page in two queries.
       const membershipByUser: Record<string, string[]> = {};
+      const supervisedByUser: Record<string, string[]> = {};
       if (data.length) {
         const ids = data.map((u) => u.id);
-        const rows: Array<{ userId: string; teamId: string }> = await AppDataSource.getRepository(User).query(
-          `SELECT "userId", "teamId" FROM user_teams WHERE "userId" = ANY($1)`,
-          [ids]
-        );
-        for (const r of rows) (membershipByUser[r.userId] ||= []).push(r.teamId);
+        const repo = AppDataSource.getRepository(User);
+        const [mRows, sRows]: [Array<{ userId: string; teamId: string }>, Array<{ userId: string; teamId: string }>] =
+          await Promise.all([
+            repo.query(`SELECT "userId", "teamId" FROM user_teams WHERE "userId" = ANY($1)`, [ids]),
+            repo.query(`SELECT "userId", "teamId" FROM team_supervisors WHERE "userId" = ANY($1)`, [ids]),
+          ]);
+        for (const r of mRows) (membershipByUser[r.userId] ||= []).push(r.teamId);
+        for (const r of sRows) (supervisedByUser[r.userId] ||= []).push(r.teamId);
       }
 
       // Never leak password hashes
@@ -98,6 +103,7 @@ export class UserController {
         role: u.role?.name,
         roleId: u.roleId,
         teamIds: membershipByUser[u.id] || [],
+        supervisedTeamIds: supervisedByUser[u.id] || [],
         createdAt: u.createdAt,
       }));
 
@@ -114,10 +120,13 @@ export class UserController {
   async getUser(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const user = await userService.getUserById(req.params.id);
-      const teamIds = await teamService.getUserTeamIds(user.id);
+      const [teamIds, supervisedTeamIds] = await Promise.all([
+        teamService.getUserTeamIds(user.id),
+        teamService.getSupervisedTeamIds(user.id),
+      ]);
       return res.json({
         success: true,
-        data: toUserResponse(user, teamIds),
+        data: toUserResponse(user, teamIds, supervisedTeamIds),
       });
     } catch (error) {
       next(error);
@@ -139,11 +148,12 @@ export class UserController {
         updates.roleId = req.body.roleId;
       }
 
-      // Group membership drives what a user can see, so only Admins may set it.
-      // Accepts teamIds: string[] (many-to-many); replaces the user's groups.
+      // Membership (teamIds) and supervision (supervisedTeamIds) change what a
+      // user can see, so only Admins may set them. Both are string[] (m2m).
       const changingTeams = Array.isArray(req.body.teamIds);
-      if (changingTeams && req.user?.role !== 'Admin') {
-        throw new AppError(403, 'Only an administrator can change a user\'s groups');
+      const changingSupervised = Array.isArray(req.body.supervisedTeamIds);
+      if ((changingTeams || changingSupervised) && req.user?.role !== 'Admin') {
+        throw new AppError(403, 'Only an administrator can change a user\'s teams');
       }
 
       // If a new password is provided, enforce the same complexity policy as elsewhere.
@@ -157,13 +167,17 @@ export class UserController {
 
       const user = await userService.updateUser(req.params.id, updates);
       if (changingTeams) await teamService.setUserTeams(user.id, req.body.teamIds);
+      if (changingSupervised) await teamService.setUserSupervisedTeams(user.id, req.body.supervisedTeamIds);
       // Fetch full user with role to return in response
       const fullUser = await userService.getUserById(user.id);
-      const teamIds = await teamService.getUserTeamIds(user.id);
+      const [teamIds, supervisedTeamIds] = await Promise.all([
+        teamService.getUserTeamIds(user.id),
+        teamService.getSupervisedTeamIds(user.id),
+      ]);
       logger.info(`User updated: ${user.id} by ${req.user!.email}`);
       return res.json({
         success: true,
-        data: toUserResponse(fullUser, teamIds),
+        data: toUserResponse(fullUser, teamIds, supervisedTeamIds),
       });
     } catch (error) {
       next(error);

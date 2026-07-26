@@ -38,7 +38,7 @@ export const UsersPage: React.FC = () => {
     lastName: '',
     phoneNumber: '',
     roleId: '',
-    teamIds: [] as string[],
+    supervisedTeamIds: [] as string[],
     password: '',
   });
 
@@ -86,7 +86,7 @@ export const UsersPage: React.FC = () => {
         lastName: user.lastName,
         phoneNumber: user.phoneNumber || '',
         roleId: user.roleId || '',
-        teamIds: user.teamIds || [],
+        supervisedTeamIds: user.supervisedTeamIds || [],
         password: '',
       });
     } else {
@@ -97,7 +97,7 @@ export const UsersPage: React.FC = () => {
         lastName: '',
         phoneNumber: '',
         roleId: '',
-        teamIds: [],
+        supervisedTeamIds: [],
         password: '',
       });
     }
@@ -112,7 +112,7 @@ export const UsersPage: React.FC = () => {
           lastName: formData.lastName,
           phoneNumber: formData.phoneNumber,
           roleId: formData.roleId,
-          teamIds: formData.teamIds,
+          supervisedTeamIds: formData.supervisedTeamIds,
         };
         // Only send the password when the admin actually set one, so we don't
         // overwrite the existing password with an empty value.
@@ -261,7 +261,7 @@ export const UsersPage: React.FC = () => {
                   <TableCell>Name</TableCell>
                   <TableCell>Email</TableCell>
                   <TableCell>Role</TableCell>
-                  <TableCell>Team</TableCell>
+                  <TableCell>Supervises</TableCell>
                   <TableCell>Status</TableCell>
                   <TableCell>Phone</TableCell>
                   <TableCell>Actions</TableCell>
@@ -283,9 +283,9 @@ export const UsersPage: React.FC = () => {
                       />
                     </TableCell>
                     <TableCell>
-                      {(user.teamIds && user.teamIds.length)
-                        ? user.teamIds.map((tid: string) => (
-                            <Chip key={tid} label={teamName(tid)} size="small" variant="outlined" sx={{ mr: 0.5, mb: 0.5 }} />
+                      {(user.supervisedTeamIds && user.supervisedTeamIds.length)
+                        ? user.supervisedTeamIds.map((tid: string) => (
+                            <Chip key={tid} label={teamName(tid)} size="small" color="primary" variant="outlined" sx={{ mr: 0.5, mb: 0.5 }} />
                           ))
                         : <span style={{ opacity: 0.6 }}>—</span>}
                     </TableCell>
@@ -405,12 +405,12 @@ export const UsersPage: React.FC = () => {
             </TextField>
             <TextField
               fullWidth
-              label="Teams / Groups"
+              label="Supervises Teams"
               select
-              value={formData.teamIds}
-              onChange={(e) => setFormData({ ...formData, teamIds: (typeof e.target.value === 'string' ? [e.target.value] : e.target.value) as any })}
+              value={formData.supervisedTeamIds}
+              onChange={(e) => setFormData({ ...formData, supervisedTeamIds: (typeof e.target.value === 'string' ? [e.target.value] : e.target.value) as any })}
               SelectProps={{ multiple: true, renderValue: (sel: any) => (sel as string[]).map((id) => teamName(id)).join(', ') || '— None —' }}
-              helperText={teams.length === 0 ? 'No teams yet — create them under User Management → Teams' : 'Groups this user belongs to. They will see records owned by anyone sharing a group with them.'}
+              helperText={teams.length === 0 ? 'No teams yet — create them under User Management → Teams' : 'This user will see the accounts owned by MEMBERS of the selected teams (add members on the Teams page). Members do not see each other.'}
             >
               {teams.map((t) => (
                 <MenuItem key={t.id} value={t.id}>

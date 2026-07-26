@@ -18,15 +18,16 @@ async function assertAccountScope(req: AuthRequest, account: { id: string; owner
   const isOwnerOrAssignee = account.ownerId === uid || (Array.isArray(account.assigneeIds) && account.assigneeIds.includes(uid));
   if (scope === 'team') {
     if (isOwnerOrAssignee) return;
-    const coMembers = await teamService.getCoMemberUserIds(uid);
-    if (coMembers.includes(account.ownerId)) return;
-    // Explicitly assigned to one of the caller's teams?
+    // Supervisor: owner is a member of a team the caller supervises.
+    const supervisedMembers = await teamService.getSupervisedMemberUserIds(uid);
+    if (supervisedMembers.includes(account.ownerId)) return;
+    // Explicitly assigned to a team the caller is a member of.
     const [myTeams, acctTeams] = await Promise.all([
       teamService.getUserTeamIds(uid),
       accountService.getAccountTeamIds(account.id),
     ]);
     if (acctTeams.some((t) => myTeams.includes(t))) return;
-    throw new AppError(403, 'You can only access accounts assigned to you or your group');
+    throw new AppError(403, 'You can only access accounts assigned to you or that you supervise');
   }
   if (scope === 'self') {
     if (isOwnerOrAssignee) return;
@@ -122,10 +123,13 @@ export class AccountController {
         effectiveOwnerId = ownerId as string;
       } else if (scope === 'team') {
         const uid = req.user!.id;
-        const coMembers = await teamService.getCoMemberUserIds(uid);
+        // Automatic: a supervisor sees accounts owned by members of the teams
+        // they supervise. Explicit: accounts assigned to a team the caller is a
+        // member of, or assigned to the caller directly.
+        const supervisedMembers = await teamService.getSupervisedMemberUserIds(uid);
         const myTeamIds = await teamService.getUserTeamIds(uid);
         teamScope = true;
-        ownerIds = [...new Set([uid, ...coMembers])];
+        ownerIds = [...new Set([uid, ...supervisedMembers])];
         assigneeSelfId = uid;
         teamAccountIds = await accountService.getAccountIdsForTeams(myTeamIds);
       } else {

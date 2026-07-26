@@ -70,15 +70,38 @@ export class TeamService {
     }
   }
 
-  // The users this member may see under "team" scope: everyone who shares at
-  // least one group with them (this set includes the user themselves when they
-  // belong to any group; empty when they belong to none).
-  async getCoMemberUserIds(userId: string): Promise<string[]> {
+  // --- Supervisor relationship (team_supervisors) ---
+
+  async getSupervisedTeamIds(userId: string): Promise<string[]> {
+    const rows: Array<{ teamId: string }> = await this.repo.query(
+      'SELECT "teamId" FROM team_supervisors WHERE "userId" = $1',
+      [userId]
+    );
+    return rows.map((r) => r.teamId);
+  }
+
+  // Replace the set of teams a user supervises.
+  async setUserSupervisedTeams(userId: string, teamIds: string[]): Promise<void> {
+    const unique = [...new Set((teamIds || []).filter(Boolean))];
+    for (const tid of unique) await this.getById(tid); // 404 if any invalid
+    await this.repo.query('DELETE FROM team_supervisors WHERE "userId" = $1', [userId]);
+    for (const tid of unique) {
+      await this.repo.query(
+        'INSERT INTO team_supervisors ("userId", "teamId") VALUES ($1, $2) ON CONFLICT DO NOTHING',
+        [userId, tid]
+      );
+    }
+  }
+
+  // Owner ids a supervisor may see automatically: the members (user_teams) of
+  // every team the supervisor supervises. One-directional; empty if they
+  // supervise nothing.
+  async getSupervisedMemberUserIds(userId: string): Promise<string[]> {
     const rows: Array<{ userId: string }> = await this.repo.query(
-      `SELECT DISTINCT ut2."userId"
-         FROM user_teams ut1
-         JOIN user_teams ut2 ON ut1."teamId" = ut2."teamId"
-        WHERE ut1."userId" = $1`,
+      `SELECT DISTINCT ut."userId"
+         FROM team_supervisors ts
+         JOIN user_teams ut ON ut."teamId" = ts."teamId"
+        WHERE ts."userId" = $1`,
       [userId]
     );
     return rows.map((r) => r.userId);
