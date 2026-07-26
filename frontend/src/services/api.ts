@@ -262,6 +262,15 @@ export const api = {
     apiClient.get<ApiResponse<any[]>>('/countries', { params: filters }),
   createCountry: (data: any) => apiClient.post<ApiResponse<any>>('/countries', data),
 
+  // Teams / groups (hierarchical; drives "team" scope visibility)
+  getTeams: () => apiClient.get<ApiResponse<any[]>>('/teams'),
+  createTeam: (data: any) => apiClient.post<ApiResponse<any>>('/teams', data),
+  updateTeam: (id: string, data: any) => apiClient.patch<ApiResponse<any>>(`/teams/${id}`, data),
+  deleteTeam: (id: string) => apiClient.delete<ApiResponse<void>>(`/teams/${id}`),
+  getTeamMembers: (id: string) => apiClient.get<ApiResponse<any[]>>(`/teams/${id}/members`),
+  setUserTeam: (teamId: string, userId: string) =>
+    apiClient.post<ApiResponse<any>>(`/teams/${teamId}/members`, { userId }),
+
   // Sales visits / calls (Sales Report source)
   getSalesVisits: (filters?: Record<string, any>) =>
     apiClient.get<ApiResponse<any[]>>('/sales-visits', { params: filters }),

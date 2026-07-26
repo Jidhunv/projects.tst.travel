@@ -185,6 +185,7 @@ export default function Layout({ children }: LayoutProps) {
       items: [
         { text: 'Users', icon: <UserIcon />, path: '/users', show: canViewModule('users') || hasPermission('admin', 'manage_users') },
         { text: 'Roles', icon: <SecurityIcon />, path: '/roles', show: hasPermission('admin', 'manage_roles') },
+        { text: 'Teams', icon: <CategoryIcon />, path: '/teams', show: hasPermission('admin', 'manage_users') || hasPermission('admin', 'manage_roles') },
       ],
     },
     {

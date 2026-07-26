@@ -70,11 +70,13 @@ export default function AccountsPage() {
     country: '',
     email: '',
     remark: '',
+    teamId: '',
   });
 
+  const [teams, setTeams] = React.useState<any[]>([]);
   const [acctFilters, setAcctFilters] = React.useState({ search: '', city: '', region: '', country: '' });
 
-  // Load countries on component mount
+  // Load countries + teams on component mount
   React.useEffect(() => {
     const loadCountries = async () => {
       try {
@@ -86,7 +88,16 @@ export default function AccountsPage() {
         console.error('Error loading countries:', error);
       }
     };
+    const loadTeams = async () => {
+      try {
+        const res = await api.getTeams();
+        setTeams(res.data.data || []);
+      } catch (error) {
+        console.error('Error loading teams:', error);
+      }
+    };
     loadCountries();
+    loadTeams();
   }, []);
 
   const [duplicateWarning, setDuplicateWarning] = React.useState('');
@@ -157,6 +168,7 @@ export default function AccountsPage() {
       country: '',
       email: '',
       remark: '',
+      teamId: '',
     });
     setDuplicateWarning('');
     setOpenCreate(true);
@@ -188,6 +200,7 @@ export default function AccountsPage() {
       country: (account as any).country || '',
       email: (account as any).email || '',
       remark: (account as any).remark || '',
+      teamId: (account as any).teamId || '',
     });
     setOnboardingData({
       onboardingStatus: (account.onboardingStatus as any) || 'Not Started',
@@ -208,6 +221,7 @@ export default function AccountsPage() {
     try {
       await api.updateAccount(editingAccount!.id, {
         ...formData,
+        teamId: formData.teamId || null, // '' -> null (uuid column)
         ...onboardingData,
         onboardingDate: onboardingData.onboardingDate ? new Date(onboardingData.onboardingDate) : null,
         onboardingCompletedDate: onboardingData.onboardingCompletedDate ? new Date(onboardingData.onboardingCompletedDate) : null,
@@ -468,6 +482,21 @@ export default function AccountsPage() {
                   {countries.map((c) => (
                     <MenuItem key={c.id} value={c.name}>
                       {c.name}
+                    </MenuItem>
+                  ))}
+                </TextField>
+                <TextField
+                  label="Team / Group"
+                  select
+                  value={formData.teamId}
+                  onChange={(e) => setFormData({ ...formData, teamId: e.target.value })}
+                  fullWidth
+                  helperText={teams.length === 0 ? 'No teams yet — create them under User Management → Teams' : 'Assign this account to a team so that team (and its parents) can see it'}
+                >
+                  <MenuItem value="">-- Unassigned --</MenuItem>
+                  {teams.map((t) => (
+                    <MenuItem key={t.id} value={t.id}>
+                      {t.name}
                     </MenuItem>
                   ))}
                 </TextField>
