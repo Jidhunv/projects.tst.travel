@@ -14,21 +14,25 @@ export interface AuthUser {
   // Loaded from the DB on each authenticated request so that permission
   // changes take effect immediately without requiring re-login.
   permissions?: string[];
+  // The user's team (for "team" scope). Loaded fresh each request so team
+  // moves take effect without re-login.
+  teamId?: string | null;
 }
 
-// Load the user's configured permissions as "module:action:scope" strings.
-async function loadUserPermissions(userId: string): Promise<string[]> {
+// Load the user's permissions ("module:action:scope") and current teamId from
+// the DB, fresh on each request so permission/team changes apply immediately.
+async function loadUserContext(userId: string): Promise<{ permissions: string[]; teamId: string | null }> {
   try {
     const user = await AppDataSource.getRepository(User).findOne({
       where: { id: userId },
       relations: ['role', 'role.permissions'],
     });
-    if (!user?.role?.permissions) return [];
-    return user.role.permissions.map(
-      (p) => `${p.module}:${p.action}:${p.scope || 'all'}`
-    );
+    const permissions = user?.role?.permissions
+      ? user.role.permissions.map((p) => `${p.module}:${p.action}:${p.scope || 'all'}`)
+      : [];
+    return { permissions, teamId: (user as any)?.teamId ?? null };
   } catch {
-    return [];
+    return { permissions: [], teamId: null };
   }
 }
 
@@ -37,16 +41,31 @@ function resolvePermission(
   user: AuthUser | undefined,
   module: string,
   action: string
-): { allowed: boolean; scope: 'all' | 'self' | null } {
+): { allowed: boolean; scope: 'all' | 'team' | 'self' | null } {
   if (!user) return { allowed: false, scope: null };
   // Admin always has full access (safety net against accidental lockout).
   if (user.role === 'Admin') return { allowed: true, scope: 'all' };
 
   const perms = user.permissions || [];
+  // Widest scope wins if a role somehow has several.
   if (perms.includes(`${module}:${action}:all`)) return { allowed: true, scope: 'all' };
+  if (perms.includes(`${module}:${action}:team`)) return { allowed: true, scope: 'team' };
   if (perms.includes(`${module}:${action}:self`)) return { allowed: true, scope: 'self' };
   return { allowed: false, scope: null };
 }
+
+// The read scope for a module: 'all' | 'team' | 'self' | null (no access).
+export const getReadScope = (
+  user: AuthUser | undefined,
+  module: string
+): 'all' | 'team' | 'self' | null => resolvePermission(user, module, 'read').scope;
+
+// The scope for a specific action: 'all' | 'team' | 'self' | null.
+export const getScope = (
+  user: AuthUser | undefined,
+  module: string,
+  action: string
+): 'all' | 'team' | 'self' | null => resolvePermission(user, module, action).scope;
 
 export interface AuthRequest extends Request {
   user?: AuthUser;
@@ -99,8 +118,10 @@ export const verifyToken = async (
       return res.status(401).json({ success: false, error: 'Token revoked' });
     }
 
-    // Attach the user's live permissions so scoping reflects current config.
-    decoded.permissions = await loadUserPermissions(decoded.id);
+    // Attach the user's live permissions + team so scoping reflects current config.
+    const ctx = await loadUserContext(decoded.id);
+    decoded.permissions = ctx.permissions;
+    decoded.teamId = ctx.teamId;
     req.user = decoded;
     next();
   } catch (error) {

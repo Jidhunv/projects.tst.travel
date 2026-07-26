@@ -1,11 +1,32 @@
 import { Request, Response, NextFunction } from 'express';
 import accountService from '../services/account.service';
-import { AuthRequest, getOwnerScope, canAccessRecord, canPerformAction, canReassign } from '../middleware/auth';
+import teamService from '../services/team.service';
+import { AuthRequest, getOwnerScope, getReadScope, getScope, canAccessRecord, canPerformAction, canReassign } from '../middleware/auth';
 import userService from '../services/user.service';
 import { AppError } from '../middleware/errorHandler';
 import InputValidator from '../utils/inputValidator';
 import pick from '../utils/pick';
 import logger from '../utils/logger';
+
+// Access check for a single account that understands "team" scope: a team-scoped
+// user may act on any account in their team sub-tree, plus their own. Returns
+// silently if allowed, throws 403 otherwise. "all" scope allows anything.
+async function assertAccountScope(req: AuthRequest, account: { ownerId: string; teamId?: string; assigneeIds?: string[] }, action: string) {
+  const scope = getScope(req.user, 'accounts', action);
+  if (scope === 'all') return;
+  const uid = req.user!.id;
+  const isOwnerOrAssignee = account.ownerId === uid || (Array.isArray(account.assigneeIds) && account.assigneeIds.includes(uid));
+  if (scope === 'team') {
+    const teamIds = req.user!.teamId ? await teamService.getSubtreeTeamIds(req.user!.teamId) : [];
+    if ((account.teamId && teamIds.includes(account.teamId)) || isOwnerOrAssignee) return;
+    throw new AppError(403, 'You can only access accounts in your team');
+  }
+  if (scope === 'self') {
+    if (isOwnerOrAssignee) return;
+    throw new AppError(403, 'You can only access your own accounts');
+  }
+  throw new AppError(403, 'You do not have permission to access this account');
+}
 
 export class AccountController {
   async createAccount(req: AuthRequest, res: Response, next: NextFunction) {
@@ -80,9 +101,21 @@ export class AccountController {
     try {
       const { page = 1, limit = 20, status, type, ownerId, search, city, region, country } = req.query;
 
-      // Sales Reps see only their own accounts; Admin/Manager see all.
-      const scope = getOwnerScope(req.user, 'accounts');
-      const effectiveOwnerId = scope ?? (ownerId as string);
+      // Visibility by read scope:
+      //   all  -> everything (optionally filtered by an ownerId query param)
+      //   team -> accounts in the caller's team sub-tree, plus their own
+      //   self -> only their own accounts
+      const scope = getReadScope(req.user, 'accounts');
+      let effectiveOwnerId: string | undefined;
+      let teamIds: string[] | undefined;
+      if (scope === 'all') {
+        effectiveOwnerId = ownerId as string; // honor optional explicit filter
+      } else if (scope === 'team') {
+        effectiveOwnerId = req.user!.id;
+        teamIds = req.user!.teamId ? await teamService.getSubtreeTeamIds(req.user!.teamId) : [];
+      } else {
+        effectiveOwnerId = req.user!.id; // self (or no access -> own only)
+      }
 
       const { data, total } = await accountService.getAccounts({
         page: Number(page),
@@ -90,6 +123,7 @@ export class AccountController {
         status: status as string,
         type: type as string,
         ownerId: effectiveOwnerId,
+        teamIds,
         search: search as string,
         city: city as string,
         region: region as string,
@@ -116,9 +150,7 @@ export class AccountController {
       const { id } = req.params;
       const account = await accountService.getAccountById(id);
 
-      if (!canAccessRecord(req.user, 'accounts', account.ownerId, 'read', account.assigneeIds)) {
-        throw new AppError(403, 'You can only view your own accounts');
-      }
+      await assertAccountScope(req, account as any, 'read');
 
       return res.json({
         success: true,
@@ -138,9 +170,7 @@ export class AccountController {
         throw new AppError(403, 'You do not have permission to update accounts');
       }
       const existing = await accountService.getAccountById(id);
-      if (!canAccessRecord(req.user, 'accounts', existing.ownerId, 'update', existing.assigneeIds)) {
-        throw new AppError(403, 'You can only update your own accounts');
-      }
+      await assertAccountScope(req, existing as any, 'update');
 
       // Whitelist updatable fields to prevent mass assignment (e.g. reassigning ownerId).
       // Anything missing here is silently dropped, so a field the edit form sends
@@ -148,7 +178,7 @@ export class AccountController {
       // to email and remark. Keep this in step with the Account model.
       const allowed = [
         'name', 'industry', 'size', 'website', 'phoneNumber', 'alternatePhoneNumber', 'email', 'remark', 'type', 'status',
-        'contactPerson', 'city', 'region', 'country',
+        'contactPerson', 'city', 'region', 'country', 'teamId',
         'billingStreet', 'billingCity', 'billingState', 'billingZip', 'billingCountry',
         'shippingStreet', 'shippingCity', 'shippingState', 'shippingZip', 'shippingCountry',
         'onboardingStatus', 'onboardingDate', 'onboardingCompletedDate', 'onboardingNotes',
@@ -219,9 +249,7 @@ export class AccountController {
         throw new AppError(403, 'You do not have permission to delete accounts');
       }
       const existing = await accountService.getAccountById(id);
-      if (!canAccessRecord(req.user, 'accounts', existing.ownerId, 'delete', existing.assigneeIds)) {
-        throw new AppError(403, 'You can only delete your own accounts');
-      }
+      await assertAccountScope(req, existing as any, 'delete');
 
       await accountService.deleteAccount(id);
 

@@ -25,6 +25,16 @@ function buildCatalog(): PermSpec[] {
     return specs;
   };
 
+  // "team" scope for hierarchical visibility: a member sees records for their
+  // team and all descendant teams. Currently wired for accounts.
+  const teamScoped = (module: string, label: string): PermSpec[] =>
+    ['read', 'create', 'update', 'delete'].map((action) => ({
+      module,
+      action,
+      scope: 'team',
+      description: `${action} team ${label}`,
+    }));
+
   return [
     ...crud('suppliers', 'suppliers'),
     ...crud('sales_visits', 'sales visits'),
@@ -37,6 +47,8 @@ function buildCatalog(): PermSpec[] {
     ...crud('products', 'products'),
     ...crud('product_categories', 'product categories'),
     ...crud('countries', 'countries'),
+    // Team scope (hierarchical visibility)
+    ...teamScoped('accounts', 'accounts'),
   ];
 }
 

@@ -68,6 +68,11 @@ export class User {
   @Column()
   roleId: string;
 
+  // The team this user belongs to. Drives "team" scope: the user sees records
+  // for their team and all descendant teams. Null = not assigned to any team.
+  @Column({ nullable: true })
+  teamId: string;
+
   @OneToMany(() => Lead, (lead) => lead.owner)
   leads: Lead[];
 

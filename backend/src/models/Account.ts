@@ -66,6 +66,12 @@ export class Account {
   @Column()
   ownerId: string;
 
+  // The team this account is assigned to. With "team" scope, any member of
+  // this team or an ancestor team can see the account. Null = unassigned
+  // (visible only via ownerId/assigneeIds as before).
+  @Column({ nullable: true })
+  teamId: string;
+
   @Column({ nullable: true })
   billingStreet: string;
 

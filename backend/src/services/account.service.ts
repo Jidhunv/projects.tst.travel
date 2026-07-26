@@ -7,6 +7,10 @@ interface AccountFilters {
   status?: string;
   type?: string;
   ownerId?: string;
+  // "team" scope: the set of team ids the caller may see (their team + all
+  // descendants). When present, accounts in any of those teams are visible,
+  // plus the caller's own accounts (ownerId/assigneeIds).
+  teamIds?: string[];
   city?: string;
   region?: string;
   country?: string;
@@ -98,7 +102,18 @@ export class AccountService {
     if (where.type) {
       query.andWhere('account.type = :type', { type: where.type });
     }
-    if (where.ownerId) {
+    if (where.teamIds && where.teamIds.length) {
+      // Team scope: accounts in the caller's team sub-tree, plus their own.
+      query.andWhere(
+        '(account.teamId IN (:...teamIds)' +
+        (where.ownerId ? ' OR account.ownerId = :ownerId OR account.assigneeIds LIKE :ownerIdLike' : '') +
+        ')',
+        {
+          teamIds: where.teamIds,
+          ...(where.ownerId ? { ownerId: where.ownerId, ownerIdLike: `%${where.ownerId}%` } : {}),
+        }
+      );
+    } else if (where.ownerId) {
       query.andWhere('(account.ownerId = :ownerId OR account.assigneeIds LIKE :ownerIdLike)', {
         ownerId: where.ownerId,
         ownerIdLike: `%${where.ownerId}%`,
