@@ -15,7 +15,7 @@ import {
   Tabs,
   Tab,
 } from '@mui/material';
-import { Edit as EditIcon } from '@mui/icons-material';
+import { Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import Layout from '@components/Layout';
 import DataTable from '@components/DataTable';
 import AssignOwner from '@components/AssignOwner';
@@ -223,6 +223,19 @@ export default function AccountsPage() {
     }
   };
 
+  const handleDeleteAccount = async (account: Account) => {
+    if (!window.confirm(`Delete account "${account.name}"? This cannot be undone.`)) return;
+    try {
+      await api.deleteAccount(account.id);
+      setToast({ msg: 'Account deleted', sev: 'success' });
+      fetchAccounts();
+    } catch (error: any) {
+      // Surface the real reason (e.g. a 403, or a 409 if the account still has
+      // related records) instead of failing silently.
+      setToast({ msg: error.response?.data?.error || 'Failed to delete account', sev: 'error' });
+    }
+  };
+
   const columns = [
     { id: 'name', label: 'Account Name' },
     { id: 'industry', label: 'Industry' },
@@ -243,9 +256,14 @@ export default function AccountsPage() {
       id: 'actions',
       label: 'Actions',
       render: (r: Account) => (
-        <Button size="small" variant="outlined" startIcon={<EditIcon />} onClick={() => handleEditClick(r)}>
-          Edit
-        </Button>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Button size="small" variant="outlined" startIcon={<EditIcon />} onClick={() => handleEditClick(r)}>
+            Edit
+          </Button>
+          <Button size="small" variant="outlined" color="error" startIcon={<DeleteIcon />} onClick={() => handleDeleteAccount(r)}>
+            Delete
+          </Button>
+        </Box>
       ),
     },
   ];

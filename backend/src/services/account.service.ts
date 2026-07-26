@@ -162,7 +162,20 @@ export class AccountService {
 
   async deleteAccount(id: string): Promise<void> {
     const account = await this.getAccountById(id);
-    await this.accountRepository.remove(account);
+    try {
+      await this.accountRepository.remove(account);
+    } catch (err: any) {
+      // Postgres foreign-key violation: the account still has related records
+      // (leads, opportunities, contracts, projects, invoices, tickets) that
+      // reference it. Surface a clear 409 instead of a generic 500.
+      if (err?.code === '23503') {
+        throw new AppError(
+          409,
+          'This account still has related records (leads, opportunities, contracts, projects, invoices or tickets). Delete or reassign those first, then delete the account.'
+        );
+      }
+      throw err;
+    }
   }
 
   async addContact(
