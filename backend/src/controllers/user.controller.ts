@@ -19,6 +19,7 @@ const toUserResponse = (user: User) => ({
   isActive: user.isActive,
   role: user.role?.name,
   roleId: user.roleId,
+  teamId: (user as any).teamId ?? null,
 });
 
 export class UserController {
@@ -82,6 +83,8 @@ export class UserController {
         phoneNumber: u.phoneNumber,
         isActive: u.isActive,
         role: u.role?.name,
+        roleId: u.roleId,
+        teamId: (u as any).teamId ?? null,
         createdAt: u.createdAt,
       }));
 
@@ -120,6 +123,15 @@ export class UserController {
           throw new AppError(403, 'Only an administrator can change a user\'s role');
         }
         updates.roleId = req.body.roleId;
+      }
+
+      // Team membership drives what a user can see, so only Admins may set it.
+      // '' -> null so the uuid column is cleared rather than rejected.
+      if ('teamId' in req.body) {
+        if (req.user?.role !== 'Admin') {
+          throw new AppError(403, 'Only an administrator can change a user\'s team');
+        }
+        updates.teamId = req.body.teamId || null;
       }
 
       // If a new password is provided, enforce the same complexity policy as elsewhere.

@@ -27,6 +27,7 @@ import { apiClient } from '../services/api';
 export const UsersPage: React.FC = () => {
   const [users, setUsers] = useState<any[]>([]);
   const [roles, setRoles] = useState<any[]>([]);
+  const [teams, setTeams] = useState<any[]>([]);
   const [openDialog, setOpenDialog] = useState(false);
   const [openPasswordDialog, setOpenPasswordDialog] = useState(false);
   const [selectedUser, setSelectedUser] = useState<any>(null);
@@ -37,13 +38,26 @@ export const UsersPage: React.FC = () => {
     lastName: '',
     phoneNumber: '',
     roleId: '',
+    teamId: '',
     password: '',
   });
 
   useEffect(() => {
     fetchUsers();
     fetchRoles();
+    fetchTeams();
   }, []);
+
+  const fetchTeams = async () => {
+    try {
+      const response = await apiClient.get('/teams');
+      setTeams(response.data.data || []);
+    } catch (error) {
+      console.error('Error fetching teams:', error);
+    }
+  };
+
+  const teamName = (id?: string) => teams.find((t) => t.id === id)?.name || '—';
 
   const fetchUsers = async () => {
     try {
@@ -72,6 +86,7 @@ export const UsersPage: React.FC = () => {
         lastName: user.lastName,
         phoneNumber: user.phoneNumber || '',
         roleId: user.roleId || '',
+        teamId: user.teamId || '',
         password: '',
       });
     } else {
@@ -82,6 +97,7 @@ export const UsersPage: React.FC = () => {
         lastName: '',
         phoneNumber: '',
         roleId: '',
+        teamId: '',
         password: '',
       });
     }
@@ -96,6 +112,7 @@ export const UsersPage: React.FC = () => {
           lastName: formData.lastName,
           phoneNumber: formData.phoneNumber,
           roleId: formData.roleId,
+          teamId: formData.teamId || null,
         };
         // Only send the password when the admin actually set one, so we don't
         // overwrite the existing password with an empty value.
@@ -244,6 +261,7 @@ export const UsersPage: React.FC = () => {
                   <TableCell>Name</TableCell>
                   <TableCell>Email</TableCell>
                   <TableCell>Role</TableCell>
+                  <TableCell>Team</TableCell>
                   <TableCell>Status</TableCell>
                   <TableCell>Phone</TableCell>
                   <TableCell>Actions</TableCell>
@@ -263,6 +281,11 @@ export const UsersPage: React.FC = () => {
                         color="primary"
                         variant="outlined"
                       />
+                    </TableCell>
+                    <TableCell>
+                      {user.teamId
+                        ? <Chip label={teamName(user.teamId)} size="small" variant="outlined" />
+                        : <span style={{ opacity: 0.6 }}>—</span>}
                     </TableCell>
                     <TableCell>
                       <Chip
@@ -370,10 +393,26 @@ export const UsersPage: React.FC = () => {
               select
               value={formData.roleId}
               onChange={(e) => setFormData({ ...formData, roleId: e.target.value })}
+              sx={{ mb: 2 }}
             >
               {roles.map((role) => (
                 <MenuItem key={role.id} value={role.id}>
                   {role.name}
+                </MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              fullWidth
+              label="Team / Group"
+              select
+              value={formData.teamId}
+              onChange={(e) => setFormData({ ...formData, teamId: e.target.value })}
+              helperText={teams.length === 0 ? 'No teams yet — create them under User Management → Teams' : 'The team this user belongs to (drives team-scoped visibility)'}
+            >
+              <MenuItem value="">— No team —</MenuItem>
+              {teams.map((t) => (
+                <MenuItem key={t.id} value={t.id}>
+                  {t.name}
                 </MenuItem>
               ))}
             </TextField>
