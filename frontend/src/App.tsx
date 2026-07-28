@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import CssBaseline from '@mui/material/CssBaseline';
 import useAuth from '@hooks/useAuth';
 import FirstLoginPasswordChangeDialog from '@components/FirstLoginPasswordChangeDialog';
+import ErrorBoundary from '@components/ErrorBoundary';
 import { initializeCsrfToken } from '@services/api';
 import { ThemeContextProvider } from '@context/ThemeContext';
 
@@ -114,21 +115,22 @@ function App() {
   return (
     <ThemeContextProvider>
       <CssBaseline />
-      <FirstLoginPasswordChangeDialog
-        open={showPasswordDialog}
-        onClose={() => setShowPasswordDialog(false)}
-        onPasswordChanged={() => {
-          setShowPasswordDialog(false);
-          clearPasswordChangeRequirement();
-        }}
-      />
-      <Router
-        future={{
-          v7_startTransition: true,
-          v7_relativeSplatPath: true,
-        }}
-      >
-        <Routes>
+      <ErrorBoundary>
+        <FirstLoginPasswordChangeDialog
+          open={showPasswordDialog}
+          onClose={() => setShowPasswordDialog(false)}
+          onPasswordChanged={() => {
+            setShowPasswordDialog(false);
+            clearPasswordChangeRequirement();
+          }}
+        />
+        <Router
+          future={{
+            v7_startTransition: true,
+            v7_relativeSplatPath: true,
+          }}
+        >
+          <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route
             path="/dashboard"
@@ -301,8 +303,9 @@ function App() {
             }
           />
           <Route path="/" element={<RootRoute />} />
-        </Routes>
-      </Router>
+          </Routes>
+        </Router>
+      </ErrorBoundary>
     </ThemeContextProvider>
   );
 }
