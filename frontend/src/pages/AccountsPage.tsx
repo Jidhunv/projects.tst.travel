@@ -86,29 +86,21 @@ export default function AccountsPage() {
   const [orgUsers, setOrgUsers] = React.useState<any[]>([]);
   const [acctFilters, setAcctFilters] = React.useState({ search: '', city: '', region: '', country: '' });
 
-  // Load countries, teams and users on component mount
+  // Load countries, teams and users on component mount (parallel for speed)
   React.useEffect(() => {
-    const loadCountries = async () => {
-      try {
-        const response = await api.getCountries();
-        if (response.data.success && Array.isArray(response.data.data)) {
-          setCountries(response.data.data);
-        }
-      } catch (error) {
-        console.error('Error loading countries:', error);
+    Promise.all([
+      api.getCountries(),
+      api.getTeams(),
+      api.getUsers(1, 500),
+    ]).then(([c, t, u]) => {
+      if (c.data.success && Array.isArray(c.data.data)) {
+        setCountries(c.data.data);
       }
-    };
-    const loadAssignable = async () => {
-      try {
-        const [t, u] = await Promise.all([api.getTeams(), api.getUsers(1, 500)]);
-        setTeams(t.data.data || []);
-        setOrgUsers(u.data.data || []);
-      } catch (error) {
-        console.error('Error loading teams/users:', error);
-      }
-    };
-    loadCountries();
-    loadAssignable();
+      setTeams(t.data.data || []);
+      setOrgUsers(u.data.data || []);
+    }).catch(error => {
+      console.error('Error loading data:', error);
+    });
   }, []);
 
   const teamName = (id: string) => teams.find((t) => t.id === id)?.name || id;

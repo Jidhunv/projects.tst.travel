@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box,
   Table,
@@ -30,6 +30,7 @@ import Layout from '@components/Layout';
 import AssignOwner from '@components/AssignOwner';
 import ConfirmDialog from '@components/ConfirmDialog';
 import useAuth from '@hooks/useAuth';
+import { debounce } from '@utils/debounce';
 import { apiClient, api } from '../services/api';
 import { Lead, Account } from '../types';
 import { formatCurrency } from '@utils/format';
@@ -64,11 +65,18 @@ export default function LeadsPage() {
   const [confirmDelete, setConfirmDelete] = useState<{ open: boolean; leadId: string | null }>({ open: false, leadId: null });
 
   // Filters
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(''); // Actual search value (used for API)
+  const [searchLocal, setSearchLocal] = useState(''); // Local state for instant UI feedback
   const [statusFilter, setStatusFilter] = useState('');
   const [sourceFilter, setSourceFilter] = useState('');
   const [dateFromFilter, setDateFromFilter] = useState('');
   const [dateToFilter, setDateToFilter] = useState('');
+
+  // Debounce search input - 300ms delay to reduce API calls
+  const debouncedSearch = useMemo(
+    () => debounce((val: string) => setSearch(val), 300),
+    []
+  );
 
   // Dialogs
   const [openCreate, setOpenCreate] = useState(false);
@@ -143,16 +151,16 @@ export default function LeadsPage() {
   }, []);
 
   useEffect(() => {
-    apiClient.get('/products').then((r) => setProducts(r.data.data || []));
-    apiClient.get('/suppliers').then((r) => setSuppliers(r.data.data || [])).catch(() => {});
-    loadAccounts();
+    // Load data once on component mount (parallel for speed)
+    Promise.all([
+      apiClient.get('/products'),
+      apiClient.get('/suppliers').catch(() => {}),
+      loadAccounts(),
+    ]).then(([p, s]) => {
+      setProducts(p.data.data || []);
+      if (s) setSuppliers(s.data.data || []);
+    });
   }, [loadAccounts]);
-
-  // Refetch when the create dialog opens so a load that failed on mount, or an
-  // account added since, doesn't leave the dropdown stuck empty until a reload.
-  useEffect(() => {
-    if (openCreate) loadAccounts();
-  }, [openCreate, loadAccounts]);
 
   const handleCreate = async () => {
     try {
@@ -333,8 +341,11 @@ export default function LeadsPage() {
                 <OutlinedInput
                   fullWidth
                   placeholder="Search by name, email, company..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  value={searchLocal}
+                  onChange={(e) => {
+                    setSearchLocal(e.target.value); // Instant UI feedback
+                    debouncedSearch(e.target.value); // Debounced API call
+                  }}
                   startAdornment={
                     <InputAdornment position="start">
                       <SearchIcon />
