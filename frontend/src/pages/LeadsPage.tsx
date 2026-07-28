@@ -25,9 +25,11 @@ import {
   ToggleButton,
   ToggleButtonGroup,
 } from '@mui/material';
-import { Search as SearchIcon, ViewAgendaOutlined as ListIcon, ViewWeekOutlined as KanbanIcon } from '@mui/icons-material';
+import { Search as SearchIcon, ViewAgendaOutlined as ListIcon, ViewWeekOutlined as KanbanIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import Layout from '@components/Layout';
 import AssignOwner from '@components/AssignOwner';
+import ConfirmDialog from '@components/ConfirmDialog';
+import useAuth from '@hooks/useAuth';
 import { apiClient, api } from '../services/api';
 import { Lead, Account } from '../types';
 import { formatCurrency } from '@utils/format';
@@ -46,6 +48,9 @@ const statusDisplay: Record<string, string> = {
 };
 
 export default function LeadsPage() {
+  const { hasPermission } = useAuth();
+  const canDelete = hasPermission('leads', 'delete');
+
   const [leads, setLeads] = useState<Lead[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -56,6 +61,7 @@ export default function LeadsPage() {
   const [accountsLoading, setAccountsLoading] = useState(false);
   const [accountsError, setAccountsError] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list');
+  const [confirmDelete, setConfirmDelete] = useState<{ open: boolean; leadId: string | null }>({ open: false, leadId: null });
 
   // Filters
   const [search, setSearch] = useState('');
@@ -248,18 +254,19 @@ export default function LeadsPage() {
     }
   };
 
-  const handleDelete = async (leadId: string) => {
-    if (window.confirm('Are you sure you want to delete this lead?')) {
-      try {
-        await apiClient.delete(`/leads/${leadId}`);
-        fetchLeads();
-      } catch (error: any) {
-        // Surface the real reason (e.g. a 403 permission message) instead of
-        // silently doing nothing, which looks like "I can't delete".
-        const msg = error?.response?.data?.error || error?.message || 'Failed to delete lead';
-        console.error('Error deleting lead:', error);
-        alert(msg);
-      }
+  const handleDelete = (leadId: string) => {
+    setConfirmDelete({ open: true, leadId });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!confirmDelete.leadId) return;
+    try {
+      await apiClient.delete(`/leads/${confirmDelete.leadId}`);
+      setConfirmDelete({ open: false, leadId: null });
+      fetchLeads();
+    } catch (error: any) {
+      console.error('Error deleting lead:', error);
+      setConfirmDelete({ open: false, leadId: null });
     }
   };
 
@@ -453,9 +460,11 @@ export default function LeadsPage() {
                         Edit
                       </Button>
                       <AssignOwner module="leads" recordId={lead.id} currentOwnerId={(lead as any).ownerId} currentAssigneeIds={(lead as any).assigneeIds} onAssigned={fetchLeads} />
-                      <Button size="small" variant="text" color="error" onClick={() => handleDelete(lead.id)}>
-                        Delete
-                      </Button>
+                      {canDelete && (
+                        <Button size="small" variant="text" color="error" onClick={() => handleDelete(lead.id)}>
+                          Delete
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -878,6 +887,17 @@ export default function LeadsPage() {
             </Button>
           </DialogActions>
         </Dialog>
+
+        <ConfirmDialog
+          open={confirmDelete.open}
+          title="Delete Lead"
+          message="Are you sure you want to delete this lead? This cannot be undone."
+          confirmText="Delete"
+          cancelText="Cancel"
+          variant="danger"
+          onConfirm={handleConfirmDelete}
+          onCancel={() => setConfirmDelete({ open: false, leadId: null })}
+        />
       </Box>
     </Layout>
   );

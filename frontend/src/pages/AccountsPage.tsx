@@ -20,6 +20,9 @@ import { Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import Layout from '@components/Layout';
 import DataTable from '@components/DataTable';
 import AssignOwner from '@components/AssignOwner';
+import ConfirmDialog from '@components/ConfirmDialog';
+import SearchableSelect from '@components/SearchableSelect';
+import useAuth from '@hooks/useAuth';
 import { api } from '@services/api';
 import { Account } from '../types';
 import { formatCurrency } from '@utils/format';
@@ -45,6 +48,9 @@ const onboardingStatusColor: Record<string, any> = {
 };
 
 export default function AccountsPage() {
+  const { hasPermission } = useAuth();
+  const canDelete = hasPermission('accounts', 'delete');
+
   const [accounts, setAccounts] = React.useState<Account[]>([]);
   const [total, setTotal] = React.useState(0);
   const [page, setPage] = React.useState(1);
@@ -57,6 +63,7 @@ export default function AccountsPage() {
   const [openEdit, setOpenEdit] = React.useState(false);
   const [editingAccount, setEditingAccount] = React.useState<Account | null>(null);
   const [tabValue, setTabValue] = React.useState(0);
+  const [confirmDelete, setConfirmDelete] = React.useState<{ open: boolean; account: Account | null }>({ open: false, account: null });
 
   const [formData, setFormData] = React.useState({
     name: '',
@@ -256,15 +263,18 @@ export default function AccountsPage() {
     }
   };
 
-  const handleDeleteAccount = async (account: Account) => {
-    if (!window.confirm(`Delete account "${account.name}"? This cannot be undone.`)) return;
+  const handleDeleteAccount = (account: Account) => {
+    setConfirmDelete({ open: true, account });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!confirmDelete.account) return;
     try {
-      await api.deleteAccount(account.id);
+      await api.deleteAccount(confirmDelete.account.id);
       setToast({ msg: 'Account deleted', sev: 'success' });
+      setConfirmDelete({ open: false, account: null });
       fetchAccounts();
     } catch (error: any) {
-      // Surface the real reason (e.g. a 403, or a 409 if the account still has
-      // related records) instead of failing silently.
       setToast({ msg: error.response?.data?.error || 'Failed to delete account', sev: 'error' });
     }
   };
@@ -302,9 +312,11 @@ export default function AccountsPage() {
           <Button size="small" variant="outlined" startIcon={<EditIcon />} onClick={() => handleEditClick(r)}>
             Edit
           </Button>
-          <Button size="small" variant="outlined" color="error" startIcon={<DeleteIcon />} onClick={() => handleDeleteAccount(r)}>
-            Delete
-          </Button>
+          {canDelete && (
+            <Button size="small" variant="outlined" color="error" startIcon={<DeleteIcon />} onClick={() => handleDeleteAccount(r)}>
+              Delete
+            </Button>
+          )}
         </Box>
       ),
     },
@@ -646,6 +658,17 @@ export default function AccountsPage() {
             </Button>
           </DialogActions>
         </Dialog>
+
+        <ConfirmDialog
+          open={confirmDelete.open}
+          title="Delete Account"
+          message={`Delete account "${confirmDelete.account?.name}"? This cannot be undone.`}
+          confirmText="Delete"
+          cancelText="Cancel"
+          variant="danger"
+          onConfirm={handleConfirmDelete}
+          onCancel={() => setConfirmDelete({ open: false, account: null })}
+        />
 
         <Snackbar open={!!toast} autoHideDuration={3500} onClose={() => setToast(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}>
           {toast ? (

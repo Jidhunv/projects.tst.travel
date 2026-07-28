@@ -28,6 +28,8 @@ import {
 import { Search as SearchIcon, ViewAgendaOutlined as ListIcon, ViewWeekOutlined as KanbanIcon } from '@mui/icons-material';
 import Layout from '@components/Layout';
 import AssignOwner from '@components/AssignOwner';
+import ConfirmDialog from '@components/ConfirmDialog';
+import useAuth from '@hooks/useAuth';
 import { apiClient } from '../services/api';
 import { Opportunity } from '../types';
 import { formatCurrency } from '@utils/format';
@@ -42,12 +44,16 @@ const stageColor: Record<string, 'info' | 'primary' | 'success' | 'error' | 'war
 };
 
 export default function OpportunitiesPage() {
+  const { hasPermission } = useAuth();
+  const canDelete = hasPermission('opportunities', 'delete');
+
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [loading, setLoading] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list');
+  const [confirmDelete, setConfirmDelete] = useState<{ open: boolean; oppId: string | null }>({ open: false, oppId: null });
 
   // Filters
   const [search, setSearch] = useState('');
@@ -149,14 +155,18 @@ export default function OpportunitiesPage() {
     }
   };
 
-  const handleDelete = async (opportunityId: string) => {
-    if (window.confirm('Are you sure you want to delete this opportunity?')) {
-      try {
-        await apiClient.delete(`/opportunities/${opportunityId}`);
-        fetchOpportunities();
-      } catch (error) {
-        console.error('Error deleting opportunity:', error);
-      }
+  const handleDelete = (opportunityId: string) => {
+    setConfirmDelete({ open: true, oppId: opportunityId });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!confirmDelete.oppId) return;
+    try {
+      await apiClient.delete(`/opportunities/${confirmDelete.oppId}`);
+      setConfirmDelete({ open: false, oppId: null });
+      fetchOpportunities();
+    } catch (error) {
+      console.error('Error deleting opportunity:', error);
     }
   };
 
@@ -362,9 +372,11 @@ export default function OpportunitiesPage() {
                         Edit
                       </Button>
                       <AssignOwner module="opportunities" recordId={opp.id} currentOwnerId={(opp as any).ownerId} currentAssigneeIds={(opp as any).assigneeIds} onAssigned={fetchOpportunities} />
-                      <Button size="small" variant="text" color="error" onClick={() => handleDelete(opp.id)}>
-                        Delete
-                      </Button>
+                      {canDelete && (
+                        <Button size="small" variant="text" color="error" onClick={() => handleDelete(opp.id)}>
+                          Delete
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -565,6 +577,16 @@ export default function OpportunitiesPage() {
             </Button>
           </DialogActions>
         </Dialog>
+        <ConfirmDialog
+          open={confirmDelete.open}
+          title="Delete Opportunity"
+          message="Are you sure you want to delete this opportunity? This cannot be undone."
+          confirmText="Delete"
+          cancelText="Cancel"
+          variant="danger"
+          onConfirm={handleConfirmDelete}
+          onCancel={() => setConfirmDelete({ open: false, oppId: null })}
+        />
       </Box>
     </Layout>
   );

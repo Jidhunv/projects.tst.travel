@@ -5,6 +5,7 @@ import {
   Stack, MenuItem, Checkbox, FormControlLabel, Card, CardContent, Chip,
 } from '@mui/material';
 import Layout from '@components/Layout';
+import ConfirmDialog from '@components/ConfirmDialog';
 import { api } from '@services/api';
 import useAuth from '@hooks/useAuth';
 import { exportToCsv } from '@utils/exportCsv';
@@ -34,6 +35,7 @@ export const SalesVisitsPage: React.FC = () => {
   const [form, setForm] = useState<any>(empty);
   // Full record of the visit being edited (holds accumulating followups)
   const [editingVisit, setEditingVisit] = useState<any>(null);
+  const [confirmDelete, setConfirmDelete] = useState<{ open: boolean; id: string | null }>({ open: false, id: null });
 
   const load = async () => {
     const params: any = {};
@@ -113,10 +115,20 @@ export const SalesVisitsPage: React.FC = () => {
       alert(e.response?.data?.error || 'Failed to save sales visit');
     }
   };
-  const remove = async (id: string) => {
-    if (!window.confirm('Delete this record?')) return;
-    await api.deleteSalesVisit(id);
-    load();
+  const remove = (id: string) => {
+    setConfirmDelete({ open: true, id });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!confirmDelete.id) return;
+    try {
+      await api.deleteSalesVisit(confirmDelete.id);
+      setConfirmDelete({ open: false, id: null });
+      load();
+    } catch (error: any) {
+      console.error('Error deleting sales visit:', error);
+      setConfirmDelete({ open: false, id: null });
+    }
   };
 
   const handleAccountChange = (accountId: string) => {
@@ -383,6 +395,17 @@ export const SalesVisitsPage: React.FC = () => {
             </Button>
           </DialogActions>
         </Dialog>
+
+        <ConfirmDialog
+          open={confirmDelete.open}
+          title="Delete Sales Visit"
+          message="Are you sure you want to delete this sales visit record? This cannot be undone."
+          confirmText="Delete"
+          cancelText="Cancel"
+          variant="danger"
+          onConfirm={handleConfirmDelete}
+          onCancel={() => setConfirmDelete({ open: false, id: null })}
+        />
       </Box>
     </Layout>
   );
