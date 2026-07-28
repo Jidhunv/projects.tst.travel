@@ -7,14 +7,18 @@ interface AccountFilters {
   status?: string;
   type?: string;
   ownerId?: string;
-  // "team" (group) scope OR-set. When teamScope is true, an account is visible
-  // if it matches ANY of: owner in ownerIds (self + co-members), the caller is
-  // an assigned user (assigneeSelfId within assigneeIds), or the account is
-  // explicitly assigned to one of the caller's teams (id in teamAccountIds).
+  // "team" scope: visibility follows the account -> team link. An account is
+  // visible if ANY holds:
+  //   * the caller is an assigned user (selfId within assigneeIds), or
+  //   * the account is linked to a team the caller SUPERVISES
+  //     (id in supervisedAccountIds), or
+  //   * the caller is the creator/owner AND the account is either linked to no
+  //     team, or linked to a team the caller is a MEMBER of (id in
+  //     memberAccountIds).
   teamScope?: boolean;
-  ownerIds?: string[];
-  assigneeSelfId?: string;
-  teamAccountIds?: string[];
+  selfId?: string;
+  supervisedAccountIds?: string[];
+  memberAccountIds?: string[];
   city?: string;
   region?: string;
   country?: string;
@@ -107,21 +111,27 @@ export class AccountService {
       query.andWhere('account.type = :type', { type: where.type });
     }
     if (where.teamScope) {
-      // Team/group scope: visible if owned by self/a co-member, OR the caller is
-      // an assigned user, OR the account is assigned to one of the caller's teams.
+      // Visibility follows the account -> team link (see AccountFilters).
       const clauses: string[] = [];
       const params: any = {};
-      if (where.ownerIds && where.ownerIds.length) {
-        clauses.push('account.ownerId IN (:...tsOwnerIds)');
-        params.tsOwnerIds = where.ownerIds;
-      }
-      if (where.assigneeSelfId) {
+      if (where.selfId) {
         clauses.push('account.assigneeIds LIKE :tsSelfLike');
-        params.tsSelfLike = `%${where.assigneeSelfId}%`;
+        params.tsSelfLike = `%${where.selfId}%`;
       }
-      if (where.teamAccountIds && where.teamAccountIds.length) {
-        clauses.push('account.id IN (:...tsAccountIds)');
-        params.tsAccountIds = where.teamAccountIds;
+      if (where.supervisedAccountIds && where.supervisedAccountIds.length) {
+        clauses.push('account.id IN (:...tsSupIds)');
+        params.tsSupIds = where.supervisedAccountIds;
+      }
+      if (where.selfId) {
+        // Creator sees own accounts that are untethered, or linked to a team
+        // they are still a member of.
+        const ownParts = ['account.id NOT IN (SELECT "accountId" FROM account_teams)'];
+        if (where.memberAccountIds && where.memberAccountIds.length) {
+          ownParts.push('account.id IN (:...tsMemIds)');
+          params.tsMemIds = where.memberAccountIds;
+        }
+        clauses.push(`(account.ownerId = :tsSelf AND (${ownParts.join(' OR ')}))`);
+        params.tsSelf = where.selfId;
       }
       query.andWhere(clauses.length ? `(${clauses.join(' OR ')})` : '1=0', params);
     } else if (where.ownerId) {

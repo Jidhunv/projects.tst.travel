@@ -17,17 +17,18 @@ async function assertAccountScope(req: AuthRequest, account: { id: string; owner
   const uid = req.user!.id;
   const isOwnerOrAssignee = account.ownerId === uid || (Array.isArray(account.assigneeIds) && account.assigneeIds.includes(uid));
   if (scope === 'team') {
-    if (isOwnerOrAssignee) return;
-    // Supervisor: owner is a member of a team the caller supervises.
-    const supervisedMembers = await teamService.getSupervisedMemberUserIds(uid);
-    if (supervisedMembers.includes(account.ownerId)) return;
-    // Explicitly assigned to a team the caller is a member of.
-    const [myTeams, acctTeams] = await Promise.all([
+    // Assigned directly to the caller?
+    if (Array.isArray(account.assigneeIds) && account.assigneeIds.includes(uid)) return;
+    const [supTeams, memTeams, acctTeams] = await Promise.all([
+      teamService.getSupervisedTeamIds(uid),
       teamService.getUserTeamIds(uid),
       accountService.getAccountTeamIds(account.id),
     ]);
-    if (acctTeams.some((t) => myTeams.includes(t))) return;
-    throw new AppError(403, 'You can only access accounts assigned to you or that you supervise');
+    // Supervisor of a team the account is linked to?
+    if (acctTeams.some((t) => supTeams.includes(t))) return;
+    // Creator, and the account is untethered or linked to a team they're still in?
+    if (account.ownerId === uid && (acctTeams.length === 0 || acctTeams.some((t) => memTeams.includes(t)))) return;
+    throw new AppError(403, 'You do not have access to this account');
   }
   if (scope === 'self') {
     if (isOwnerOrAssignee) return;
@@ -94,6 +95,12 @@ export class AccountController {
         ownerId: req.user!.id,
       });
 
+      // Auto-link the new account to every team the creator is a member of, so
+      // those teams' supervisors can see it. A creator in no team => untethered
+      // (private to the creator). Applies to every create path (this controller).
+      const creatorTeamIds = await teamService.getUserTeamIds(req.user!.id);
+      if (creatorTeamIds.length) await accountService.setAccountTeams(account.id, creatorTeamIds);
+
       logger.info(`Account created: ${account.name} by ${req.user!.email}`);
 
       return res.status(201).json({
@@ -116,22 +123,30 @@ export class AccountController {
       const scope = getReadScope(req.user, 'accounts');
       let effectiveOwnerId: string | undefined;
       let teamScope = false;
-      let ownerIds: string[] | undefined;
-      let assigneeSelfId: string | undefined;
-      let teamAccountIds: string[] | undefined;
+      let selfId: string | undefined;
+      let supAccts: string[] | undefined;
+      let memAccts: string[] | undefined;
       if (scope === 'all') {
         effectiveOwnerId = ownerId as string;
       } else if (scope === 'team') {
         const uid = req.user!.id;
-        // Automatic: a supervisor sees accounts owned by members of the teams
-        // they supervise. Explicit: accounts assigned to a team the caller is a
-        // member of, or assigned to the caller directly.
-        const supervisedMembers = await teamService.getSupervisedMemberUserIds(uid);
-        const myTeamIds = await teamService.getUserTeamIds(uid);
+        // Visibility follows the account -> team link:
+        //  - supervisor sees every account linked to a team they supervise
+        //  - creator sees own accounts that are untethered or linked to a team
+        //    they are still a member of
+        //  - plus any account assigned directly to them (assigneeIds)
+        const [supTeams, memTeams] = await Promise.all([
+          teamService.getSupervisedTeamIds(uid),
+          teamService.getUserTeamIds(uid),
+        ]);
+        const [supervisedAccountIds, memberAccountIds] = await Promise.all([
+          accountService.getAccountIdsForTeams(supTeams),
+          accountService.getAccountIdsForTeams(memTeams),
+        ]);
         teamScope = true;
-        ownerIds = [...new Set([uid, ...supervisedMembers])];
-        assigneeSelfId = uid;
-        teamAccountIds = await accountService.getAccountIdsForTeams(myTeamIds);
+        selfId = uid;
+        supAccts = supervisedAccountIds;
+        memAccts = memberAccountIds;
       } else {
         effectiveOwnerId = req.user!.id;
       }
@@ -143,9 +158,9 @@ export class AccountController {
         type: type as string,
         ownerId: effectiveOwnerId,
         teamScope,
-        ownerIds,
-        assigneeSelfId,
-        teamAccountIds,
+        selfId,
+        supervisedAccountIds: supAccts,
+        memberAccountIds: memAccts,
         search: search as string,
         city: city as string,
         region: region as string,
