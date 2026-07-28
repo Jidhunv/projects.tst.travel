@@ -358,27 +358,14 @@ export default function OpportunitiesPage() {
               </TableHead>
               <TableBody>
                 {opportunities.map((opp) => (
-                  <TableRow key={opp.id}>
-                    <TableCell sx={{ fontWeight: 'bold' }}>{opp.name}</TableCell>
-                    <TableCell align="right">{formatCurrency(opp.amount)}</TableCell>
-                    <TableCell>
-                      <Chip label={opp.stage} color={stageColor[opp.stage] || 'default'} size="small" />
-                    </TableCell>
-                    <TableCell>{opp.country || '-'}</TableCell>
-                    <TableCell>{opp.probability}%</TableCell>
-                    <TableCell>{new Date(opp.forecastedCloseDate).toLocaleDateString()}</TableCell>
-                    <TableCell>
-                      <Button size="small" variant="text" onClick={() => handleOpenEdit(opp)}>
-                        Edit
-                      </Button>
-                      <AssignOwner module="opportunities" recordId={opp.id} currentOwnerId={(opp as any).ownerId} currentAssigneeIds={(opp as any).assigneeIds} onAssigned={fetchOpportunities} />
-                      {canDelete && (
-                        <Button size="small" variant="text" color="error" onClick={() => handleDelete(opp.id)}>
-                          Delete
-                        </Button>
-                      )}
-                    </TableCell>
-                  </TableRow>
+                  <OpportunityTableRow
+                    key={opp.id}
+                    opp={opp}
+                    onEdit={handleOpenEdit}
+                    onDelete={handleDelete}
+                    canDelete={canDelete}
+                    onAssigned={fetchOpportunities}
+                  />
                 ))}
               </TableBody>
             </Table>
@@ -591,3 +578,48 @@ export default function OpportunitiesPage() {
     </Layout>
   );
 }
+
+// Memoized table row to prevent re-renders on parent state changes
+const OpportunityTableRow = React.memo(
+  ({
+    opp,
+    onEdit,
+    onDelete,
+    canDelete,
+    onAssigned,
+  }: {
+    opp: Opportunity;
+    onEdit: (opp: Opportunity) => void;
+    onDelete: (id: string) => void;
+    canDelete: boolean;
+    onAssigned: () => void;
+  }) => (
+    <TableRow>
+      <TableCell sx={{ fontWeight: 'bold' }}>{opp.name}</TableCell>
+      <TableCell align="right">{formatCurrency(opp.amount)}</TableCell>
+      <TableCell>
+        <Chip label={opp.stage} color={stageColor[opp.stage] || 'default'} size="small" />
+      </TableCell>
+      <TableCell>{opp.country || '-'}</TableCell>
+      <TableCell>{opp.probability}%</TableCell>
+      <TableCell>{new Date(opp.forecastedCloseDate).toLocaleDateString()}</TableCell>
+      <TableCell>
+        <Button size="small" variant="text" onClick={() => onEdit(opp)}>
+          Edit
+        </Button>
+        <AssignOwner
+          module="opportunities"
+          recordId={opp.id}
+          currentOwnerId={(opp as any).ownerId}
+          currentAssigneeIds={(opp as any).assigneeIds}
+          onAssigned={onAssigned}
+        />
+        {canDelete && (
+          <Button size="small" variant="text" color="error" onClick={() => onDelete(opp.id)}>
+            Delete
+          </Button>
+        )}
+      </TableCell>
+    </TableRow>
+  )
+);

@@ -78,6 +78,13 @@ export default function LeadsPage() {
     []
   );
 
+  // Memoize kanban columns to prevent recalculation on every render
+  const kanbanColumns = useMemo(() => [
+    { key: 'Open', statuses: ['Open'], label: 'Open' },
+    { key: 'Converted', statuses: ['Qualified', 'Converted'], label: 'Converted' },
+    { key: 'Disqualified', statuses: ['Disqualified'], label: 'Disqualified' }
+  ], []);
+
   // Dialogs
   const [openCreate, setOpenCreate] = useState(false);
   const [openEdit, setOpenEdit] = useState<Lead | null>(null);
@@ -449,35 +456,14 @@ export default function LeadsPage() {
               </TableHead>
               <TableBody>
                 {leads.map((lead) => (
-                  <TableRow key={lead.id}>
-                    <TableCell sx={{ fontWeight: 'bold' }}>
-                      {lead.firstName} {lead.lastName}
-                    </TableCell>
-                    <TableCell>{lead.email}</TableCell>
-                    <TableCell>{lead.company || '-'}</TableCell>
-                    <TableCell>{lead.country || '-'}</TableCell>
-                    <TableCell>{formatCurrency(lead.value)}</TableCell>
-                    <TableCell>
-                      <Chip label={statusDisplay[lead.status] || lead.status} color={statusColor[lead.status] || 'default'} size="small" />
-                    </TableCell>
-                    <TableCell>
-                      {(lead as any).productNames && (lead as any).productNames.length > 0
-                        ? (lead as any).productNames.join(', ')
-                        : lead.productName || '-'}
-                    </TableCell>
-                    <TableCell>{new Date(lead.createdAt).toLocaleDateString()}</TableCell>
-                    <TableCell>
-                      <Button size="small" variant="text" onClick={() => handleOpenEdit(lead)}>
-                        Edit
-                      </Button>
-                      <AssignOwner module="leads" recordId={lead.id} currentOwnerId={(lead as any).ownerId} currentAssigneeIds={(lead as any).assigneeIds} onAssigned={fetchLeads} />
-                      {canDelete && (
-                        <Button size="small" variant="text" color="error" onClick={() => handleDelete(lead.id)}>
-                          Delete
-                        </Button>
-                      )}
-                    </TableCell>
-                  </TableRow>
+                  <LeadTableRow
+                    key={lead.id}
+                    lead={lead}
+                    onEdit={handleOpenEdit}
+                    onDelete={handleDelete}
+                    canDelete={canDelete}
+                    onAssigned={fetchLeads}
+                  />
                 ))}
               </TableBody>
             </Table>
@@ -487,11 +473,7 @@ export default function LeadsPage() {
         {/* Kanban View */}
         {viewMode === 'kanban' && (
           <Box sx={{ display: 'flex', gap: 2, overflowX: 'auto', pb: 2 }}>
-            {[
-              { key: 'Open', statuses: ['Open'], label: 'Open' },
-              { key: 'Converted', statuses: ['Qualified', 'Converted'], label: 'Converted' },
-              { key: 'Disqualified', statuses: ['Disqualified'], label: 'Disqualified' }
-            ].map((column) => {
+            {kanbanColumns.map((column) => {
               const statusLeads = leads.filter((lead) => column.statuses.includes(lead.status));
               return (
                 <Box
@@ -913,3 +895,60 @@ export default function LeadsPage() {
     </Layout>
   );
 }
+
+// Memoized table row to prevent re-renders on parent state changes
+const LeadTableRow = React.memo(
+  ({
+    lead,
+    onEdit,
+    onDelete,
+    canDelete,
+    onAssigned,
+  }: {
+    lead: Lead;
+    onEdit: (lead: Lead) => void;
+    onDelete: (id: string) => void;
+    canDelete: boolean;
+    onAssigned: () => void;
+  }) => (
+    <TableRow>
+      <TableCell sx={{ fontWeight: 'bold' }}>
+        {lead.firstName} {lead.lastName}
+      </TableCell>
+      <TableCell>{lead.email}</TableCell>
+      <TableCell>{lead.company || '-'}</TableCell>
+      <TableCell>{lead.country || '-'}</TableCell>
+      <TableCell>{formatCurrency(lead.value)}</TableCell>
+      <TableCell>
+        <Chip
+          label={statusDisplay[lead.status] || lead.status}
+          color={statusColor[lead.status] || 'default'}
+          size="small"
+        />
+      </TableCell>
+      <TableCell>
+        {(lead as any).productNames && (lead as any).productNames.length > 0
+          ? (lead as any).productNames.join(', ')
+          : lead.productName || '-'}
+      </TableCell>
+      <TableCell>{new Date(lead.createdAt).toLocaleDateString()}</TableCell>
+      <TableCell>
+        <Button size="small" variant="text" onClick={() => onEdit(lead)}>
+          Edit
+        </Button>
+        <AssignOwner
+          module="leads"
+          recordId={lead.id}
+          currentOwnerId={(lead as any).ownerId}
+          currentAssigneeIds={(lead as any).assigneeIds}
+          onAssigned={onAssigned}
+        />
+        {canDelete && (
+          <Button size="small" variant="text" color="error" onClick={() => onDelete(lead.id)}>
+            Delete
+          </Button>
+        )}
+      </TableCell>
+    </TableRow>
+  )
+);
