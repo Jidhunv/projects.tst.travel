@@ -35,6 +35,7 @@ export interface Lead {
   email: string;
   phoneNumber?: string;
   company?: string;
+  country?: string;
   jobTitle?: string;
   source?: string;
   status: 'Open' | 'Qualified' | 'Disqualified' | 'Converted';
@@ -90,6 +91,8 @@ export interface Account {
   accountManager?: string;
   billingContact?: string;
   technicalContact?: string;
+  createdBy?: string;
+  creator?: User;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -125,6 +128,7 @@ export interface Opportunity {
   description?: string;
   forecastedCloseDate: Date;
   probability: number;
+  country?: string;
   account: Account;
   primaryContact?: Contact;
   owner: User;

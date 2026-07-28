@@ -46,6 +46,7 @@ export class AccountService {
     region?: string;
     country?: string;
     ownerId: string;
+    createdBy?: string;
   }): Promise<Account> {
     // Check for duplicate account name (case-insensitive)
     const existingAccount = await this.accountRepository
@@ -78,7 +79,7 @@ export class AccountService {
   async getAccountById(id: string): Promise<Account> {
     const account = await this.accountRepository.findOne({
       where: { id },
-      relations: ['owner', 'contacts', 'opportunities'],
+      relations: ['owner', 'creator', 'contacts', 'opportunities'],
     });
 
     if (!account) {
@@ -95,6 +96,7 @@ export class AccountService {
     const query = this.accountRepository
       .createQueryBuilder('account')
       .leftJoinAndSelect('account.owner', 'owner')
+      .leftJoinAndSelect('account.creator', 'creator')
       .leftJoinAndSelect('account.contacts', 'contacts');
 
     if (search) {

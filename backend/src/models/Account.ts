@@ -66,6 +66,13 @@ export class Account {
   @Column()
   ownerId: string;
 
+  @ManyToOne(() => User, { nullable: true })
+  @JoinColumn({ name: 'createdBy' })
+  creator: User;
+
+  @Column({ nullable: true })
+  createdBy: string;
+
   // The team this account is assigned to. With "team" scope, any member of
   // this team or an ancestor team can see the account. Null = unassigned
   // (visible only via ownerId/assigneeIds as before).

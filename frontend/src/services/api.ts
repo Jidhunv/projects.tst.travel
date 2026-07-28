@@ -270,6 +270,8 @@ export const api = {
   getTeamMembers: (id: string) => apiClient.get<ApiResponse<any[]>>(`/teams/${id}/members`),
   setUserTeam: (teamId: string, userId: string) =>
     apiClient.post<ApiResponse<any>>(`/teams/${teamId}/members`, { userId }),
+  removeUserFromTeam: (teamId: string, userId: string) =>
+    apiClient.delete<ApiResponse<any>>(`/teams/${teamId}/members/${userId}`),
 
   // Sales visits / calls (Sales Report source)
   getSalesVisits: (filters?: Record<string, any>) =>

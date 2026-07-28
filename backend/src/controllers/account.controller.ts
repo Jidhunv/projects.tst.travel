@@ -93,6 +93,7 @@ export class AccountController {
         region,
         country,
         ownerId: req.user!.id,
+        createdBy: req.user!.id,
       });
 
       // Auto-link the new account to every team the creator is a member of, so

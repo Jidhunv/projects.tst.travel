@@ -273,7 +273,16 @@ export default function AccountsPage() {
     { id: 'name', label: 'Account Name' },
     { id: 'industry', label: 'Industry' },
     { id: 'type', label: 'Type' },
+    { id: 'country', label: 'Country' },
     { id: 'phoneNumber', label: 'Phone' },
+    {
+      id: 'creator',
+      label: 'Creator',
+      render: (r: Account) => {
+        const creatorName = r.creator ? `${r.creator.firstName} ${r.creator.lastName}` : 'Unknown';
+        return <Typography variant="body2">{creatorName}</Typography>;
+      },
+    },
     {
       id: 'onboardingStatus',
       label: 'Onboarding',
@@ -444,6 +453,12 @@ export default function AccountsPage() {
                   fullWidth
                   error={!!duplicateWarning}
                   helperText={duplicateWarning}
+                />
+                <TextField
+                  label="Creator"
+                  value={editingAccount?.creator ? `${editingAccount.creator.firstName} ${editingAccount.creator.lastName}` : 'Unknown'}
+                  fullWidth
+                  disabled
                 />
                 <TextField
                   label="Industry"

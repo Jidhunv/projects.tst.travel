@@ -114,7 +114,8 @@ const useAuth = create<AuthState>((set, get) => ({
     const perms = state.permissions || [];
     return (
       perms.includes(`${module}:${action}:all`) ||
-      perms.includes(`${module}:${action}:self`)
+      perms.includes(`${module}:${action}:self`) ||
+      perms.includes(`${module}:${action}:team`)
     );
   },
 

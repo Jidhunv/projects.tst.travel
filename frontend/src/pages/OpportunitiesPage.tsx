@@ -340,6 +340,7 @@ export default function OpportunitiesPage() {
                   <TableCell>Opportunity Name</TableCell>
                   <TableCell align="right">Amount</TableCell>
                   <TableCell>Stage</TableCell>
+                  <TableCell>Country</TableCell>
                   <TableCell>Probability</TableCell>
                   <TableCell>Close Date</TableCell>
                   <TableCell>Actions</TableCell>
@@ -353,6 +354,7 @@ export default function OpportunitiesPage() {
                     <TableCell>
                       <Chip label={opp.stage} color={stageColor[opp.stage] || 'default'} size="small" />
                     </TableCell>
+                    <TableCell>{opp.country || '-'}</TableCell>
                     <TableCell>{opp.probability}%</TableCell>
                     <TableCell>{new Date(opp.forecastedCloseDate).toLocaleDateString()}</TableCell>
                     <TableCell>

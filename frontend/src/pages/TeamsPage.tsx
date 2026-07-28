@@ -2,8 +2,9 @@ import React, { useEffect, useState } from 'react';
 import {
   Box, Typography, Button, Paper, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, Dialog, DialogTitle, DialogContent, DialogActions, TextField,
-  MenuItem, Chip, Card, CardContent, Autocomplete, Snackbar, Alert,
+  MenuItem, Chip, Card, CardContent, Autocomplete, Snackbar, Alert, IconButton,
 } from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
 import Layout from '@components/Layout';
 import { api } from '@services/api';
 
@@ -101,6 +102,18 @@ export const TeamsPage: React.FC = () => {
     }
   };
 
+  const removeMember = async (member: any) => {
+    if (!memberTeam) return;
+    if (!window.confirm(`Remove ${member.firstName} ${member.lastName} from ${memberTeam.name}?`)) return;
+    try {
+      await api.removeUserFromTeam(memberTeam.id, member.id);
+      setToast({ msg: `${member.firstName} ${member.lastName} removed from ${memberTeam.name}`, sev: 'success' });
+      openMembers(memberTeam);
+    } catch (e: any) {
+      setToast({ msg: e.response?.data?.error || 'Failed to remove user', sev: 'error' });
+    }
+  };
+
   return (
     <Layout>
       <Box>
@@ -180,7 +193,12 @@ export const TeamsPage: React.FC = () => {
               <Typography variant="body2" color="textSecondary">No members yet.</Typography>
             ) : (
               members.map((m) => (
-                <Chip key={m.id} label={`${m.firstName} ${m.lastName}`} sx={{ mr: 1, mb: 1 }} />
+                <Chip
+                  key={m.id}
+                  label={`${m.firstName} ${m.lastName}`}
+                  onDelete={() => removeMember(m)}
+                  sx={{ mr: 1, mb: 1 }}
+                />
               ))
             )}
           </DialogContent>

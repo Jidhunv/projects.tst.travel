@@ -421,6 +421,7 @@ export default function LeadsPage() {
                   <TableCell>Name</TableCell>
                   <TableCell>Email</TableCell>
                   <TableCell>Company</TableCell>
+                  <TableCell>Country</TableCell>
                   <TableCell>Value</TableCell>
                   <TableCell>Status</TableCell>
                   <TableCell>Product</TableCell>
@@ -436,6 +437,7 @@ export default function LeadsPage() {
                     </TableCell>
                     <TableCell>{lead.email}</TableCell>
                     <TableCell>{lead.company || '-'}</TableCell>
+                    <TableCell>{lead.country || '-'}</TableCell>
                     <TableCell>{formatCurrency(lead.value)}</TableCell>
                     <TableCell>
                       <Chip label={statusDisplay[lead.status] || lead.status} color={statusColor[lead.status] || 'default'} size="small" />
