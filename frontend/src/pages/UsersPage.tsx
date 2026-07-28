@@ -125,7 +125,15 @@ export const UsersPage: React.FC = () => {
           alert('Password updated for this user.');
         }
       } else {
-        const response = await apiClient.post('/users', formData);
+        const createData = {
+          email: formData.email,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          phoneNumber: formData.phoneNumber,
+          roleId: formData.roleId,
+          password: formData.password,
+        };
+        const response = await apiClient.post('/users', createData);
         setUsers([...users, response.data.data]);
       }
       setOpenDialog(false);
