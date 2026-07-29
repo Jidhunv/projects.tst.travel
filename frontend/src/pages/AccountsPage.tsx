@@ -84,22 +84,34 @@ export default function AccountsPage() {
 
   const [teams, setTeams] = React.useState<any[]>([]);
   const [orgUsers, setOrgUsers] = React.useState<any[]>([]);
+  const [countriesError, setCountriesError] = React.useState('');
   const [acctFilters, setAcctFilters] = React.useState({ search: '', city: '', region: '', country: '' });
 
-  // Load countries, teams and users on component mount (parallel for speed)
+  // Load countries, teams and users on mount (in parallel for speed).
+  // allSettled, not all: /api/users is Admin/Manager-only, so it 403s for every
+  // other role. Promise.all rejects the whole batch on the first rejection, which
+  // threw away the countries that had loaded fine — that is why the country
+  // dropdown was empty for non-admins and populated for admins.
   React.useEffect(() => {
-    Promise.all([
+    Promise.allSettled([
       api.getCountries(),
       api.getTeams(),
       api.getUsers(1, 500),
     ]).then(([c, t, u]) => {
-      if (c.data.success && Array.isArray(c.data.data)) {
-        setCountries(c.data.data);
+      if (c.status === 'fulfilled') {
+        const list: Country[] = c.value.data?.data ?? [];
+        setCountries([...list].sort((a, b) => a.name.localeCompare(b.name)));
+        setCountriesError(list.length ? '' : 'No countries configured — add them in Country Master.');
+      } else {
+        console.error('Error loading countries:', c.reason);
+        setCountries([]);
+        setCountriesError('Could not load countries.');
       }
-      setTeams(t.data.data || []);
-      setOrgUsers(u.data.data || []);
-    }).catch(error => {
-      console.error('Error loading data:', error);
+
+      // Teams and the org user list only label assignments; a user without
+      // permission for them still gets a working form.
+      setTeams(t.status === 'fulfilled' ? t.value.data?.data ?? [] : []);
+      setOrgUsers(u.status === 'fulfilled' ? u.value.data?.data ?? [] : []);
     });
   }, []);
 
@@ -413,6 +425,8 @@ export default function AccountsPage() {
                 value={formData.country}
                 onChange={(e) => setFormData({ ...formData, country: e.target.value })}
                 fullWidth
+                error={!!countriesError}
+                helperText={countriesError}
               >
                 <MenuItem value="">-- Select Country --</MenuItem>
                 {countries.map((c) => (
@@ -515,6 +529,8 @@ export default function AccountsPage() {
                   value={formData.country}
                   onChange={(e) => setFormData({ ...formData, country: e.target.value })}
                   fullWidth
+                  error={!!countriesError}
+                  helperText={countriesError}
                 >
                   <MenuItem value="">-- Select Country --</MenuItem>
                   {countries.map((c) => (

@@ -33,5 +33,9 @@
     }
   },
   "include": ["src"],
+  // src/test is vitest scaffolding; vitest and @testing-library/react are not
+  // installed, so typechecking it here breaks `npm run build`. Drop this exclude
+  // once those devDependencies are added.
+  "exclude": ["src/test"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

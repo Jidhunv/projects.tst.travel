@@ -29,6 +29,7 @@ import { Search as SearchIcon, ViewAgendaOutlined as ListIcon, ViewWeekOutlined 
 import Layout from '@components/Layout';
 import AssignOwner from '@components/AssignOwner';
 import ConfirmDialog from '@components/ConfirmDialog';
+import SearchableSelect from '@components/SearchableSelect';
 import useAuth from '@hooks/useAuth';
 import { debounce } from '@utils/debounce';
 import { apiClient, api } from '../services/api';
@@ -147,7 +148,12 @@ export default function LeadsPage() {
     setAccountsLoading(true);
     try {
       const r = await api.getAccounts(1, 200);
-      setAccounts(r.data.data || []);
+      const accountsList = r.data.data || [];
+      // Sort accounts alphabetically by name for better UX
+      const sortedAccounts = [...accountsList].sort((a, b) =>
+        a.name.localeCompare(b.name)
+      );
+      setAccounts(sortedAccounts);
       setAccountsError(false);
     } catch (error) {
       console.error('Error loading accounts:', error);
@@ -158,14 +164,19 @@ export default function LeadsPage() {
   }, []);
 
   useEffect(() => {
-    // Load data once on component mount (parallel for speed)
-    Promise.all([
+    // Load data once on mount (in parallel for speed). allSettled, not all: these
+    // dropdowns are independent, and one endpoint the current role cannot read
+    // must not discard the others' results.
+    Promise.allSettled([
       apiClient.get('/products'),
-      apiClient.get('/suppliers').catch(() => {}),
+      apiClient.get('/suppliers'),
       loadAccounts(),
     ]).then(([p, s]) => {
-      setProducts(p.data.data || []);
-      if (s) setSuppliers(s.data.data || []);
+      if (p.status === 'fulfilled') setProducts(p.value.data?.data ?? []);
+      else console.error('Error loading products:', p.reason);
+
+      if (s.status === 'fulfilled') setSuppliers(s.value.data?.data ?? []);
+      else console.error('Error loading suppliers:', s.reason);
     });
   }, [loadAccounts]);
 
@@ -547,16 +558,14 @@ export default function LeadsPage() {
               <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
                 Step 1: Select Account
               </Typography>
-              <TextField
-                fullWidth
-                select
-                label="Select Account"
+              <SearchableSelect
+                label="Select Account (Type to search)"
                 value={form.accountId}
-                onChange={async (e) => {
-                  const selectedAcct = accounts.find((a) => a.id === e.target.value);
+                onChange={async (newAccountId) => {
+                  const selectedAcct = accounts.find((a) => a.id === newAccountId);
                   let updatedForm: any = {
                     ...form,
-                    accountId: e.target.value,
+                    accountId: newAccountId || '',
                     company: selectedAcct?.name || form.company,
                     region: form.region || selectedAcct?.region || '',
                     country: form.country || selectedAcct?.country || '',
@@ -567,9 +576,9 @@ export default function LeadsPage() {
                   };
 
                   // Load contacts for this account
-                  if (e.target.value) {
+                  if (newAccountId) {
                     try {
-                      const response = await api.getAccountContacts(e.target.value);
+                      const response = await api.getAccountContacts(newAccountId);
                       const contacts = response.data.data || [];
                       setAccountContacts(contacts);
 
@@ -607,26 +616,19 @@ export default function LeadsPage() {
 
                   setForm(updatedForm);
                 }}
+                options={accounts}
                 disabled={!!openEdit || accountsLoading}
                 required
                 error={accountsError}
+                loading={accountsLoading}
                 helperText={
-                  accountsLoading
-                    ? 'Loading accounts…'
-                    : accountsError
-                      ? 'Could not load accounts. Use Retry below.'
-                      : accounts.length === 0
-                        ? 'No accounts available to you. You can only select accounts you own — ask an admin to assign one to you, or create one from the Accounts page.'
-                        : ' '
+                  accountsError
+                    ? 'Could not load accounts. Use Retry below.'
+                    : accounts.length === 0
+                      ? 'No accounts available to you. You can only select accounts you own — ask an admin to assign one to you, or create one from the Accounts page.'
+                      : ' '
                 }
-              >
-                <MenuItem value="">-- Select Company --</MenuItem>
-                {accounts.map((a) => (
-                  <MenuItem key={a.id} value={a.id}>
-                    {a.name}
-                  </MenuItem>
-                ))}
-              </TextField>
+              />
               {(accountsError || (!accountsLoading && accounts.length === 0)) && (
                 <Button size="small" variant="text" onClick={loadAccounts} sx={{ mt: 1 }}>
                   Retry
