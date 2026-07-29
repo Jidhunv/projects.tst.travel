@@ -48,10 +48,9 @@ export class ProductController {
 
   async getProducts(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      if (!canPerformAction(req.user, 'products', 'read')) {
-        throw new AppError(403, 'You do not have permission to read products');
-      }
-
+      // Products are reference/master data used by dropdowns across the app
+      // (Leads, Accounts, Opportunities, Projects, Invoices, Contracts).
+      // Any authenticated user may read them; only create is permission-gated.
       const { page = 1, limit = 20, categoryId, isActive, search } = req.query;
 
       const { data, total } = await productService.getProducts({
@@ -79,10 +78,7 @@ export class ProductController {
 
   async getProduct(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      if (!canPerformAction(req.user, 'products', 'read')) {
-        throw new AppError(403, 'You do not have permission to read products');
-      }
-
+      // Products are reference/master data - accessible to all authenticated users
       const product = await productService.getProductById(req.params.id);
       return res.json({ success: true, data: product });
     } catch (error) {

@@ -12,10 +12,9 @@ const repo = () => AppDataSource.getRepository(ProductCategory);
 export class ProductCategoryController {
   async list(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      if (!canPerformAction(req.user, 'product_categories', 'read')) {
-        throw new AppError(403, 'You do not have permission to read product categories');
-      }
-
+      // Product categories are reference/master data used by product dropdowns across the app.
+      // Any authenticated user may read them; only create is permission-gated. No per-module
+      // read permission is required.
       const { isActive } = req.query;
       const where: any = {};
       if (isActive !== undefined) where.isActive = isActive === 'true';
