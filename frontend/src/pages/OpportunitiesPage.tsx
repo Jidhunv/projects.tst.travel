@@ -77,8 +77,10 @@ export default function OpportunitiesPage() {
     forecastedCloseDate: '',
     description: '',
     productIds: [] as string[],
+    accountId: '',
   });
   const [products, setProducts] = useState<any[]>([]);
+  const [accounts, setAccounts] = useState<any[]>([]);
 
   const [lostReason, setLostReason] = useState('');
 
@@ -108,10 +110,15 @@ export default function OpportunitiesPage() {
   useEffect(() => {
     fetchOpportunities();
     apiClient.get('/products').then((r) => setProducts(r.data.data || []));
+    apiClient.get('/accounts').then((r) => setAccounts(r.data.data || []));
   }, [fetchOpportunities]);
 
   const handleCreate = async () => {
     try {
+      if (!form.accountId) {
+        alert('Please select an account');
+        return;
+      }
       const productNames = form.productIds.map((id) => products.find((p) => p.id === id)?.name).filter(Boolean);
       await apiClient.post('/opportunities', {
         name: form.name,
@@ -120,6 +127,7 @@ export default function OpportunitiesPage() {
         probability: form.probability ? Number(form.probability) : 0,
         forecastedCloseDate: form.forecastedCloseDate || undefined,
         description: form.description,
+        accountId: form.accountId,
         productIds: form.productIds,
         productNames: productNames,
       });
@@ -132,6 +140,7 @@ export default function OpportunitiesPage() {
         forecastedCloseDate: '',
         description: '',
         productIds: [],
+        accountId: '',
       });
       fetchOpportunities();
     } catch (error) {
@@ -235,6 +244,7 @@ export default function OpportunitiesPage() {
       forecastedCloseDate: '',
       description: '',
       productIds: [],
+      accountId: '',
     });
   };
 
@@ -471,6 +481,22 @@ export default function OpportunitiesPage() {
         <Dialog open={openCreate || !!openEdit} onClose={() => { setOpenCreate(false); setOpenEdit(null); }} maxWidth="sm" fullWidth>
           <DialogTitle>{openEdit ? 'Edit Opportunity' : 'Add New Opportunity'}</DialogTitle>
           <DialogContent sx={{ pt: 2 }}>
+            <TextField
+              fullWidth
+              select
+              label="Account"
+              value={form.accountId}
+              onChange={(e) => setForm({ ...form, accountId: e.target.value })}
+              sx={{ mb: 2 }}
+              required
+            >
+              <MenuItem value="">-- Select Account --</MenuItem>
+              {accounts.map((account) => (
+                <MenuItem key={account.id} value={account.id}>
+                  {account.name}
+                </MenuItem>
+              ))}
+            </TextField>
             <TextField
               fullWidth
               label="Opportunity Name"
