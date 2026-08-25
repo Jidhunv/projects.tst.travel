@@ -133,6 +133,8 @@ export interface Opportunity {
   primaryContact?: Contact;
   owner: User;
   lineItems: LineItem[];
+  productIds?: string[];
+  productNames?: string[];
   tags?: string;
   closedAt?: Date;
   closedReason?: string;
@@ -142,6 +144,7 @@ export interface Opportunity {
 
 export interface LineItem {
   id: string;
+  productId?: string;
   productName: string;
   quantity: number;
   unitPrice: number;

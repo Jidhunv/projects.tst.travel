@@ -76,7 +76,9 @@ export default function OpportunitiesPage() {
     probability: '',
     forecastedCloseDate: '',
     description: '',
+    productIds: [] as string[],
   });
+  const [products, setProducts] = useState<any[]>([]);
 
   const [lostReason, setLostReason] = useState('');
 
@@ -105,10 +107,12 @@ export default function OpportunitiesPage() {
 
   useEffect(() => {
     fetchOpportunities();
+    apiClient.get('/products').then((r) => setProducts(r.data.data || []));
   }, [fetchOpportunities]);
 
   const handleCreate = async () => {
     try {
+      const productNames = form.productIds.map((id) => products.find((p) => p.id === id)?.name).filter(Boolean);
       await apiClient.post('/opportunities', {
         name: form.name,
         amount: form.amount ? Number(form.amount) : 0,
@@ -116,6 +120,8 @@ export default function OpportunitiesPage() {
         probability: form.probability ? Number(form.probability) : 0,
         forecastedCloseDate: form.forecastedCloseDate || undefined,
         description: form.description,
+        productIds: form.productIds,
+        productNames: productNames,
       });
       setOpenCreate(false);
       setForm({
@@ -125,6 +131,7 @@ export default function OpportunitiesPage() {
         probability: '',
         forecastedCloseDate: '',
         description: '',
+        productIds: [],
       });
       fetchOpportunities();
     } catch (error) {
@@ -139,6 +146,7 @@ export default function OpportunitiesPage() {
       const status =
         form.stage === 'Closed-Won' ? 'Won' :
         form.stage === 'Closed-Lost' ? 'Lost' : 'Open';
+      const productNames = form.productIds.map((id) => products.find((p) => p.id === id)?.name).filter(Boolean);
       await apiClient.patch(`/opportunities/${openEdit.id}`, {
         name: form.name,
         amount: form.amount ? Number(form.amount) : 0,
@@ -147,6 +155,8 @@ export default function OpportunitiesPage() {
         probability: form.stage === 'Closed-Won' ? 100 : (form.probability ? Number(form.probability) : 0),
         forecastedCloseDate: form.forecastedCloseDate || undefined,
         description: form.description,
+        productIds: form.productIds,
+        productNames: productNames,
       });
       setOpenEdit(null);
       fetchOpportunities();
@@ -211,6 +221,7 @@ export default function OpportunitiesPage() {
       probability: opportunity.probability.toString(),
       forecastedCloseDate: opportunity.forecastedCloseDate ? opportunity.forecastedCloseDate.toString().split('T')[0] : '',
       description: opportunity.description || '',
+      productIds: (opportunity as any).productIds || [],
     });
   };
 
@@ -223,6 +234,7 @@ export default function OpportunitiesPage() {
       probability: '',
       forecastedCloseDate: '',
       description: '',
+      productIds: [],
     });
   };
 
@@ -350,7 +362,7 @@ export default function OpportunitiesPage() {
                   <TableCell>Opportunity Name</TableCell>
                   <TableCell align="right">Amount</TableCell>
                   <TableCell>Stage</TableCell>
-                  <TableCell>Country</TableCell>
+                  <TableCell>Products</TableCell>
                   <TableCell>Probability</TableCell>
                   <TableCell>Close Date</TableCell>
                   <TableCell>Actions</TableCell>
@@ -514,7 +526,43 @@ export default function OpportunitiesPage() {
               rows={3}
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
+              sx={{ mb: 2 }}
             />
+            <TextField
+              fullWidth
+              select
+              label="Products (Multi-Select)"
+              value={form.productIds}
+              onChange={(e) => setForm({ ...form, productIds: typeof e.target.value === 'string' ? [e.target.value] : e.target.value })}
+              SelectProps={{ multiple: true }}
+              sx={{ mb: 1 }}
+            >
+              {products.map((product) => (
+                <MenuItem key={product.id} value={product.id}>
+                  {product.name}
+                </MenuItem>
+              ))}
+            </TextField>
+            {form.productIds.length > 0 && (
+              <Box sx={{ mb: 2, p: 1, bgcolor: 'action.hover', borderRadius: 1 }}>
+                <Typography variant="caption" sx={{ display: 'block', mb: 1, fontWeight: 600 }}>
+                  Selected Products:
+                </Typography>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                  {form.productIds.map((productId) => {
+                    const product = products.find((p) => p.id === productId);
+                    return (
+                      <Chip
+                        key={productId}
+                        label={product?.name || productId}
+                        onDelete={() => setForm({ ...form, productIds: form.productIds.filter((id) => id !== productId) })}
+                        size="small"
+                      />
+                    );
+                  })}
+                </Box>
+              </Box>
+            )}
           </DialogContent>
           <DialogActions>
             <Button onClick={() => { setOpenCreate(false); setOpenEdit(null); }}>Cancel</Button>
@@ -600,7 +648,11 @@ const OpportunityTableRow = React.memo(
       <TableCell>
         <Chip label={opp.stage} color={stageColor[opp.stage] || 'default'} size="small" />
       </TableCell>
-      <TableCell>{opp.country || '-'}</TableCell>
+      <TableCell>
+        {(opp as any).productNames && (opp as any).productNames.length > 0
+          ? (opp as any).productNames.join(', ')
+          : '-'}
+      </TableCell>
       <TableCell>{opp.probability}%</TableCell>
       <TableCell>{new Date(opp.forecastedCloseDate).toLocaleDateString()}</TableCell>
       <TableCell>

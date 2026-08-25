@@ -14,7 +14,7 @@ const OPPORTUNITY_UPDATABLE = [
   'name', 'amount', 'stage', 'status', 'description', 'forecastedCloseDate',
   'probability', 'primaryContactId', 'businessVolume', 'supplierList', 'region',
   'country', 'company', 'contactPerson', 'contactEmail', 'contactPhone',
-  'jobTitle', 'source', 'remark', 'tags', 'closedReason',
+  'jobTitle', 'source', 'remark', 'tags', 'closedReason', 'productIds', 'productNames',
 ] as const;
 
 // Line-item fields a client may set (addLineItem accepts the same set).
