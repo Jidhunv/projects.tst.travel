@@ -23,6 +23,18 @@ export class OpportunityService {
   private oppRepository = AppDataSource.getRepository(Opportunity);
   private lineItemRepository = AppDataSource.getRepository(LineItem);
 
+  private formatOpportunity(opp: Opportunity): Opportunity & { productIds?: string[]; productNames?: string[] } {
+    const formatted = { ...opp } as any;
+    if (opp.lineItems && opp.lineItems.length > 0) {
+      formatted.productIds = opp.lineItems.map((item) => item.productId).filter(Boolean);
+      formatted.productNames = opp.lineItems.map((item) => item.productName);
+    } else {
+      formatted.productIds = [];
+      formatted.productNames = [];
+    }
+    return formatted;
+  }
+
   async createOpportunity(data: {
     name: string;
     amount: number;
@@ -32,7 +44,9 @@ export class OpportunityService {
     primaryContactId?: string;
     ownerId: string;
     probability?: number;
-  }): Promise<Opportunity> {
+    productIds?: string[];
+    productNames?: string[];
+  }): Promise<any> {
     const validStages = [
       'Prospecting',
       'Qualification',
@@ -46,16 +60,34 @@ export class OpportunityService {
       throw new AppError(400, 'Invalid opportunity stage');
     }
 
+    const { productIds, productNames, ...oppData } = data;
+
     const opp = this.oppRepository.create({
-      ...data,
+      ...oppData,
       status: 'Open',
       probability: data.probability || 10,
     });
 
-    return await this.oppRepository.save(opp);
+    const savedOpp = await this.oppRepository.save(opp);
+
+    // Create line items if products are provided
+    if (productIds && productIds.length > 0 && productNames && productNames.length > 0) {
+      for (let i = 0; i < productIds.length; i++) {
+        await this.addLineItem(savedOpp.id, {
+          productId: productIds[i],
+          productName: productNames[i],
+          quantity: 1,
+          unitPrice: 0,
+        });
+      }
+      // Reload to get the line items
+      return await this.getOpportunityById(savedOpp.id);
+    }
+
+    return this.formatOpportunity(savedOpp);
   }
 
-  async getOpportunityById(id: string): Promise<Opportunity> {
+  async getOpportunityById(id: string): Promise<any> {
     const opp = await this.oppRepository.findOne({
       where: { id },
       relations: ['owner', 'account', 'primaryContact', 'lineItems'],
@@ -65,7 +97,7 @@ export class OpportunityService {
       throw new AppError(404, 'Opportunity not found');
     }
 
-    return opp;
+    return this.formatOpportunity(opp);
   }
 
   async getOpportunities(filters: OpportunityFilters = {}): Promise<{
@@ -129,11 +161,18 @@ export class OpportunityService {
       .take(limit)
       .getManyAndCount();
 
-    return { data, total };
+    return { data: data.map((opp) => this.formatOpportunity(opp)), total };
   }
 
-  async updateOpportunity(id: string, data: Partial<Opportunity>): Promise<Opportunity> {
-    const opp = await this.getOpportunityById(id);
+  async updateOpportunity(id: string, data: any): Promise<any> {
+    const opp = await this.oppRepository.findOne({
+      where: { id },
+      relations: ['lineItems'],
+    });
+
+    if (!opp) {
+      throw new AppError(404, 'Opportunity not found');
+    }
 
     if (data.stage) {
       const validStages = [
@@ -166,15 +205,35 @@ export class OpportunityService {
       }
     }
 
+    // Handle product updates
+    const { productIds, productNames, ...oppData } = data;
+    if ((productIds || productNames) && (productIds?.length > 0 || productNames?.length > 0)) {
+      // Remove existing line items
+      if (opp.lineItems && opp.lineItems.length > 0) {
+        await this.lineItemRepository.remove(opp.lineItems);
+      }
+      // Create new line items
+      const ids = productIds || [];
+      const names = productNames || [];
+      for (let i = 0; i < ids.length; i++) {
+        await this.addLineItem(id, {
+          productId: ids[i],
+          productName: names[i],
+          quantity: 1,
+          unitPrice: 0,
+        });
+      }
+    }
+
     // Column-level update: the getById above eager-loads relations, and save()
     // gives a loaded relation precedence over its FK column -- so changing only
     // the FK would be silently overwritten by the stale relation object.
     // update() writes exactly the columns given.
-    await this.oppRepository.update(id, data as any);
+    await this.oppRepository.update(id, oppData as any);
     return await this.getOpportunityById(id);
   }
 
-  async updateStage(id: string, stage: string): Promise<Opportunity> {
+  async updateStage(id: string, stage: string): Promise<any> {
     const validStages = [
       'Prospecting',
       'Qualification',
@@ -188,8 +247,16 @@ export class OpportunityService {
       throw new AppError(400, 'Invalid opportunity stage');
     }
 
-    const opp = await this.getOpportunityById(id);
-    opp.stage = stage;
+    const rawOpp = await this.oppRepository.findOne({
+      where: { id },
+      relations: ['lineItems'],
+    });
+
+    if (!rawOpp) {
+      throw new AppError(404, 'Opportunity not found');
+    }
+
+    rawOpp.stage = stage;
 
     // Update probability based on stage
     const stageProbability: { [key: string]: number } = {
@@ -201,26 +268,35 @@ export class OpportunityService {
       'Closed-Lost': 0,
     };
 
-    opp.probability = stageProbability[stage] || opp.probability;
+    rawOpp.probability = stageProbability[stage] || rawOpp.probability;
 
-    return await this.oppRepository.save(opp);
+    const saved = await this.oppRepository.save(rawOpp);
+    return this.formatOpportunity(saved);
   }
 
   async closeOpportunity(
     id: string,
     outcome: 'Won' | 'Lost',
     rejectionReason?: string
-  ): Promise<Opportunity> {
-    const opp = await this.getOpportunityById(id);
+  ): Promise<any> {
+    const rawOpp = await this.oppRepository.findOne({
+      where: { id },
+      relations: ['lineItems'],
+    });
 
-    opp.status = outcome === 'Won' ? 'Won' : 'Lost';
-    opp.stage = outcome === 'Won' ? 'Closed-Won' : 'Closed-Lost';
+    if (!rawOpp) {
+      throw new AppError(404, 'Opportunity not found');
+    }
+
+    rawOpp.status = outcome === 'Won' ? 'Won' : 'Lost';
+    rawOpp.stage = outcome === 'Won' ? 'Closed-Won' : 'Closed-Lost';
     // For a win, record the outcome; for a loss, store the selected rejection reason.
-    opp.closedReason = outcome === 'Won' ? 'Won' : rejectionReason || 'Lost';
-    opp.closedAt = new Date();
-    opp.probability = outcome === 'Won' ? 100 : 0;
+    rawOpp.closedReason = outcome === 'Won' ? 'Won' : rejectionReason || 'Lost';
+    rawOpp.closedAt = new Date();
+    rawOpp.probability = outcome === 'Won' ? 100 : 0;
 
-    return await this.oppRepository.save(opp);
+    const saved = await this.oppRepository.save(rawOpp);
+    return this.formatOpportunity(saved);
   }
 
   async deleteOpportunity(id: string): Promise<void> {
