@@ -39,6 +39,8 @@ export class OpportunityController {
         accountId,
         primaryContactId,
         probability,
+        productIds,
+        productNames,
       } = req.body;
 
       if (!name || !amount || !stage || !forecastedCloseDate || !accountId) {
@@ -57,6 +59,8 @@ export class OpportunityController {
         primaryContactId,
         ownerId: req.user!.id,
         probability,
+        productIds,
+        productNames,
       });
 
       logger.info(`Opportunity created: ${opp.name} by ${req.user!.email}`);

@@ -231,6 +231,7 @@ export default function OpportunitiesPage() {
       forecastedCloseDate: opportunity.forecastedCloseDate ? opportunity.forecastedCloseDate.toString().split('T')[0] : '',
       description: opportunity.description || '',
       productIds: (opportunity as any).productIds || [],
+      accountId: opportunity.account?.id || '',
     });
   };
 

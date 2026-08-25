@@ -279,17 +279,23 @@ export class LeadService {
       })
     );
 
-    // Carry the lead's product across as a line item.
-    if (lead.productName) {
-      await this.lineItemRepository.save(
-        this.lineItemRepository.create({
-          productId: lead.productId,
-          productName: lead.productName,
-          quantity: 1,
-          unitPrice: lead.value || 0,
-          opportunityId: opp.id,
-        })
-      );
+    // Carry the lead's products across as line items.
+    // Support both single product (legacy) and multiple products (array).
+    const productIds = lead.productIds && lead.productIds.length > 0 ? lead.productIds : (lead.productId ? [lead.productId] : []);
+    const productNames = lead.productNames && lead.productNames.length > 0 ? lead.productNames : (lead.productName ? [lead.productName] : []);
+
+    if (productIds.length > 0) {
+      for (let i = 0; i < productIds.length; i++) {
+        await this.lineItemRepository.save(
+          this.lineItemRepository.create({
+            productId: productIds[i],
+            productName: productNames[i] || '',
+            quantity: 1,
+            unitPrice: lead.value || 0,
+            opportunityId: opp.id,
+          })
+        );
+      }
     }
 
     lead.accountId = accountId;
