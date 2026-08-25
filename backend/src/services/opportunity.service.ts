@@ -71,14 +71,17 @@ export class OpportunityService {
     const savedOpp = await this.oppRepository.save(opp);
 
     // Create line items if products are provided
-    if (productIds && productIds.length > 0 && productNames && productNames.length > 0) {
+    if (productIds && productIds.length > 0) {
+      const names = productNames || [];
       for (let i = 0; i < productIds.length; i++) {
-        await this.addLineItem(savedOpp.id, {
+        const lineItem = this.lineItemRepository.create({
           productId: productIds[i],
-          productName: productNames[i],
+          productName: names[i] || '',
           quantity: 1,
           unitPrice: 0,
+          opportunity: savedOpp,
         });
+        await this.lineItemRepository.save(lineItem);
       }
       // Reload to get the line items
       return await this.getOpportunityById(savedOpp.id);
@@ -207,22 +210,26 @@ export class OpportunityService {
 
     // Handle product updates
     const { productIds, productNames, ...oppData } = data;
-    if ((productIds || productNames) && (productIds?.length > 0 || productNames?.length > 0)) {
+    if ((productIds !== undefined || productNames !== undefined) && Array.isArray(productIds) && productIds.length > 0) {
       // Remove existing line items
       if (opp.lineItems && opp.lineItems.length > 0) {
-        await this.lineItemRepository.remove(opp.lineItems);
+        await this.lineItemRepository.delete({ opportunity: { id } });
       }
       // Create new line items
-      const ids = productIds || [];
       const names = productNames || [];
-      for (let i = 0; i < ids.length; i++) {
-        await this.addLineItem(id, {
-          productId: ids[i],
-          productName: names[i],
+      for (let i = 0; i < productIds.length; i++) {
+        const lineItem = this.lineItemRepository.create({
+          productId: productIds[i],
+          productName: names[i] || '',
           quantity: 1,
           unitPrice: 0,
+          opportunity: opp,
         });
+        await this.lineItemRepository.save(lineItem);
       }
+    } else if (Array.isArray(productIds) && productIds.length === 0) {
+      // Clear all line items if empty array is passed
+      await this.lineItemRepository.delete({ opportunity: { id } });
     }
 
     // Column-level update: the getById above eager-loads relations, and save()
