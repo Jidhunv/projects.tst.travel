@@ -238,38 +238,53 @@ export default function ImportPage() {
         {step === 1 && (
           <Card>
             <CardContent>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography variant="h6">
-                  Step 2: Map CSV Columns to MIDT Fields
-                </Typography>
-              </Box>
+              <Typography variant="h6" sx={{ mb: 3 }}>
+                Step 2: Map MIDT Fields to CSV Columns
+              </Typography>
 
-              {/* Mandatory Fields Mapping Section */}
-              <Box sx={{ mb: 4, p: 2, backgroundColor: 'error.light', borderRadius: 1 }}>
-                <Typography variant="h6" sx={{ mb: 2, color: 'error.dark', fontWeight: 'bold' }}>
-                  📌 Map Required Fields First
-                </Typography>
-                <Grid container spacing={2}>
-                  {MIDT_FIELDS.filter(f => f.required).map(field => {
-                    const isMapped = Object.values(columnMapping).includes(field.field);
-                    return (
-                      <Grid item xs={12} sm={6} key={field.field}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Box sx={{ flex: 1 }}>
-                            <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
-                              {field.label} <Typography component="span" sx={{ color: 'error.main' }}>*</Typography>
-                            </Typography>
+              <TableContainer component={Paper} sx={{ maxHeight: 600 }}>
+                <Table stickyHeader size="small">
+                  <TableHead>
+                    <TableRow sx={{ backgroundColor: 'primary.main' }}>
+                      <TableCell sx={{ fontWeight: 'bold', color: 'white', width: '250px' }}>
+                        MIDT Field
+                      </TableCell>
+                      <TableCell sx={{ fontWeight: 'bold', color: 'white' }}>
+                        CSV Column
+                      </TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {MIDT_FIELDS.map(field => {
+                      const mappedColumn = Object.entries(columnMapping).find(([_, val]) => val === field.field)?.[0];
+                      const isMapped = !!mappedColumn;
+
+                      return (
+                        <TableRow
+                          key={field.field}
+                          sx={{
+                            '&:hover': { backgroundColor: 'action.hover' },
+                            backgroundColor: field.required ? 'error.light' : 'background.paper',
+                          }}
+                        >
+                          <TableCell sx={{ fontWeight: field.required ? 'bold' : 'normal' }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              {field.required && <Typography sx={{ color: 'error.main', fontSize: '1.2em' }}>*</Typography>}
+                              {field.label}
+                            </Box>
+                          </TableCell>
+                          <TableCell>
                             <Select
-                              value={Object.entries(columnMapping).find(([_, val]) => val === field.field)?.[0] || ''}
+                              value={mappedColumn || ''}
                               onChange={e => {
                                 const newMapping = { ...columnMapping };
-                                // Remove this field from any other column
+                                // Remove this field from any existing mapping
                                 Object.keys(newMapping).forEach(key => {
                                   if (newMapping[key] === field.field) {
                                     delete newMapping[key];
                                   }
                                 });
-                                // Set the new mapping
+                                // Set new mapping
                                 if (e.target.value) {
                                   newMapping[e.target.value] = field.field;
                                 }
@@ -279,7 +294,6 @@ export default function ImportPage() {
                               fullWidth
                               sx={{
                                 backgroundColor: isMapped ? 'success.light' : 'background.paper',
-                                borderColor: isMapped ? 'success.main' : 'divider',
                                 '& .MuiOutlinedInput-root': {
                                   borderColor: isMapped ? 'success.main' : 'inherit',
                                   '& fieldset': {
@@ -289,60 +303,10 @@ export default function ImportPage() {
                                 },
                               }}
                             >
-                              <MenuItem value="">-- SELECT CSV COLUMN --</MenuItem>
+                              <MenuItem value="">-- Not Mapped --</MenuItem>
                               {fileHeaders.map(header => (
                                 <MenuItem key={header} value={header}>
                                   {header}
-                                </MenuItem>
-                              ))}
-                            </Select>
-                            {isMapped && (
-                              <Typography variant="caption" sx={{ color: 'success.main', fontWeight: 600, mt: 0.5, display: 'block' }}>
-                                ✓ Mapped to: {Object.entries(columnMapping).find(([_, val]) => val === field.field)?.[0]}
-                              </Typography>
-                            )}
-                          </Box>
-                        </Box>
-                      </Grid>
-                    );
-                  })}
-                </Grid>
-              </Box>
-
-              <Typography variant="h6" sx={{ mb: 2, mt: 3 }}>
-                Map Optional Fields (or ignore)
-              </Typography>
-
-              <TableContainer component={Paper} sx={{ maxHeight: 500 }}>
-                <Table stickyHeader size="small">
-                  <TableHead>
-                    <TableRow sx={{ backgroundColor: 'primary.main' }}>
-                      <TableCell sx={{ fontWeight: 'bold', color: 'white', width: '80px' }}>Index</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold', color: 'white', width: '200px' }}>Column</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold', color: 'white' }}>MIDT Field</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {fileHeaders.map((header, index) => {
-                      const selectedField = columnMapping[header];
-                      const selectedFieldObj = MIDT_FIELDS.find(f => f.field === selectedField);
-                      const isMandatory = selectedFieldObj?.required;
-
-                      return (
-                        <TableRow key={header} sx={{ '&:hover': { backgroundColor: 'action.hover' } }}>
-                          <TableCell>{index + 1}</TableCell>
-                          <TableCell sx={{ fontWeight: 500 }}>{header}</TableCell>
-                          <TableCell>
-                            <Select
-                              value={columnMapping[header] || ''}
-                              onChange={e => handleMappingChange(header, e.target.value)}
-                              size="small"
-                              fullWidth
-                            >
-                              <MenuItem value="">-- SELECT --</MenuItem>
-                              {MIDT_FIELDS.filter(f => !f.required).map(field => (
-                                <MenuItem key={field.field} value={field.field}>
-                                  {field.label}
                                 </MenuItem>
                               ))}
                             </Select>
@@ -353,6 +317,13 @@ export default function ImportPage() {
                   </TableBody>
                 </Table>
               </TableContainer>
+
+              <Alert severity="info" sx={{ mt: 3, mb: 3 }}>
+                <Typography variant="body2">
+                  <strong>Extra Columns:</strong> Any CSV columns not mapped above will be imported as additional data if the field exists in your database.
+                </Typography>
+              </Alert>
+
               <Box sx={{ mt: 3, display: 'flex', gap: 2 }}>
                 <Button variant="outlined" onClick={() => setStep(0)}>
                   Back
@@ -360,7 +331,7 @@ export default function ImportPage() {
                 <Button
                   variant="contained"
                   onClick={handlePreview}
-                  disabled={loading || Object.keys(columnMapping).filter(k => columnMapping[k]).length === 0}
+                  disabled={loading || !MIDT_FIELDS.filter(f => f.required).every(f => Object.values(columnMapping).includes(f.field))}
                 >
                   {loading ? <CircularProgress size={24} /> : 'Preview Import'}
                 </Button>
