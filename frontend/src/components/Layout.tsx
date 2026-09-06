@@ -119,12 +119,12 @@ export default function Layout({ children }: LayoutProps) {
     {
       key: 'accountsManagement',
       type: 'group',
-      title: 'Accounts Management',
+      title: 'MIDT Management',
       icon: <BusinessIcon />,
       show: true,
       items: [
-        { text: 'Accounts', icon: <BusinessIcon />, path: '/accounts', show: canViewModule('accounts') },
-        { text: 'Leads', icon: <PeopleIcon />, path: '/leads', show: canViewModule('leads') },
+        { text: 'MIDT', icon: <BusinessIcon />, path: '/accounts', show: canViewModule('accounts') },
+        { text: 'Prospecting', icon: <PeopleIcon />, path: '/leads', show: canViewModule('leads') },
         { text: 'Opportunities', icon: <OpportunityIcon />, path: '/opportunities', show: canViewModule('opportunities') },
       ],
     },

@@ -343,7 +343,7 @@ export default function AccountsPage() {
           page={page}
           pageSize={pageSize}
           loading={loading}
-          title="Accounts"
+          title="MIDT"
           onPageChange={setPage}
           onPageSizeChange={setPageSize}
           onAddClick={handleAddClick}
