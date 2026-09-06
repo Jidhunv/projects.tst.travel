@@ -30,6 +30,8 @@ import {
   Typography,
   Grid,
 } from '@mui/material';
+import * as XLSX from 'xlsx';
+import Papa from 'papaparse';
 import Layout from '@components/Layout';
 import { apiClient } from '../services/api';
 
@@ -81,15 +83,36 @@ export default function ImportPage() {
 
     setFile(selectedFile);
 
-    // Read file headers
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      const text = e.target?.result as string;
-      const lines = text.split('\n');
-      const headers = lines[0].split(',').map(h => h.trim());
+    try {
+      let headers: string[] = [];
+
+      if (selectedFile.name.endsWith('.xlsx') || selectedFile.name.endsWith('.xls')) {
+        // Handle Excel files
+        const arrayBuffer = await selectedFile.arrayBuffer();
+        const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[];
+
+        if (jsonData.length > 0) {
+          headers = jsonData[0].map((h: any) => String(h || '').trim()).filter((h: string) => h);
+        }
+      } else {
+        // Handle CSV files
+        const text = await selectedFile.text();
+        const result = Papa.parse(text, {
+          header: false,
+          skipEmptyLines: true,
+          dynamicTyping: false,
+        });
+
+        if (result.data.length > 0) {
+          headers = (result.data[0] as any[]).map(h => String(h || '').trim()).filter((h: string) => h);
+        }
+      }
+
       setFileHeaders(headers);
 
-      // Initialize column mapping
+      // Initialize column mapping with auto-detection
       const mapping: Record<string, string> = {};
       headers.forEach(header => {
         const matchedField = MIDT_FIELDS.find(f =>
@@ -102,8 +125,10 @@ export default function ImportPage() {
       });
       setColumnMapping(mapping);
       setStep(1);
-    };
-    reader.readAsText(selectedFile);
+    } catch (error) {
+      console.error('Error parsing file:', error);
+      alert('Error reading file. Please make sure it is a valid CSV or Excel file.');
+    }
   };
 
   // Step 1: Column Mapping
