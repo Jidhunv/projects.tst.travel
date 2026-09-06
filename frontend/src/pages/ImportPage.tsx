@@ -243,15 +243,76 @@ export default function ImportPage() {
                   Step 2: Map CSV Columns to MIDT Fields
                 </Typography>
               </Box>
-              <Alert severity="warning" sx={{ mb: 3 }}>
-                <AlertTitle>Required Fields</AlertTitle>
-                The following fields are mandatory and must be mapped:
-                <Box sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                  {MIDT_FIELDS.filter(f => f.required).map(field => (
-                    <Chip key={field.field} label={field.label} color="error" variant="outlined" />
-                  ))}
-                </Box>
-              </Alert>
+
+              {/* Mandatory Fields Mapping Section */}
+              <Box sx={{ mb: 4, p: 2, backgroundColor: 'error.light', borderRadius: 1 }}>
+                <Typography variant="h6" sx={{ mb: 2, color: 'error.dark', fontWeight: 'bold' }}>
+                  📌 Map Required Fields First
+                </Typography>
+                <Grid container spacing={2}>
+                  {MIDT_FIELDS.filter(f => f.required).map(field => {
+                    const isMapped = Object.values(columnMapping).includes(field.field);
+                    return (
+                      <Grid item xs={12} sm={6} key={field.field}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Box sx={{ flex: 1 }}>
+                            <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                              {field.label} <Typography component="span" sx={{ color: 'error.main' }}>*</Typography>
+                            </Typography>
+                            <Select
+                              value={Object.entries(columnMapping).find(([_, val]) => val === field.field)?.[0] || ''}
+                              onChange={e => {
+                                const newMapping = { ...columnMapping };
+                                // Remove this field from any other column
+                                Object.keys(newMapping).forEach(key => {
+                                  if (newMapping[key] === field.field) {
+                                    delete newMapping[key];
+                                  }
+                                });
+                                // Set the new mapping
+                                if (e.target.value) {
+                                  newMapping[e.target.value] = field.field;
+                                }
+                                setColumnMapping(newMapping);
+                              }}
+                              size="small"
+                              fullWidth
+                              sx={{
+                                backgroundColor: isMapped ? 'success.light' : 'background.paper',
+                                borderColor: isMapped ? 'success.main' : 'divider',
+                                '& .MuiOutlinedInput-root': {
+                                  borderColor: isMapped ? 'success.main' : 'inherit',
+                                  '& fieldset': {
+                                    borderColor: isMapped ? 'success.main' : 'inherit',
+                                    ...(isMapped && { borderWidth: 2 }),
+                                  },
+                                },
+                              }}
+                            >
+                              <MenuItem value="">-- SELECT CSV COLUMN --</MenuItem>
+                              {fileHeaders.map(header => (
+                                <MenuItem key={header} value={header}>
+                                  {header}
+                                </MenuItem>
+                              ))}
+                            </Select>
+                            {isMapped && (
+                              <Typography variant="caption" sx={{ color: 'success.main', fontWeight: 600, mt: 0.5, display: 'block' }}>
+                                ✓ Mapped to: {Object.entries(columnMapping).find(([_, val]) => val === field.field)?.[0]}
+                              </Typography>
+                            )}
+                          </Box>
+                        </Box>
+                      </Grid>
+                    );
+                  })}
+                </Grid>
+              </Box>
+
+              <Typography variant="h6" sx={{ mb: 2, mt: 3 }}>
+                Map Optional Fields (or ignore)
+              </Typography>
+
               <TableContainer component={Paper} sx={{ maxHeight: 500 }}>
                 <Table stickyHeader size="small">
                   <TableHead>
@@ -265,7 +326,7 @@ export default function ImportPage() {
                     {fileHeaders.map((header, index) => {
                       const selectedField = columnMapping[header];
                       const selectedFieldObj = MIDT_FIELDS.find(f => f.field === selectedField);
-                      const isRequired = selectedFieldObj?.required;
+                      const isMandatory = selectedFieldObj?.required;
 
                       return (
                         <TableRow key={header} sx={{ '&:hover': { backgroundColor: 'action.hover' } }}>
@@ -277,22 +338,10 @@ export default function ImportPage() {
                               onChange={e => handleMappingChange(header, e.target.value)}
                               size="small"
                               fullWidth
-                              sx={{
-                                ...(isRequired && {
-                                  '& .MuiOutlinedInput-root': {
-                                    borderColor: 'success.main',
-                                    '& fieldset': {
-                                      borderColor: 'success.main',
-                                      borderWidth: 2,
-                                    },
-                                  },
-                                }),
-                              }}
                             >
                               <MenuItem value="">-- SELECT --</MenuItem>
-                              {MIDT_FIELDS.map(field => (
+                              {MIDT_FIELDS.filter(f => !f.required).map(field => (
                                 <MenuItem key={field.field} value={field.field}>
-                                  {field.required && <Typography sx={{ color: 'error.main', mr: 1 }}>*</Typography>}
                                   {field.label}
                                 </MenuItem>
                               ))}
