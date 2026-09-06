@@ -241,30 +241,61 @@ export default function ImportPage() {
               <Typography variant="h6" sx={{ mb: 2 }}>
                 Step 2: Map CSV Columns to MIDT Fields
               </Typography>
+              <Alert severity="warning" sx={{ mb: 3 }}>
+                <AlertTitle>Required Fields</AlertTitle>
+                The following fields are mandatory and must be mapped:
+                <Box sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                  {MIDT_FIELDS.filter(f => f.required).map(field => (
+                    <Chip key={field.field} label={field.label} color="error" variant="outlined" />
+                  ))}
+                </Box>
+              </Alert>
               <Alert severity="info" sx={{ mb: 3 }}>
                 <AlertTitle>Column Mapping</AlertTitle>
                 Match each CSV column with a MIDT field. Unmapped columns will be ignored.
               </Alert>
               <Grid container spacing={2}>
-                {fileHeaders.map(header => (
-                  <Grid item xs={12} sm={6} md={4} key={header}>
-                    <TextField
-                      fullWidth
-                      label={`CSV: "${header}"`}
-                      select
-                      value={columnMapping[header] || ''}
-                      onChange={e => handleMappingChange(header, e.target.value)}
-                      size="small"
-                    >
-                      <MenuItem value="">-- Ignore --</MenuItem>
-                      {MIDT_FIELDS.map(field => (
-                        <MenuItem key={field.field} value={field.field}>
-                          {field.label} {field.required ? '*' : ''}
-                        </MenuItem>
-                      ))}
-                    </TextField>
-                  </Grid>
-                ))}
+                {fileHeaders.map(header => {
+                  const selectedField = columnMapping[header];
+                  const selectedFieldObj = MIDT_FIELDS.find(f => f.field === selectedField);
+                  const isRequired = selectedFieldObj?.required;
+
+                  return (
+                    <Grid item xs={12} sm={6} md={4} key={header}>
+                      <TextField
+                        fullWidth
+                        label={`CSV: "${header}"`}
+                        select
+                        value={columnMapping[header] || ''}
+                        onChange={e => handleMappingChange(header, e.target.value)}
+                        size="small"
+                        error={isRequired ? false : false}
+                        helperText={isRequired ? '✓ Required field mapped' : ''}
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            ...(isRequired && {
+                              borderColor: 'success.main',
+                              '& fieldset': {
+                                borderColor: 'success.main',
+                                borderWidth: 2,
+                              },
+                            }),
+                          },
+                        }}
+                      >
+                        <MenuItem value="">-- Ignore --</MenuItem>
+                        {MIDT_FIELDS.map(field => (
+                          <MenuItem key={field.field} value={field.field}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              {field.required && <Typography sx={{ color: 'error.main' }}>*</Typography>}
+                              {field.label}
+                            </Box>
+                          </MenuItem>
+                        ))}
+                      </TextField>
+                    </Grid>
+                  );
+                })}
               </Grid>
               <Box sx={{ mt: 3, display: 'flex', gap: 2 }}>
                 <Button variant="outlined" onClick={() => setStep(0)}>
