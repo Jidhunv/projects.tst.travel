@@ -238,9 +238,11 @@ export default function ImportPage() {
         {step === 1 && (
           <Card>
             <CardContent>
-              <Typography variant="h6" sx={{ mb: 2 }}>
-                Step 2: Map CSV Columns to MIDT Fields
-              </Typography>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="h6">
+                  Step 2: Map CSV Columns to MIDT Fields
+                </Typography>
+              </Box>
               <Alert severity="warning" sx={{ mb: 3 }}>
                 <AlertTitle>Required Fields</AlertTitle>
                 The following fields are mandatory and must be mapped:
@@ -250,53 +252,58 @@ export default function ImportPage() {
                   ))}
                 </Box>
               </Alert>
-              <Alert severity="info" sx={{ mb: 3 }}>
-                <AlertTitle>Column Mapping</AlertTitle>
-                Match each CSV column with a MIDT field. Unmapped columns will be ignored.
-              </Alert>
-              <Grid container spacing={2}>
-                {fileHeaders.map(header => {
-                  const selectedField = columnMapping[header];
-                  const selectedFieldObj = MIDT_FIELDS.find(f => f.field === selectedField);
-                  const isRequired = selectedFieldObj?.required;
+              <TableContainer component={Paper} sx={{ maxHeight: 500 }}>
+                <Table stickyHeader size="small">
+                  <TableHead>
+                    <TableRow sx={{ backgroundColor: 'primary.main' }}>
+                      <TableCell sx={{ fontWeight: 'bold', color: 'white', width: '80px' }}>Index</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold', color: 'white', width: '200px' }}>Column</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold', color: 'white' }}>MIDT Field</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {fileHeaders.map((header, index) => {
+                      const selectedField = columnMapping[header];
+                      const selectedFieldObj = MIDT_FIELDS.find(f => f.field === selectedField);
+                      const isRequired = selectedFieldObj?.required;
 
-                  return (
-                    <Grid item xs={12} sm={6} md={4} key={header}>
-                      <TextField
-                        fullWidth
-                        label={`CSV: "${header}"`}
-                        select
-                        value={columnMapping[header] || ''}
-                        onChange={e => handleMappingChange(header, e.target.value)}
-                        size="small"
-                        error={isRequired ? false : false}
-                        helperText={isRequired ? '✓ Required field mapped' : ''}
-                        sx={{
-                          '& .MuiOutlinedInput-root': {
-                            ...(isRequired && {
-                              borderColor: 'success.main',
-                              '& fieldset': {
-                                borderColor: 'success.main',
-                                borderWidth: 2,
-                              },
-                            }),
-                          },
-                        }}
-                      >
-                        <MenuItem value="">-- Ignore --</MenuItem>
-                        {MIDT_FIELDS.map(field => (
-                          <MenuItem key={field.field} value={field.field}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              {field.required && <Typography sx={{ color: 'error.main' }}>*</Typography>}
-                              {field.label}
-                            </Box>
-                          </MenuItem>
-                        ))}
-                      </TextField>
-                    </Grid>
-                  );
-                })}
-              </Grid>
+                      return (
+                        <TableRow key={header} sx={{ '&:hover': { backgroundColor: 'action.hover' } }}>
+                          <TableCell>{index + 1}</TableCell>
+                          <TableCell sx={{ fontWeight: 500 }}>{header}</TableCell>
+                          <TableCell>
+                            <Select
+                              value={columnMapping[header] || ''}
+                              onChange={e => handleMappingChange(header, e.target.value)}
+                              size="small"
+                              fullWidth
+                              sx={{
+                                ...(isRequired && {
+                                  '& .MuiOutlinedInput-root': {
+                                    borderColor: 'success.main',
+                                    '& fieldset': {
+                                      borderColor: 'success.main',
+                                      borderWidth: 2,
+                                    },
+                                  },
+                                }),
+                              }}
+                            >
+                              <MenuItem value="">-- SELECT --</MenuItem>
+                              {MIDT_FIELDS.map(field => (
+                                <MenuItem key={field.field} value={field.field}>
+                                  {field.required && <Typography sx={{ color: 'error.main', mr: 1 }}>*</Typography>}
+                                  {field.label}
+                                </MenuItem>
+                              ))}
+                            </Select>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </TableContainer>
               <Box sx={{ mt: 3, display: 'flex', gap: 2 }}>
                 <Button variant="outlined" onClick={() => setStep(0)}>
                   Back
