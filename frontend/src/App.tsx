@@ -12,6 +12,7 @@ import LoginPage from '@pages/LoginPage';
 import DashboardPage from '@pages/DashboardPage';
 import LeadsPage from '@pages/LeadsPage';
 import AccountsPage from '@pages/AccountsPage';
+import ImportPage from '@pages/ImportPage';
 import OpportunitiesPage from '@pages/OpportunitiesPage';
 import ReportsPage from '@pages/ReportsPage';
 import { ContractsPage } from '@pages/ContractsPage';
@@ -153,6 +154,14 @@ function App() {
             element={
               <ProtectedRoute module="accounts">
                 <AccountsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/import-midt"
+            element={
+              <ProtectedRoute module="accounts">
+                <ImportPage />
               </ProtectedRoute>
             }
           />

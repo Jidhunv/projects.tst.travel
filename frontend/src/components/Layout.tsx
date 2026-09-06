@@ -124,6 +124,7 @@ export default function Layout({ children }: LayoutProps) {
       show: true,
       items: [
         { text: 'MIDT', icon: <BusinessIcon />, path: '/accounts', show: canViewModule('accounts') },
+        { text: 'Import MIDT', icon: <CategoryIcon />, path: '/import-midt', show: canViewModule('accounts') },
         { text: 'Prospecting', icon: <PeopleIcon />, path: '/leads', show: canViewModule('leads') },
         { text: 'Opportunities', icon: <OpportunityIcon />, path: '/opportunities', show: canViewModule('opportunities') },
       ],
