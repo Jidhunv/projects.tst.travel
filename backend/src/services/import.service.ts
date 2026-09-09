@@ -3,6 +3,7 @@ import { Account } from '../models/Account';
 import { User } from '../models/User';
 import { AppError } from '../middleware/errorHandler';
 import * as csv from 'csv-parse/sync';
+import * as XLSX from 'xlsx';
 import * as fs from 'fs';
 
 interface ImportRow {
@@ -31,13 +32,23 @@ export class ImportService {
     columnMapping: Record<string, string>,
     defaultUserId: string = ''
   ): Promise<ImportPreviewResult> {
-    // Read and parse CSV file
-    const fileContent = fs.readFileSync(filePath, 'utf-8');
-    const records = csv.parse(fileContent, {
-      columns: true,
-      skip_empty_lines: true,
-      trim: true,
-    });
+    let records: Record<string, any>[] = [];
+
+    // Detect file type and parse accordingly
+    if (filePath.toLowerCase().endsWith('.xlsx') || filePath.toLowerCase().endsWith('.xls')) {
+      // Parse Excel file
+      const workbook = XLSX.readFile(filePath);
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+      records = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+    } else {
+      // Parse CSV file
+      const fileContent = fs.readFileSync(filePath, 'utf-8');
+      records = csv.parse(fileContent, {
+        columns: true,
+        skip_empty_lines: true,
+        trim: true,
+      });
+    }
 
     const successRows: ImportRow[] = [];
     const errorRows: ImportRow[] = [];
