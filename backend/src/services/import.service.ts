@@ -30,12 +30,15 @@ export class ImportService {
   async parseAndValidateImport(
     filePath: string,
     columnMapping: Record<string, string>,
-    defaultUserId: string = ''
+    defaultUserId: string = '',
+    originalFilename: string = ''
   ): Promise<ImportPreviewResult> {
     let records: Record<string, any>[] = [];
 
-    // Detect file type and parse accordingly
-    if (filePath.toLowerCase().endsWith('.xlsx') || filePath.toLowerCase().endsWith('.xls')) {
+    // Detect file type from original filename and parse accordingly
+    const isExcel = originalFilename.toLowerCase().endsWith('.xlsx') || originalFilename.toLowerCase().endsWith('.xls');
+
+    if (isExcel) {
       // Parse Excel file
       const workbook = XLSX.readFile(filePath);
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];

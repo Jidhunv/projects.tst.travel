@@ -26,8 +26,8 @@ export class ImportController {
         throw new AppError(400, 'No column mappings provided');
       }
 
-      // Parse and validate the import
-      const result = await importService.parseAndValidateImport(file.path, mapping, defaultUserId);
+      // Parse and validate the import (pass original filename for type detection)
+      const result = await importService.parseAndValidateImport(file.path, mapping, defaultUserId, file.originalname);
 
       // Clean up temp file
       fs.unlinkSync(file.path);
