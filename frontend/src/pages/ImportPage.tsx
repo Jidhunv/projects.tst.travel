@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Button,
@@ -47,7 +47,15 @@ const MIDT_FIELDS = [
   { field: 'country', label: 'Country', required: false },
   { field: 'size', label: 'Company Size', required: false },
   { field: 'type', label: 'Type (Prospect/Customer)', required: false },
+  { field: 'ownerId', label: 'Owner/User', required: false },
 ];
+
+interface User {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+}
 
 interface ImportRow {
   rowNumber: number;
@@ -75,6 +83,28 @@ export default function ImportPage() {
   const [loading, setLoading] = useState(false);
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
   const [saving, setSaving] = useState(false);
+  const [users, setUsers] = useState<User[]>([]);
+  const [defaultUserId, setDefaultUserId] = useState<string>('');
+  const [usersLoading, setUsersLoading] = useState(true);
+
+  // Fetch available users
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const response = await apiClient.get('/users');
+        setUsers(response.data.data || []);
+        // Set first user as default
+        if (response.data.data?.length > 0) {
+          setDefaultUserId(response.data.data[0].id);
+        }
+      } catch (error) {
+        console.error('Error fetching users:', error);
+      } finally {
+        setUsersLoading(false);
+      }
+    };
+    fetchUsers();
+  }, []);
 
   // Step 0: File Upload
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -145,11 +175,17 @@ export default function ImportPage() {
       return;
     }
 
+    if (!defaultUserId && !Object.values(columnMapping).includes('ownerId')) {
+      alert('Please select a default user or map the User/Owner column');
+      return;
+    }
+
     setLoading(true);
     try {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('mapping', JSON.stringify(columnMapping));
+      formData.append('defaultUserId', defaultUserId);
 
       const response = await apiClient.post('/accounts/import/preview', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
@@ -266,6 +302,53 @@ export default function ImportPage() {
               <Typography variant="h6" sx={{ mb: 3 }}>
                 Step 2: Map MIDT Fields to CSV Columns
               </Typography>
+
+              {/* User Assignment Section */}
+              <Alert severity="info" sx={{ mb: 3 }}>
+                <AlertTitle>Assign Owner/User</AlertTitle>
+                <Box sx={{ mt: 2 }}>
+                  <Typography variant="body2" sx={{ mb: 2 }}>
+                    Choose one of the following options:
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                    <Box sx={{ flex: 1, minWidth: 250 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
+                        Option 1: Assign Default User
+                      </Typography>
+                      <Select
+                        value={defaultUserId}
+                        onChange={(e) => setDefaultUserId(e.target.value)}
+                        size="small"
+                        fullWidth
+                        disabled={usersLoading}
+                      >
+                        <MenuItem value="">-- Select User --</MenuItem>
+                        {users.map(user => (
+                          <MenuItem key={user.id} value={user.id}>
+                            {user.firstName} {user.lastName} ({user.email})
+                          </MenuItem>
+                        ))}
+                      </Select>
+                      <Typography variant="caption" sx={{ mt: 1, display: 'block', color: 'text.secondary' }}>
+                        All imported accounts will be assigned to this user
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', px: 2 }}>
+                      <Typography variant="body2" sx={{ fontStyle: 'italic', color: 'text.secondary' }}>
+                        OR
+                      </Typography>
+                    </Box>
+                    <Box sx={{ flex: 1, minWidth: 250 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
+                        Option 2: Map User Column
+                      </Typography>
+                      <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>
+                        Select "Owner/User" field in the mapping below to use a CSV column. The column should contain user email addresses.
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Box>
+              </Alert>
 
               <TableContainer component={Paper} sx={{ maxHeight: 600 }}>
                 <Table stickyHeader size="small">

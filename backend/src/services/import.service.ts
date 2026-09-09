@@ -1,5 +1,6 @@
 import { AppDataSource } from '../config/database';
 import { Account } from '../models/Account';
+import { User } from '../models/User';
 import { AppError } from '../middleware/errorHandler';
 import * as csv from 'csv-parse/sync';
 import * as fs from 'fs';
@@ -23,10 +24,12 @@ interface ImportPreviewResult {
 
 export class ImportService {
   private accountRepository = AppDataSource.getRepository(Account);
+  private userRepository = AppDataSource.getRepository(User);
 
   async parseAndValidateImport(
     filePath: string,
-    columnMapping: Record<string, string>
+    columnMapping: Record<string, string>,
+    defaultUserId: string = ''
   ): Promise<ImportPreviewResult> {
     // Read and parse CSV file
     const fileContent = fs.readFileSync(filePath, 'utf-8');
@@ -54,9 +57,19 @@ export class ImportService {
         }
       });
 
+      // Handle ownerId - use mapped value or default
+      if (!mappedData.ownerId && defaultUserId) {
+        mappedData.ownerId = defaultUserId;
+      }
+
       // Validate required fields
       if (!mappedData.name || mappedData.name.trim() === '') {
         errors.push('Company Name is required');
+      }
+
+      // Validate ownerId if provided
+      if (mappedData.ownerId && !mappedData.ownerId.match(/^[a-f0-9-]{36}$/i) && !mappedData.ownerId.includes('@')) {
+        errors.push('Owner/User must be a valid UUID or email address');
       }
 
       // Validate type field if provided
@@ -130,6 +143,26 @@ export class ImportService {
 
     for (const row of rows) {
       try {
+        let ownerId = row.data.ownerId || 'system';
+
+        // If ownerId looks like an email, look up the user
+        if (ownerId && ownerId.includes('@')) {
+          try {
+            const user = await this.userRepository.findOne({
+              where: { email: ownerId },
+            });
+            if (user) {
+              ownerId = user.id;
+            } else {
+              // User not found, fall back to system
+              ownerId = 'system';
+            }
+          } catch (e) {
+            // If lookup fails, use system
+            ownerId = 'system';
+          }
+        }
+
         // Create account with default values
         const account = this.accountRepository.create({
           name: row.data.name,
@@ -144,7 +177,7 @@ export class ImportService {
           size: row.data.size || null,
           type: row.data.type || 'Prospect',
           status: 'Prospect',
-          ownerId: row.data.ownerId || 'system', // Default owner
+          ownerId: ownerId,
         });
 
         await this.accountRepository.save(account);

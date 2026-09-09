@@ -16,6 +16,7 @@ export class ImportController {
 
       const file = req.file;
       const mapping = JSON.parse(req.body.mapping || '{}');
+      const defaultUserId = req.body.defaultUserId || '';
 
       if (!file) {
         throw new AppError(400, 'No file uploaded');
@@ -26,7 +27,7 @@ export class ImportController {
       }
 
       // Parse and validate the import
-      const result = await importService.parseAndValidateImport(file.path, mapping);
+      const result = await importService.parseAndValidateImport(file.path, mapping, defaultUserId);
 
       // Clean up temp file
       fs.unlinkSync(file.path);
