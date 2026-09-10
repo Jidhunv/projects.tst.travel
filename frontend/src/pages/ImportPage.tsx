@@ -93,7 +93,6 @@ export default function ImportPage() {
       try {
         const response = await apiClient.get('/users');
         setUsers(response.data.data || []);
-        // Set first user as default
         if (response.data.data?.length > 0) {
           setDefaultUserId(response.data.data[0].id);
         }
@@ -175,11 +174,6 @@ export default function ImportPage() {
       return;
     }
 
-    if (!defaultUserId && !Object.values(columnMapping).includes('ownerId')) {
-      alert('Please select a default user or map the User/Owner column');
-      return;
-    }
-
     setLoading(true);
     try {
       const formData = new FormData();
@@ -234,18 +228,32 @@ export default function ImportPage() {
     try {
       const rowsToSave = previewData?.successRows.filter(r => selectedRows.has(r.rowNumber)) || [];
 
-      await apiClient.post('/accounts/import/save', {
+      const response = await apiClient.post('/accounts/import/save', {
         rows: rowsToSave,
+        defaultUserId,
       });
 
-      alert(`Successfully imported ${rowsToSave.length} records`);
+      const { savedCount, failedCount, errors } = response.data.data;
+      if (failedCount > 0) {
+        const detail = (errors || [])
+          .slice(0, 5)
+          .map((e: { rowNumber: number; reason: string }) => `  Row ${e.rowNumber}: ${e.reason}`)
+          .join('\n');
+        const more = failedCount > 5 ? `\n  ...and ${failedCount - 5} more` : '';
+        alert(
+          `Imported ${savedCount} of ${rowsToSave.length} records.\n\n${failedCount} failed:\n${detail}${more}`
+        );
+      } else {
+        alert(`Successfully imported ${savedCount} records`);
+      }
       setStep(0);
       setFile(null);
       setColumnMapping({});
       setPreviewData(null);
       setSelectedRows(new Set());
     } catch (error) {
-      alert('Error saving data: ' + (error as any).message);
+      const err = error as any;
+      alert('Error saving data: ' + (err.response?.data?.error || err.message));
     } finally {
       setSaving(false);
     }
@@ -303,53 +311,6 @@ export default function ImportPage() {
                 Step 2: Map MIDT Fields to CSV Columns
               </Typography>
 
-              {/* User Assignment Section */}
-              <Alert severity="info" sx={{ mb: 3 }}>
-                <AlertTitle>Assign Owner/User</AlertTitle>
-                <Box sx={{ mt: 2 }}>
-                  <Typography variant="body2" sx={{ mb: 2 }}>
-                    Choose one of the following options:
-                  </Typography>
-                  <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
-                    <Box sx={{ flex: 1, minWidth: 250 }}>
-                      <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
-                        Option 1: Assign Default User
-                      </Typography>
-                      <Select
-                        value={defaultUserId}
-                        onChange={(e) => setDefaultUserId(e.target.value)}
-                        size="small"
-                        fullWidth
-                        disabled={usersLoading}
-                      >
-                        <MenuItem value="">-- Select User --</MenuItem>
-                        {users.map(user => (
-                          <MenuItem key={user.id} value={user.id}>
-                            {user.firstName} {user.lastName} ({user.email})
-                          </MenuItem>
-                        ))}
-                      </Select>
-                      <Typography variant="caption" sx={{ mt: 1, display: 'block', color: 'text.secondary' }}>
-                        All imported accounts will be assigned to this user
-                      </Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', px: 2 }}>
-                      <Typography variant="body2" sx={{ fontStyle: 'italic', color: 'text.secondary' }}>
-                        OR
-                      </Typography>
-                    </Box>
-                    <Box sx={{ flex: 1, minWidth: 250 }}>
-                      <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
-                        Option 2: Map User Column
-                      </Typography>
-                      <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>
-                        Select "Owner/User" field in the mapping below to use a CSV column. The column should contain user email addresses.
-                      </Typography>
-                    </Box>
-                  </Box>
-                </Box>
-              </Alert>
-
               <TableContainer component={Paper} sx={{ maxHeight: 600 }}>
                 <Table stickyHeader size="small">
                   <TableHead>
@@ -363,7 +324,7 @@ export default function ImportPage() {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {MIDT_FIELDS.map(field => {
+                    {MIDT_FIELDS.filter(f => f.field !== 'ownerId').map(field => {
                       const mappedColumn = Object.entries(columnMapping).find(([_, val]) => val === field.field)?.[0];
                       const isMapped = !!mappedColumn;
 
@@ -422,6 +383,26 @@ export default function ImportPage() {
                         </TableRow>
                       );
                     })}
+                    {/* User Selection Row */}
+                    <TableRow sx={{ backgroundColor: 'action.hover' }}>
+                      <TableCell sx={{ fontWeight: 'bold' }}>Owner/User</TableCell>
+                      <TableCell>
+                        <Select
+                          value={defaultUserId}
+                          onChange={(e) => setDefaultUserId(e.target.value)}
+                          size="small"
+                          fullWidth
+                          disabled={usersLoading}
+                        >
+                          <MenuItem value="">-- Select User --</MenuItem>
+                          {users.map(user => (
+                            <MenuItem key={user.id} value={user.id}>
+                              {user.firstName} {user.lastName} ({user.email})
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </TableCell>
+                    </TableRow>
                   </TableBody>
                 </Table>
               </TableContainer>

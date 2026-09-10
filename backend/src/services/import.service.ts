@@ -5,6 +5,7 @@ import { AppError } from '../middleware/errorHandler';
 import * as csv from 'csv-parse/sync';
 import * as XLSX from 'xlsx';
 import * as fs from 'fs';
+import logger from '../utils/logger';
 
 interface ImportRow {
   rowNumber: number;
@@ -151,13 +152,18 @@ export class ImportService {
     };
   }
 
-  async saveImportedAccounts(rows: ImportRow[]): Promise<{ savedCount: number; failedCount: number }> {
+  async saveImportedAccounts(
+    rows: ImportRow[],
+    currentUserId?: string,
+    defaultUserId?: string
+  ): Promise<{ savedCount: number; failedCount: number; errors: { rowNumber: number; reason: string }[] }> {
     let savedCount = 0;
     let failedCount = 0;
+    const errors: { rowNumber: number; reason: string }[] = [];
 
     for (const row of rows) {
       try {
-        let ownerId = row.data.ownerId || 'system';
+        let ownerId: string | null = row.data.ownerId || currentUserId || null;
 
         // If ownerId looks like an email, look up the user
         if (ownerId && ownerId.includes('@')) {
@@ -168,17 +174,17 @@ export class ImportService {
             if (user) {
               ownerId = user.id;
             } else {
-              // User not found, fall back to system
-              ownerId = 'system';
+              // Unresolvable owner degrades to the importing user rather than
+              // failing the row against the NOT NULL ownerId column.
+              ownerId = currentUserId || null;
             }
           } catch (e) {
-            // If lookup fails, use system
-            ownerId = 'system';
+            ownerId = currentUserId || null;
           }
         }
 
         // Create account with default values
-        const account = this.accountRepository.create({
+        const accountData: any = {
           name: row.data.name,
           industry: row.data.industry || null,
           website: row.data.website || null,
@@ -191,18 +197,40 @@ export class ImportService {
           size: row.data.size || null,
           type: row.data.type || 'Prospect',
           status: 'Prospect',
-          ownerId: ownerId,
-        });
+        };
+
+        if (ownerId) {
+          accountData.ownerId = ownerId;
+        }
+
+        // The creator is the wizard's "Assign Default User" selection, so it stays
+        // constant even when per-row owners come from a mapped CSV column.
+        const creatorId = defaultUserId || ownerId || currentUserId;
+        if (creatorId) {
+          accountData.createdBy = creatorId;
+        }
+
+        const account = this.accountRepository.create(accountData);
 
         await this.accountRepository.save(account);
         savedCount++;
       } catch (error) {
         failedCount++;
-        console.error(`Failed to save account from row ${row.rowNumber}:`, error);
+        // 23505 = unique_violation; the raw message is a constraint hash, so name
+        // the offending account instead.
+        const reason = (error as any)?.code === '23505'
+          ? `An account named "${row.data.name}" already exists`
+          : error instanceof Error ? error.message : String(error);
+        errors.push({ rowNumber: row.rowNumber, reason });
+        logger.error(`Import row ${row.rowNumber} failed: ${reason}`);
       }
     }
 
-    return { savedCount, failedCount };
+    if (savedCount === 0 && failedCount > 0) {
+      throw new AppError(400, `All ${failedCount} row(s) failed to save. First error: ${errors[0].reason}`);
+    }
+
+    return { savedCount, failedCount, errors };
   }
 
   private async getExistingAccountNames(): Promise<Set<string>> {

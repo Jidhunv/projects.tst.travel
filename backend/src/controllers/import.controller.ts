@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { AuthRequest, canPerformAction } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
 import importService from '../services/import.service';
+import userService from '../services/user.service';
 import logger from '../utils/logger';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -64,8 +65,28 @@ export class ImportController {
         throw new AppError(400, 'No rows provided to save');
       }
 
-      // Save the imported accounts
-      const result = await importService.saveImportedAccounts(rows);
+      // Validate defaultUserId if provided. It must be a valid UUID that exists.
+      let defaultUserId = req.body.defaultUserId;
+      if (defaultUserId) {
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (!uuidRegex.test(defaultUserId)) {
+          throw new AppError(400, 'Invalid user ID format');
+        }
+        // Verify the user exists
+        try {
+          await userService.getUserById(defaultUserId);
+        } catch {
+          throw new AppError(400, 'Selected user does not exist');
+        }
+      }
+
+      // defaultUserId is the "Assign Default User" selection from the wizard; it
+      // determines the creator recorded against every imported account.
+      const result = await importService.saveImportedAccounts(
+        rows,
+        req.user!.id,
+        defaultUserId
+      );
 
       logger.info(`MIDT import completed: ${result.savedCount} saved, ${result.failedCount} failed by ${req.user!.email}`);
 

@@ -77,6 +77,10 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'X-Session-ID'],
   exposedHeaders: ['X-CSRF-Token'],
 }));
+// MIDT import posts every previewed row in one JSON body, which passes 10kb at
+// ~35 rows. Mounted before the global parser so body-parser marks the body read
+// and the 10kb cap below no-ops for this path only.
+app.use('/api/accounts/import/save', express.json({ limit: '5mb' }));
 // Limit request payload size to prevent DOS
 app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({ extended: true, limit: '10kb' }));

@@ -36,6 +36,13 @@ export const errorHandler = (
     });
   }
 
+  if ((err as any).type === 'entity.too.large') {
+    return res.status(413).json({
+      success: false,
+      error: 'Request payload too large',
+    });
+  }
+
   logger.error('Unhandled error:', err);
 
   return res.status(500).json({
