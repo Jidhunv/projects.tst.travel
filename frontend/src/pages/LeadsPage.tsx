@@ -927,9 +927,9 @@ const LeadTableRow = React.memo(
       <TableCell>{lead.company || '-'}</TableCell>
       <TableCell>{lead.country || '-'}</TableCell>
       <TableCell>
-        {(lead as any).tier ? (
+        {((lead as any).account?.tier || (lead as any).tier) ? (
           <Chip
-            label={(lead as any).tier}
+            label={(lead as any).account?.tier || (lead as any).tier}
             size="small"
             variant="outlined"
           />
