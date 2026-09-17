@@ -290,6 +290,11 @@ export default function AccountsPage() {
     { id: 'name', label: 'Account Name' },
     { id: 'industry', label: 'Industry' },
     { id: 'type', label: 'Type' },
+    {
+      id: 'tier',
+      label: 'Tier',
+      render: (r: Account) => (r as any).tier ? <Chip label={(r as any).tier} size="small" variant="outlined" /> : '-',
+    },
     { id: 'country', label: 'Country' },
     { id: 'phoneNumber', label: 'Phone' },
     {
