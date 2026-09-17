@@ -202,7 +202,7 @@ export const SalesVisitsPage: React.FC = () => {
                 const isOverdue = followupDate && followupDate < today && !r.followupCompleted;
 
                 return (
-                  <TableRow key={r.id} sx={{ backgroundColor: isOverdue ? '#ffebee' : 'inherit' }}>
+                  <TableRow key={r.id} sx={{ backgroundColor: isOverdue ? (theme) => theme.palette.error.lighter || 'inherit' : 'inherit' }}>
                     <TableCell>{r.companyName || r.account?.name || '-'}</TableCell>
                     <TableCell>{r.visitType}</TableCell>
                     <TableCell sx={{ maxWidth: 220, whiteSpace: 'pre-wrap' }}>{r.discussion}</TableCell>
@@ -270,7 +270,7 @@ export const SalesVisitsPage: React.FC = () => {
                 disabled={!!editingId}
               />
 
-              <Box sx={{ pt: 2, borderTop: '1px solid #eee' }}>
+              <Box sx={{ pt: 2, borderTop: (theme) => `1px solid ${theme.palette.divider}` }}>
                 <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>
                   {editingId ? 'Add Followup Message' : 'Followup'}
                 </Typography>
@@ -306,7 +306,7 @@ export const SalesVisitsPage: React.FC = () => {
 
               {/* History log of the current visit + all its accumulating followups */}
               {editingId && editingVisit && (
-                <Box sx={{ pt: 2, borderTop: '1px solid #eee' }}>
+                <Box sx={{ pt: 2, borderTop: (theme) => `1px solid ${theme.palette.divider}` }}>
                   <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>History (Non-Editable Log)</Typography>
                   <Stack spacing={2}>
                     {/* Unified timeline: original visit + all followups, newest first */}
@@ -353,7 +353,7 @@ export const SalesVisitsPage: React.FC = () => {
                           </CardContent>
                         </Card>
                       ) : (
-                        <Card key={item.id} sx={{ bgcolor: '#eef6ff', border: '1px solid #bbdefb', ml: 2 }}>
+                        <Card key={item.id} sx={{ bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(33, 150, 243, 0.1)' : '#eef6ff', border: (theme) => `1px solid ${theme.palette.primary.light}`, ml: 2 }}>
                           <CardContent sx={{ pb: 2, '&:last-child': { pb: 2 } }}>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                               <Chip
