@@ -10,6 +10,8 @@ interface OpportunityFilters {
   accountId?: string;
   region?: string;
   country?: string;
+  city?: string;
+  products?: string[];
   page?: number;
   limit?: number;
   search?: string;
@@ -140,6 +142,12 @@ export class OpportunityService {
     }
     if (where.country) {
       query.andWhere('opp.country ILIKE :country', { country: `%${where.country}%` });
+    }
+    if (where.city) {
+      query.andWhere('opp.city ILIKE :city', { city: `%${where.city}%` });
+    }
+    if (where.products && where.products.length > 0) {
+      query.andWhere('lineItems.productId IN (:...productIds)', { productIds: where.products });
     }
 
     if (fromDate) {

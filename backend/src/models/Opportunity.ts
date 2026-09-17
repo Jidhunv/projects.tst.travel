@@ -82,6 +82,9 @@ export class Opportunity {
   country: string;
 
   @Column({ nullable: true })
+  city: string;
+
+  @Column({ nullable: true })
   company: string;
 
   @Column({ nullable: true })
@@ -117,6 +120,12 @@ export class Opportunity {
 
   @Column({ nullable: true })
   closedReason: string; // Won, Lost
+
+  @Column({ nullable: true })
+  expectedCloseMonth: string; // YYYY-MM format for filtering by month
+
+  @Column({ nullable: true })
+  tier: string; // Client tier (e.g., Premium, Standard, Basic)
 
   @CreateDateColumn()
   createdAt: Date;

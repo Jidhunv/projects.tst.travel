@@ -24,6 +24,7 @@ import {
   InputAdornment,
   ToggleButton,
   ToggleButtonGroup,
+  Tooltip,
 } from '@mui/material';
 import { Search as SearchIcon, ViewAgendaOutlined as ListIcon, ViewWeekOutlined as KanbanIcon } from '@mui/icons-material';
 import Layout from '@components/Layout';
@@ -62,6 +63,10 @@ export default function OpportunitiesPage() {
   const [amountToFilter, setAmountToFilter] = useState('');
   const [dateFromFilter, setDateFromFilter] = useState('');
   const [dateToFilter, setDateToFilter] = useState('');
+  const [countryFilter, setCountryFilter] = useState('');
+  const [regionFilter, setRegionFilter] = useState('');
+  const [cityFilter, setCityFilter] = useState('');
+  const [productsFilter, setProductsFilter] = useState<string[]>([]);
 
   // Dialogs
   const [openCreate, setOpenCreate] = useState(false);
@@ -94,6 +99,10 @@ export default function OpportunitiesPage() {
       if (amountToFilter) params.amountTo = amountToFilter;
       if (dateFromFilter) params.fromDate = dateFromFilter;
       if (dateToFilter) params.toDate = dateToFilter;
+      if (countryFilter) params.country = countryFilter;
+      if (regionFilter) params.region = regionFilter;
+      if (cityFilter) params.city = cityFilter;
+      if (productsFilter.length > 0) params.products = productsFilter.join(',');
 
       const response = await apiClient.get('/opportunities', { params });
       setOpportunities(response.data.data || []);
@@ -101,11 +110,11 @@ export default function OpportunitiesPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, search, stageFilter, amountFromFilter, amountToFilter, dateFromFilter, dateToFilter]);
+  }, [page, pageSize, search, stageFilter, amountFromFilter, amountToFilter, dateFromFilter, dateToFilter, countryFilter, regionFilter, cityFilter, productsFilter]);
 
   useEffect(() => {
     setPage(1);
-  }, [search, stageFilter, amountFromFilter, amountToFilter, dateFromFilter, dateToFilter]);
+  }, [search, stageFilter, amountFromFilter, amountToFilter, dateFromFilter, dateToFilter, countryFilter, regionFilter, cityFilter, productsFilter]);
 
   useEffect(() => {
     fetchOpportunities();
@@ -360,6 +369,53 @@ export default function OpportunitiesPage() {
                   size="small"
                 />
               </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <TextField
+                  fullWidth
+                  label="Country"
+                  value={countryFilter}
+                  onChange={(e) => setCountryFilter(e.target.value)}
+                  size="small"
+                  placeholder="Filter by country..."
+                />
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <TextField
+                  fullWidth
+                  label="Region"
+                  value={regionFilter}
+                  onChange={(e) => setRegionFilter(e.target.value)}
+                  size="small"
+                  placeholder="Filter by region..."
+                />
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <TextField
+                  fullWidth
+                  label="City"
+                  value={cityFilter}
+                  onChange={(e) => setCityFilter(e.target.value)}
+                  size="small"
+                  placeholder="Filter by city..."
+                />
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <TextField
+                  fullWidth
+                  select
+                  label="Products"
+                  value={productsFilter}
+                  onChange={(e) => setProductsFilter(typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value)}
+                  size="small"
+                  SelectProps={{ multiple: true }}
+                >
+                  {products.map(product => (
+                    <MenuItem key={product.id} value={product.id}>
+                      {product.name}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
             </Grid>
           </CardContent>
         </Card>
@@ -371,11 +427,14 @@ export default function OpportunitiesPage() {
               <TableHead>
                 <TableRow>
                   <TableCell>Opportunity Name</TableCell>
+                  <TableCell>Owner</TableCell>
+                  <TableCell>Country</TableCell>
+                  <TableCell>Tier</TableCell>
                   <TableCell align="right">Amount</TableCell>
                   <TableCell>Stage</TableCell>
+                  <TableCell>Expected Close</TableCell>
                   <TableCell>Products</TableCell>
                   <TableCell>Probability</TableCell>
-                  <TableCell>Close Date</TableCell>
                   <TableCell>Actions</TableCell>
                 </TableRow>
               </TableHead>
@@ -670,18 +729,31 @@ const OpportunityTableRow = React.memo(
     onAssigned: () => void;
   }) => (
     <TableRow>
-      <TableCell sx={{ fontWeight: 'bold' }}>{opp.name}</TableCell>
+      <TableCell sx={{ fontWeight: 'bold' }}>
+        <Tooltip title={opp.description || 'No description'} arrow>
+          <span>{opp.name}</span>
+        </Tooltip>
+      </TableCell>
+      <TableCell>
+        {(opp as any).owner ? `${(opp as any).owner.firstName} ${(opp as any).owner.lastName}` : '-'}
+      </TableCell>
+      <TableCell>{(opp as any).country || '-'}</TableCell>
+      <TableCell>
+        {(opp as any).tier ? (
+          <Chip label={(opp as any).tier} variant="outlined" size="small" />
+        ) : '-'}
+      </TableCell>
       <TableCell align="right">{formatCurrency(opp.amount)}</TableCell>
       <TableCell>
         <Chip label={opp.stage} color={stageColor[opp.stage] || 'default'} size="small" />
       </TableCell>
+      <TableCell>{new Date(opp.forecastedCloseDate).toLocaleDateString()}</TableCell>
       <TableCell>
         {(opp as any).productNames && (opp as any).productNames.length > 0
           ? (opp as any).productNames.join(', ')
           : '-'}
       </TableCell>
       <TableCell>{opp.probability}%</TableCell>
-      <TableCell>{new Date(opp.forecastedCloseDate).toLocaleDateString()}</TableCell>
       <TableCell>
         <Button size="small" variant="text" onClick={() => onEdit(opp)}>
           Edit

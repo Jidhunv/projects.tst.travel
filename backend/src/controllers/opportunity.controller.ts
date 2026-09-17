@@ -13,8 +13,8 @@ import logger from '../utils/logger';
 const OPPORTUNITY_UPDATABLE = [
   'name', 'amount', 'stage', 'status', 'description', 'forecastedCloseDate',
   'probability', 'primaryContactId', 'businessVolume', 'supplierList', 'region',
-  'country', 'company', 'contactPerson', 'contactEmail', 'contactPhone',
-  'jobTitle', 'source', 'remark', 'tags', 'closedReason', 'productIds', 'productNames',
+  'country', 'city', 'company', 'contactPerson', 'contactEmail', 'contactPhone',
+  'jobTitle', 'source', 'remark', 'tags', 'closedReason', 'productIds', 'productNames', 'tier',
 ] as const;
 
 // Line-item fields a client may set (addLineItem accepts the same set).
@@ -76,7 +76,7 @@ export class OpportunityController {
 
   async getOpportunities(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const { page = 1, limit = 20, stage, status, ownerId, accountId, search, fromDate, toDate, amountFrom, amountTo, region, country } = req.query;
+      const { page = 1, limit = 20, stage, status, ownerId, accountId, search, fromDate, toDate, amountFrom, amountTo, region, country, city, products } = req.query;
 
       // Sales Reps see only their own opportunities; Admin/Manager see all.
       const scope = getOwnerScope(req.user, 'opportunities');
@@ -96,6 +96,8 @@ export class OpportunityController {
         amountTo: amountTo ? Number(amountTo) : undefined,
         region: region as string,
         country: country as string,
+        city: city as string,
+        products: products ? (typeof products === 'string' ? products.split(',') : (products as string[])) : undefined,
       });
 
       return res.json({
