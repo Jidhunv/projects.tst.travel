@@ -30,6 +30,7 @@ import { Search as SearchIcon, ViewAgendaOutlined as ListIcon, ViewWeekOutlined 
 import Layout from '@components/Layout';
 import AssignOwner from '@components/AssignOwner';
 import ConfirmDialog from '@components/ConfirmDialog';
+import SearchableSelect from '@components/SearchableSelect';
 import useAuth from '@hooks/useAuth';
 import { apiClient } from '../services/api';
 import { Opportunity } from '../types';
@@ -541,22 +542,14 @@ export default function OpportunitiesPage() {
         <Dialog open={openCreate || !!openEdit} onClose={() => { setOpenCreate(false); setOpenEdit(null); }} maxWidth="sm" fullWidth>
           <DialogTitle>{openEdit ? 'Edit Opportunity' : 'Add New Opportunity'}</DialogTitle>
           <DialogContent sx={{ pt: 2 }}>
-            <TextField
-              fullWidth
-              select
-              label="Account"
+            <SearchableSelect
+              label="Select Account (Type to search)"
               value={form.accountId}
-              onChange={(e) => setForm({ ...form, accountId: e.target.value })}
-              sx={{ mb: 2 }}
+              onChange={(newAccountId) => setForm({ ...form, accountId: newAccountId || '' })}
+              options={accounts}
               required
-            >
-              <MenuItem value="">-- Select Account --</MenuItem>
-              {accounts.map((account) => (
-                <MenuItem key={account.id} value={account.id}>
-                  {account.name}
-                </MenuItem>
-              ))}
-            </TextField>
+              sx={{ mb: 2 }}
+            />
             <TextField
               fullWidth
               label="Opportunity Name"
