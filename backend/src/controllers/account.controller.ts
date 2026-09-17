@@ -216,7 +216,7 @@ export class AccountController {
       // will appear to save and then not persist -- which is exactly what happened
       // to email and remark. Keep this in step with the Account model.
       const allowed = [
-        'name', 'industry', 'size', 'website', 'phoneNumber', 'alternatePhoneNumber', 'email', 'remark', 'type', 'status',
+        'name', 'industry', 'size', 'website', 'phoneNumber', 'alternatePhoneNumber', 'email', 'remark', 'type', 'status', 'tier',
         'contactPerson', 'city', 'region', 'country',
         'billingStreet', 'billingCity', 'billingState', 'billingZip', 'billingCountry',
         'shippingStreet', 'shippingCity', 'shippingState', 'shippingZip', 'shippingCountry',

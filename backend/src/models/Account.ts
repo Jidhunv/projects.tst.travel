@@ -59,6 +59,9 @@ export class Account {
   @Column({ default: 'Prospect' })
   status: string; // Prospect, Customer, Inactive
 
+  @Column({ nullable: true })
+  tier: string; // Client tier (Premium, Standard, Basic, etc.) - can be imported from MIDT
+
   @ManyToOne(() => User, (user) => user.accounts)
   @JoinColumn({ name: 'ownerId' })
   owner: User;

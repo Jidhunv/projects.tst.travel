@@ -197,6 +197,7 @@ export class ImportService {
           size: row.data.size || null,
           type: row.data.type || 'Prospect',
           status: 'Prospect',
+          tier: row.data.tier || null, // Client tier from MIDT
         };
 
         if (ownerId) {
