@@ -732,8 +732,8 @@ const OpportunityTableRow = React.memo(
       </TableCell>
       <TableCell>{(opp as any).country || '-'}</TableCell>
       <TableCell>
-        {(opp as any).tier ? (
-          <Chip label={(opp as any).tier} variant="outlined" size="small" />
+        {((opp as any).account?.tier || (opp as any).tier) ? (
+          <Chip label={(opp as any).account?.tier || (opp as any).tier} variant="outlined" size="small" />
         ) : '-'}
       </TableCell>
       <TableCell align="right">{formatCurrency(opp.amount)}</TableCell>
