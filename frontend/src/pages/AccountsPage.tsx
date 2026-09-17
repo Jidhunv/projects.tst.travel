@@ -78,6 +78,7 @@ export default function AccountsPage() {
     country: '',
     email: '',
     remark: '',
+    tier: '',
     assignedTeamIds: [] as string[],
     assigneeIds: [] as string[],
   });
@@ -189,6 +190,7 @@ export default function AccountsPage() {
       country: '',
       email: '',
       remark: '',
+      tier: '',
       assignedTeamIds: [],
       assigneeIds: [],
     });
@@ -228,6 +230,7 @@ export default function AccountsPage() {
       country: full.country || '',
       email: full.email || '',
       remark: full.remark || '',
+      tier: full.tier || '',
       assignedTeamIds: full.assignedTeamIds || [],
       assigneeIds: full.assigneeIds || [],
     });
@@ -416,6 +419,20 @@ export default function AccountsPage() {
                 <MenuItem value="Customer">Customer</MenuItem>
                 <MenuItem value="Inactive">Inactive</MenuItem>
               </TextField>
+              <TextField
+                label="Tier"
+                select
+                value={formData.tier}
+                onChange={(e) => setFormData({ ...formData, tier: e.target.value })}
+                fullWidth
+              >
+                <MenuItem value="">-- Select Tier --</MenuItem>
+                <MenuItem value="T1">Tier 1 (T1-10)</MenuItem>
+                <MenuItem value="T2">Tier 2 (T11-25)</MenuItem>
+                <MenuItem value="T3">Tier 3 (T26-50)</MenuItem>
+                <MenuItem value="T4">Tier 4 (T51-100)</MenuItem>
+                <MenuItem value="T5">Tier 5 (T101-500)</MenuItem>
+              </TextField>
               <TextField label="Contact Person" value={formData.contactPerson} onChange={(e) => setFormData({ ...formData, contactPerson: e.target.value })} fullWidth />
               <TextField label="City" value={formData.city} onChange={(e) => setFormData({ ...formData, city: e.target.value })} fullWidth />
               <TextField label="Region" value={formData.region} onChange={(e) => setFormData({ ...formData, region: e.target.value })} fullWidth />
@@ -519,6 +536,20 @@ export default function AccountsPage() {
                   <MenuItem value="Prospect">Prospect</MenuItem>
                   <MenuItem value="Customer">Customer</MenuItem>
                   <MenuItem value="Inactive">Inactive</MenuItem>
+                </TextField>
+                <TextField
+                  label="Tier"
+                  select
+                  value={formData.tier}
+                  onChange={(e) => setFormData({ ...formData, tier: e.target.value })}
+                  fullWidth
+                >
+                  <MenuItem value="">-- Select Tier --</MenuItem>
+                  <MenuItem value="T1">Tier 1 (T1-10)</MenuItem>
+                  <MenuItem value="T2">Tier 2 (T11-25)</MenuItem>
+                  <MenuItem value="T3">Tier 3 (T26-50)</MenuItem>
+                  <MenuItem value="T4">Tier 4 (T51-100)</MenuItem>
+                  <MenuItem value="T5">Tier 5 (T101-500)</MenuItem>
                 </TextField>
                 <TextField label="Contact Person" value={formData.contactPerson} onChange={(e) => setFormData({ ...formData, contactPerson: e.target.value })} fullWidth />
                 <TextField label="City" value={formData.city} onChange={(e) => setFormData({ ...formData, city: e.target.value })} fullWidth />

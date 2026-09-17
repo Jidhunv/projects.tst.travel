@@ -921,7 +921,7 @@ const LeadTableRow = React.memo(
         {lead.firstName} {lead.lastName}
       </TableCell>
       <TableCell>
-        {(lead as any).owner?.email || '-'}
+        {(lead as any).owner ? `${(lead as any).owner.firstName || ''} ${(lead as any).owner.lastName || ''}`.trim() : '-'}
       </TableCell>
       <TableCell>{lead.email}</TableCell>
       <TableCell>{lead.company || '-'}</TableCell>
