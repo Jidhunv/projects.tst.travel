@@ -1,6 +1,7 @@
 import { AppDataSource } from '../config/database';
 import { Opportunity } from '../models/Opportunity';
 import { LineItem } from '../models/LineItem';
+import { Account } from '../models/Account';
 import { AppError } from '../middleware/errorHandler';
 
 interface OpportunityFilters {
@@ -68,6 +69,15 @@ export class OpportunityService {
 
     const { productIds, productNames, ...oppData } = data;
 
+    // Get account to populate tier if not provided
+    let tier = data.tier;
+    if (!tier && data.accountId) {
+      const account = await AppDataSource.getRepository(Account).findOne({
+        where: { id: data.accountId },
+      });
+      tier = account?.tier;
+    }
+
     const opp = this.oppRepository.create({
       ...oppData,
       status: 'Open',
@@ -75,7 +85,7 @@ export class OpportunityService {
       country: data.country,
       city: data.city,
       region: data.region,
-      tier: data.tier,
+      tier,
     });
 
     const savedOpp = await this.oppRepository.save(opp);
