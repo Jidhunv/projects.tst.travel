@@ -41,6 +41,10 @@ export class OpportunityController {
         probability,
         productIds,
         productNames,
+        country,
+        city,
+        region,
+        tier,
       } = req.body;
 
       if (!name || !amount || !stage || !forecastedCloseDate || !accountId) {
@@ -61,6 +65,10 @@ export class OpportunityController {
         probability,
         productIds,
         productNames,
+        country,
+        city,
+        region,
+        tier,
       });
 
       logger.info(`Opportunity created: ${opp.name} by ${req.user!.email}`);

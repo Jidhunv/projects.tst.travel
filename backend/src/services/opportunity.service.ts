@@ -48,6 +48,10 @@ export class OpportunityService {
     probability?: number;
     productIds?: string[];
     productNames?: string[];
+    country?: string;
+    city?: string;
+    region?: string;
+    tier?: string;
   }): Promise<any> {
     const validStages = [
       'Prospecting',
@@ -68,6 +72,10 @@ export class OpportunityService {
       ...oppData,
       status: 'Open',
       probability: data.probability || 10,
+      country: data.country,
+      city: data.city,
+      region: data.region,
+      tier: data.tier,
     });
 
     const savedOpp = await this.oppRepository.save(opp);
