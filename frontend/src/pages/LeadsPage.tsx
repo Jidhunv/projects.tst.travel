@@ -24,6 +24,7 @@ import {
   InputAdornment,
   ToggleButton,
   ToggleButtonGroup,
+  Tooltip,
 } from '@mui/material';
 import { Search as SearchIcon, ViewAgendaOutlined as ListIcon, ViewWeekOutlined as KanbanIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import Layout from '@components/Layout';
@@ -455,9 +456,11 @@ export default function LeadsPage() {
               <TableHead>
                 <TableRow>
                   <TableCell>Name</TableCell>
+                  <TableCell>Owner</TableCell>
                   <TableCell>Email</TableCell>
                   <TableCell>Company</TableCell>
                   <TableCell>Country</TableCell>
+                  <TableCell>Tier</TableCell>
                   <TableCell>Value</TableCell>
                   <TableCell>Status</TableCell>
                   <TableCell>Product</TableCell>
@@ -917,9 +920,21 @@ const LeadTableRow = React.memo(
       <TableCell sx={{ fontWeight: 'bold' }}>
         {lead.firstName} {lead.lastName}
       </TableCell>
+      <TableCell>
+        {(lead as any).owner?.email || '-'}
+      </TableCell>
       <TableCell>{lead.email}</TableCell>
       <TableCell>{lead.company || '-'}</TableCell>
       <TableCell>{lead.country || '-'}</TableCell>
+      <TableCell>
+        {(lead as any).tier ? (
+          <Chip
+            label={(lead as any).tier}
+            size="small"
+            variant="outlined"
+          />
+        ) : '-'}
+      </TableCell>
       <TableCell>{formatCurrency(lead.value)}</TableCell>
       <TableCell>
         <Chip

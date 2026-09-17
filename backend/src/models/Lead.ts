@@ -78,6 +78,9 @@ export class Lead {
   @Column({ nullable: true })
   country: string;
 
+  @Column({ nullable: true })
+  tier: string; // Client tier (Premium, Standard, Basic) from account
+
   // Reason captured when a lead is closed as lost
   @Column({ nullable: true })
   lostReason: string;

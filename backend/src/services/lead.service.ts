@@ -56,6 +56,11 @@ export class LeadService {
       throw new AppError(409, 'Lead with this email already exists');
     }
 
+    // Get account to populate tier from it
+    const account = await this.accountRepository.findOne({
+      where: { id: data.accountId },
+    });
+
     const lead = this.leadRepository.create({
       ...data,
       value: data.value ?? 0,
@@ -63,6 +68,7 @@ export class LeadService {
       score: 0,
       productIds: data.productIds || [],
       productNames: data.productNames || [],
+      tier: account?.tier,
     });
 
     return await this.leadRepository.save(lead);
