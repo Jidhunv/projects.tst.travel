@@ -195,6 +195,18 @@ export class AccountService {
     // the FK would be silently overwritten by the stale relation object.
     // update() writes exactly the columns given.
     await this.accountRepository.update(id, data as any);
+
+    // If account name changed, sync it to all related leads (denormalized field)
+    if (data.name && data.name !== account.name) {
+      const leadRepository = AppDataSource.getRepository('Lead');
+      await leadRepository
+        .createQueryBuilder()
+        .update()
+        .set({ company: data.name })
+        .where('accountId = :accountId', { accountId: id })
+        .execute();
+    }
+
     return await this.getAccountById(id);
   }
 

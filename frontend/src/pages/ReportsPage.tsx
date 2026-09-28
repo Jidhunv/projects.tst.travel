@@ -76,7 +76,7 @@ export default function ReportsPage() {
   const exportLeads = () => exportToCsv('leads-report', [
     { header: 'Name', value: (r: any) => `${r.firstName} ${r.lastName}` },
     { header: 'Email', value: (r: any) => r.email },
-    { header: 'Company', value: (r: any) => r.company },
+    { header: 'Company', value: (r: any) => r.account?.name || r.company || '' },
     { header: 'Business Volume', value: (r: any) => r.businessVolume },
     { header: 'Suppliers', value: (r: any) => r.supplierList },
     { header: 'Region', value: (r: any) => r.region },
@@ -296,7 +296,7 @@ export default function ReportsPage() {
 
       <ReportBlock title={`Leads (${leads.length})`} onExport={exportLeads}
         head={['Name', 'Company', 'Business Volume', 'Region', 'Country', 'Status', 'Owner']}
-        rows={leads.map((r) => [`${r.firstName} ${r.lastName}`, r.company || '-', r.businessVolume ?? '-', r.region || '-', r.country || '-', r.status, r.owner ? `${r.owner.firstName} ${r.owner.lastName}` : '-'])} />
+        rows={leads.map((r) => [`${r.firstName} ${r.lastName}`, r.account?.name || r.company || '-', r.businessVolume ?? '-', r.region || '-', r.country || '-', r.status, r.owner ? `${r.owner.firstName} ${r.owner.lastName}` : '-'])} />
 
       <ReportBlock title={`Accounts (${accounts.length})`} onExport={exportAccounts}
         head={['Name', 'Contact Person', 'City', 'Region', 'Country', 'Type', 'Owner']}
