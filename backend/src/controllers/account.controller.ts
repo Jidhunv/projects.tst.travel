@@ -115,7 +115,7 @@ export class AccountController {
 
   async getAccounts(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const { page = 1, limit = 20, status, type, ownerId, search, city, region, country } = req.query;
+      const { page = 1, limit = 20, status, type, ownerId, search, city, region, country, fromDate, toDate } = req.query;
 
       // Visibility by read scope:
       //   all  -> everything (optionally filtered by an ownerId query param)
@@ -167,6 +167,8 @@ export class AccountController {
         city: city as string,
         region: region as string,
         country: country as string,
+        fromDate: fromDate as string,
+        toDate: toDate as string,
       });
 
       return res.json({

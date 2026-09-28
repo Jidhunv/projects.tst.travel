@@ -25,6 +25,8 @@ interface AccountFilters {
   page?: number;
   limit?: number;
   search?: string;
+  fromDate?: string;
+  toDate?: string;
 }
 
 export class AccountService {
@@ -90,7 +92,7 @@ export class AccountService {
   }
 
   async getAccounts(filters: AccountFilters = {}): Promise<{ data: Account[]; total: number }> {
-    const { page = 1, limit = 20, search, ...where } = filters;
+    const { page = 1, limit = 20, search, fromDate, toDate, ...where } = filters;
     const skip = (page - 1) * limit;
 
     const query = this.accountRepository
@@ -150,6 +152,14 @@ export class AccountService {
     }
     if (where.country) {
       query.andWhere('account.country ILIKE :country', { country: `%${where.country}%` });
+    }
+    if (fromDate) {
+      query.andWhere('account.createdAt >= :fromDate', { fromDate: new Date(fromDate) });
+    }
+    if (toDate) {
+      const toDateObj = new Date(toDate);
+      toDateObj.setHours(23, 59, 59, 999);
+      query.andWhere('account.createdAt <= :toDate', { toDate: toDateObj });
     }
 
     const [data, total] = await query

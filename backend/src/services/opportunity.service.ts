@@ -169,12 +169,12 @@ export class OpportunityService {
     }
 
     if (fromDate) {
-      query.andWhere('opp.forecastedCloseDate >= :fromDate', { fromDate: new Date(fromDate) });
+      query.andWhere('opp.createdAt >= :fromDate', { fromDate: new Date(fromDate) });
     }
     if (toDate) {
       const toDateObj = new Date(toDate);
       toDateObj.setHours(23, 59, 59, 999);
-      query.andWhere('opp.forecastedCloseDate <= :toDate', { toDate: toDateObj });
+      query.andWhere('opp.createdAt <= :toDate', { toDate: toDateObj });
     }
 
     if (amountFrom !== undefined && amountFrom !== null) {
