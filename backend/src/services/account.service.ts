@@ -154,12 +154,10 @@ export class AccountService {
       query.andWhere('account.country ILIKE :country', { country: `%${where.country}%` });
     }
     if (fromDate) {
-      query.andWhere('account.createdAt >= :fromDate', { fromDate: new Date(fromDate) });
+      query.andWhere('account.createdAt >= :fromDate', { fromDate: new Date(`${fromDate}T00:00:00.000Z`) });
     }
     if (toDate) {
-      const toDateObj = new Date(toDate);
-      toDateObj.setHours(23, 59, 59, 999);
-      query.andWhere('account.createdAt <= :toDate', { toDate: toDateObj });
+      query.andWhere('account.createdAt <= :toDate', { toDate: new Date(`${toDate}T23:59:59.999Z`) });
     }
 
     const [data, total] = await query
