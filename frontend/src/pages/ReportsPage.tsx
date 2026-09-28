@@ -19,8 +19,10 @@ import Layout from '@components/Layout';
 import { api } from '@services/api';
 import { formatCurrency } from '@utils/format';
 import { exportToCsv } from '@utils/exportCsv';
+import useAuth from '@hooks/useAuth';
 
 export default function ReportsPage() {
+  const { user } = useAuth();
   const [mis, setMis] = React.useState<any>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState('');
@@ -34,15 +36,19 @@ export default function ReportsPage() {
   const loadCombined = React.useCallback(async () => {
     const params: any = {};
     Object.entries(cFilters).forEach(([k, v]) => { if (v) params[k] = v; });
+    // For non-admin users, filter by their own records
+    if (user?.role !== 'Admin') {
+      params.ownerId = user?.id;
+    }
     const [l, a, o] = await Promise.all([
-      api.getLeads(1, 500, params).catch(() => ({ data: { data: [] } })),
-      api.getAccounts(1, 500, params).catch(() => ({ data: { data: [] } })),
-      api.getOpportunities(1, 500, params).catch(() => ({ data: { data: [] } })),
+      api.getLeads(1, 1000, params).catch(() => ({ data: { data: [] } })),
+      api.getAccounts(1, 1000, params).catch(() => ({ data: { data: [] } })),
+      api.getOpportunities(1, 1000, params).catch(() => ({ data: { data: [] } })),
     ]);
     setLeads(l.data.data || []);
     setAccounts(a.data.data || []);
     setOpps(o.data.data || []);
-  }, [cFilters]);
+  }, [cFilters, user?.id, user?.role]);
 
   React.useEffect(() => {
     api
@@ -78,6 +84,7 @@ export default function ReportsPage() {
     { header: 'Country', value: (r: any) => r.country },
     { header: 'Type', value: (r: any) => r.type },
     { header: 'Phone', value: (r: any) => r.phoneNumber },
+    { header: 'Owner', value: (r: any) => r.owner ? `${r.owner.firstName} ${r.owner.lastName}` : '' },
   ], accounts);
 
   const exportOpps = () => exportToCsv('opportunities-report', [
@@ -260,16 +267,16 @@ export default function ReportsPage() {
       </Paper>
 
       <ReportBlock title={`Leads (${leads.length})`} onExport={exportLeads}
-        head={['Name', 'Company', 'Business Volume', 'Region', 'Country', 'Status']}
-        rows={leads.map((r) => [`${r.firstName} ${r.lastName}`, r.company || '-', r.businessVolume ?? '-', r.region || '-', r.country || '-', r.status])} />
+        head={['Name', 'Company', 'Business Volume', 'Region', 'Country', 'Status', 'Owner']}
+        rows={leads.map((r) => [`${r.firstName} ${r.lastName}`, r.company || '-', r.businessVolume ?? '-', r.region || '-', r.country || '-', r.status, r.owner ? `${r.owner.firstName} ${r.owner.lastName}` : '-'])} />
 
       <ReportBlock title={`Accounts (${accounts.length})`} onExport={exportAccounts}
-        head={['Name', 'Contact Person', 'City', 'Region', 'Country', 'Type']}
-        rows={accounts.map((r) => [r.name, r.contactPerson || '-', r.city || '-', r.region || '-', r.country || '-', r.type])} />
+        head={['Name', 'Contact Person', 'City', 'Region', 'Country', 'Type', 'Owner']}
+        rows={accounts.map((r) => [r.name, r.contactPerson || '-', r.city || '-', r.region || '-', r.country || '-', r.type, r.owner ? `${r.owner.firstName} ${r.owner.lastName}` : '-'])} />
 
       <ReportBlock title={`Opportunities (${opps.length})`} onExport={exportOpps}
-        head={['Name', 'Company', 'Amount', 'Stage', 'Status', 'Region']}
-        rows={opps.map((r) => [r.name, r.company || r.account?.name || '-', formatCurrency(r.amount), r.stage, r.status, r.region || '-'])} />
+        head={['Name', 'Company', 'Amount', 'Stage', 'Status', 'Region', 'Owner']}
+        rows={opps.map((r) => [r.name, r.company || r.account?.name || '-', formatCurrency(r.amount), r.stage, r.status, r.region || '-', r.owner ? `${r.owner.firstName} ${r.owner.lastName}` : '-'])} />
     </Layout>
   );
 }
@@ -287,13 +294,13 @@ function ReportBlock({ title, head, rows, onExport }: { title: string; head: str
             <TableRow>{head.map((h) => <TableCell key={h}>{h}</TableCell>)}</TableRow>
           </TableHead>
           <TableBody>
-            {rows.slice(0, 50).map((row, i) => (
+            {rows.map((row, i) => (
               <TableRow key={i}>{row.map((c, j) => <TableCell key={j}>{c as any}</TableCell>)}</TableRow>
             ))}
             {rows.length === 0 && <TableRow><TableCell colSpan={head.length} align="center">No records</TableCell></TableRow>}
           </TableBody>
         </Table>
-        {rows.length > 50 && <Typography variant="caption" color="textSecondary">Showing first 50 of {rows.length}. Use Export CSV for all.</Typography>}
+        {rows.length > 100 && <Typography variant="caption" color="textSecondary">Showing {rows.length} records. Use Export CSV for a file download.</Typography>}
       </CardContent>
     </Card>
   );
