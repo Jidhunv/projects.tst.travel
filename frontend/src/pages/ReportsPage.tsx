@@ -40,7 +40,7 @@ export default function ReportsPage() {
 
     // For non-admin users, filter by their own records
     // For admin users, optionally filter by selected owner
-    if (user?.role !== 'Admin') {
+    if (user?.role?.name !== 'Admin') {
       params.ownerId = user?.id;
     } else if (cFilters.ownerId) {
       params.ownerId = cFilters.ownerId;
@@ -59,7 +59,7 @@ export default function ReportsPage() {
   React.useEffect(() => {
     Promise.all([
       api.getMIS(),
-      user?.role === 'Admin' ? api.getUsers(1, 500) : Promise.resolve({ data: { data: [] } })
+      user?.role?.name === 'Admin' ? api.getUsers(1, 500) : Promise.resolve({ data: { data: [] } })
     ])
       .then(([misRes, usersRes]) => {
         if (misRes.data.success) setMis(misRes.data.data);
@@ -269,7 +269,7 @@ export default function ReportsPage() {
       <Paper sx={{ p: 2, mb: 2 }}>
         <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
           <TextField size="small" label="Search" value={cFilters.search} onChange={(e) => setCFilters({ ...cFilters, search: e.target.value })} />
-          {user?.role === 'Admin' && (
+          {user?.role?.name === 'Admin' && (
             <TextField
               size="small"
               select

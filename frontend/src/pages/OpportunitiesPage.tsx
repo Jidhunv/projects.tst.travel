@@ -548,7 +548,6 @@ export default function OpportunitiesPage() {
               onChange={(newAccountId) => setForm({ ...form, accountId: newAccountId || '' })}
               options={accounts}
               required
-              sx={{ mb: 2 }}
             />
             <TextField
               fullWidth

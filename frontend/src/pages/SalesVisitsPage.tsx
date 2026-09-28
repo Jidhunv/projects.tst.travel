@@ -202,7 +202,7 @@ export const SalesVisitsPage: React.FC = () => {
                 const isOverdue = followupDate && followupDate < today && !r.followupCompleted;
 
                 return (
-                  <TableRow key={r.id} sx={{ backgroundColor: isOverdue ? (theme) => theme.palette.error.lighter || 'inherit' : 'inherit' }}>
+                  <TableRow key={r.id} sx={{ backgroundColor: isOverdue ? (theme) => theme.palette.mode === 'dark' ? 'rgba(211, 47, 47, 0.15)' : '#ffebee' : 'inherit' }}>
                     <TableCell>{r.companyName || r.account?.name || '-'}</TableCell>
                     <TableCell>{r.visitType}</TableCell>
                     <TableCell sx={{ maxWidth: 220, whiteSpace: 'pre-wrap' }}>{r.discussion}</TableCell>

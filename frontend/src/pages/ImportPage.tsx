@@ -163,10 +163,15 @@ export default function ImportPage() {
 
   // Step 1: Column Mapping
   const handleMappingChange = (csvColumn: string, miditField: string) => {
-    setColumnMapping(prev => ({
-      ...prev,
-      [csvColumn]: miditField === '' ? undefined : miditField,
-    }));
+    setColumnMapping(prev => {
+      const next = { ...prev };
+      if (miditField === '') {
+        delete next[csvColumn];
+      } else {
+        next[csvColumn] = miditField;
+      }
+      return next;
+    });
   };
 
   const handlePreview = async () => {
