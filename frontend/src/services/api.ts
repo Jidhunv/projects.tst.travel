@@ -209,6 +209,11 @@ export const api = {
   updateOpportunityStage: (id: string, stage: string) =>
     apiClient.patch<ApiResponse<any>>(`/opportunities/${id}/stage`, { stage }),
 
+  // Admin-only: manually correct createdAt / forecastedCloseDate / closedAt
+  // to backfill historical or imported opportunities.
+  adminUpdateOpportunityDates: (id: string, data: { createdAt?: string; forecastedCloseDate?: string; closedAt?: string | null }) =>
+    apiClient.patch<ApiResponse<any>>(`/opportunities/${id}/admin-dates`, data),
+
   assignOpportunity: (id: string, ownerIds: string[]) =>
     apiClient.patch<ApiResponse<any>>(`/opportunities/${id}/assign`, { ownerIds }),
 

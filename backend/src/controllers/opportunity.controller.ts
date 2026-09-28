@@ -177,6 +177,36 @@ export class OpportunityController {
     }
   }
 
+  // Admin-only data-correction endpoint: directly overwrite createdAt /
+  // forecastedCloseDate / closedAt to backfill historical or imported
+  // records. Hard-gated to the Admin role (not permission-based) since this
+  // bypasses the normal update whitelist by design.
+  async adminUpdateDates(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      if (req.user?.role !== 'Admin') {
+        throw new AppError(403, 'Only Admin can manually correct opportunity dates');
+      }
+
+      const { id } = req.params;
+      const { createdAt, forecastedCloseDate, closedAt } = req.body;
+
+      const updatedOpp = await opportunityService.adminUpdateDates(id, {
+        createdAt,
+        forecastedCloseDate,
+        closedAt,
+      });
+
+      logger.info(`Opportunity dates manually corrected: ${updatedOpp.id} by ${req.user!.email}`);
+
+      return res.json({
+        success: true,
+        data: updatedOpp,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async updateStage(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;

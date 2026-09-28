@@ -264,6 +264,49 @@ export class OpportunityService {
     return await this.getOpportunityById(id);
   }
 
+  // Admin-only: directly overwrite system-managed timestamp columns to
+  // backfill historical/imported data. These fields are deliberately absent
+  // from OPPORTUNITY_UPDATABLE (the normal edit whitelist) since they should
+  // never be client-settable through the regular edit form - this is a
+  // separate, explicitly gated path for data correction only.
+  async adminUpdateDates(
+    id: string,
+    data: { createdAt?: string; forecastedCloseDate?: string; closedAt?: string | null }
+  ): Promise<any> {
+    const opp = await this.oppRepository.findOne({ where: { id } });
+    if (!opp) {
+      throw new AppError(404, 'Opportunity not found');
+    }
+
+    const updates: Record<string, Date | null> = {};
+    if (data.createdAt !== undefined) {
+      const d = new Date(data.createdAt);
+      if (isNaN(d.getTime())) throw new AppError(400, 'Invalid createdAt date');
+      updates.createdAt = d;
+    }
+    if (data.forecastedCloseDate !== undefined) {
+      const d = new Date(data.forecastedCloseDate);
+      if (isNaN(d.getTime())) throw new AppError(400, 'Invalid forecastedCloseDate date');
+      updates.forecastedCloseDate = d;
+    }
+    if (data.closedAt !== undefined) {
+      if (data.closedAt === null || data.closedAt === '') {
+        updates.closedAt = null;
+      } else {
+        const d = new Date(data.closedAt);
+        if (isNaN(d.getTime())) throw new AppError(400, 'Invalid closedAt date');
+        updates.closedAt = d;
+      }
+    }
+
+    if (Object.keys(updates).length === 0) {
+      throw new AppError(400, 'No date fields provided');
+    }
+
+    await this.oppRepository.update(id, updates as any);
+    return await this.getOpportunityById(id);
+  }
+
   async updateStage(id: string, stage: string): Promise<any> {
     const validStages = [
       'Prospecting',

@@ -12,6 +12,9 @@ router.get('/:id', (req, res, next) => OpportunityController.getOpportunity(req,
 router.patch('/:id', (req, res, next) =>
   OpportunityController.updateOpportunity(req, res, next)
 );
+router.patch('/:id/admin-dates', (req, res, next) =>
+  OpportunityController.adminUpdateDates(req, res, next)
+);
 router.delete('/:id', (req, res, next) =>
   OpportunityController.deleteOpportunity(req, res, next)
 );

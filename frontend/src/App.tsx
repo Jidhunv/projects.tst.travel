@@ -33,17 +33,23 @@ import { ExpensesPage } from '@pages/ExpensesPage';
 import { SettingsPage } from '@pages/SettingsPage';
 import { ForgotPasswordPage } from '@pages/ForgotPasswordPage';
 import { ResetPasswordPage } from '@pages/ResetPasswordPage';
+import FixOpportunityDatesPage from '@pages/admin/FixOpportunityDatesPage';
 
 const ProtectedRoute: React.FC<{
   children: React.ReactNode;
   module?: string;
   permission?: [string, string];
   anyPermission?: [string, string][];
-}> = ({ children, module, permission, anyPermission }) => {
+  adminOnly?: boolean;
+}> = ({ children, module, permission, anyPermission, adminOnly }) => {
   const { user, canViewModule, hasPermission } = useAuth();
 
   if (!user) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (adminOnly && user.role?.name !== 'Admin') {
+    return <Navigate to="/dashboard" replace />;
   }
 
   // Module is not viewable for this role -> not reachable by URL either.
@@ -178,6 +184,14 @@ function App() {
             element={
               <ProtectedRoute module="reports">
                 <ReportsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/fix-opportunity-dates"
+            element={
+              <ProtectedRoute adminOnly>
+                <FixOpportunityDatesPage />
               </ProtectedRoute>
             }
           />

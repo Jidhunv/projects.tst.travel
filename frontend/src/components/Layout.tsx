@@ -44,6 +44,7 @@ import {
   Public as CountryIcon,
   AdminPanelSettings as AdminIcon,
   VpnKey as PasswordIcon,
+  Build as BuildIcon,
 } from '@mui/icons-material';
 import useAuth from '@hooks/useAuth';
 import NotificationCenter from './NotificationCenter';
@@ -197,6 +198,16 @@ export default function Layout({ children }: LayoutProps) {
       show: canViewModule('audit_log') || hasPermission('admin', 'view_audit_log'),
       items: [
         { text: 'Audit Logs', icon: <AuditIcon />, path: '/audit-logs', show: canViewModule('audit_log') || hasPermission('admin', 'view_audit_log') },
+      ],
+    },
+    {
+      key: 'temporaryPages',
+      type: 'group',
+      title: 'Temporary Pages',
+      icon: <BuildIcon />,
+      show: user?.role?.name === 'Admin',
+      items: [
+        { text: 'Fix Opportunity Dates', icon: <BuildIcon />, path: '/admin/fix-opportunity-dates', show: user?.role?.name === 'Admin' },
       ],
     },
     { key: 'divider3', type: 'divider', show: true },
