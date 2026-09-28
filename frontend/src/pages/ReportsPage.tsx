@@ -14,7 +14,7 @@ import {
   TableRow,
   Chip,
 } from '@mui/material';
-import { Button, Paper, Stack, TextField } from '@mui/material';
+import { Button, MenuItem, Paper, Stack, TextField } from '@mui/material';
 import Layout from '@components/Layout';
 import { api } from '@services/api';
 import { formatCurrency } from '@utils/format';
@@ -28,18 +28,24 @@ export default function ReportsPage() {
   const [error, setError] = React.useState('');
 
   // Combined report (Leads + Accounts + Opportunities) with shared filters.
-  const [cFilters, setCFilters] = React.useState({ search: '', region: '', country: '', fromDate: '', toDate: '' });
+  const [cFilters, setCFilters] = React.useState({ search: '', region: '', country: '', fromDate: '', toDate: '', ownerId: '' });
   const [leads, setLeads] = React.useState<any[]>([]);
   const [accounts, setAccounts] = React.useState<any[]>([]);
   const [opps, setOpps] = React.useState<any[]>([]);
+  const [owners, setOwners] = React.useState<any[]>([]);
 
   const loadCombined = React.useCallback(async () => {
     const params: any = {};
-    Object.entries(cFilters).forEach(([k, v]) => { if (v) params[k] = v; });
+    Object.entries(cFilters).forEach(([k, v]) => { if (v && k !== 'ownerId') params[k] = v; });
+
     // For non-admin users, filter by their own records
+    // For admin users, optionally filter by selected owner
     if (user?.role !== 'Admin') {
       params.ownerId = user?.id;
+    } else if (cFilters.ownerId) {
+      params.ownerId = cFilters.ownerId;
     }
+
     const [l, a, o] = await Promise.all([
       api.getLeads(1, 1000, params).catch(() => ({ data: { data: [] } })),
       api.getAccounts(1, 1000, params).catch(() => ({ data: { data: [] } })),
@@ -51,14 +57,19 @@ export default function ReportsPage() {
   }, [cFilters, user?.id, user?.role]);
 
   React.useEffect(() => {
-    api
-      .getMIS()
-      .then((res) => {
-        if (res.data.success) setMis(res.data.data);
+    Promise.all([
+      api.getMIS(),
+      user?.role === 'Admin' ? api.getUsers(1, 500) : Promise.resolve({ data: { data: [] } })
+    ])
+      .then(([misRes, usersRes]) => {
+        if (misRes.data.success) setMis(misRes.data.data);
+        if (usersRes?.data?.data) {
+          setOwners(usersRes.data.data);
+        }
       })
       .catch(() => setError('Failed to load report data'))
       .finally(() => setLoading(false));
-  }, []);
+  }, [user?.role]);
 
   React.useEffect(() => { loadCombined(); }, [loadCombined]);
 
@@ -258,11 +269,28 @@ export default function ReportsPage() {
       <Paper sx={{ p: 2, mb: 2 }}>
         <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
           <TextField size="small" label="Search" value={cFilters.search} onChange={(e) => setCFilters({ ...cFilters, search: e.target.value })} />
+          {user?.role === 'Admin' && (
+            <TextField
+              size="small"
+              select
+              label="Owner"
+              sx={{ minWidth: 180 }}
+              value={cFilters.ownerId}
+              onChange={(e) => setCFilters({ ...cFilters, ownerId: e.target.value })}
+            >
+              <MenuItem value="">All Owners</MenuItem>
+              {owners.map((owner) => (
+                <MenuItem key={owner.id} value={owner.id}>
+                  {owner.firstName} {owner.lastName}
+                </MenuItem>
+              ))}
+            </TextField>
+          )}
           <TextField size="small" label="Region" value={cFilters.region} onChange={(e) => setCFilters({ ...cFilters, region: e.target.value })} />
           <TextField size="small" label="Country" value={cFilters.country} onChange={(e) => setCFilters({ ...cFilters, country: e.target.value })} />
           <TextField size="small" type="date" label="From" InputLabelProps={{ shrink: true }} value={cFilters.fromDate} onChange={(e) => setCFilters({ ...cFilters, fromDate: e.target.value })} />
           <TextField size="small" type="date" label="To" InputLabelProps={{ shrink: true }} value={cFilters.toDate} onChange={(e) => setCFilters({ ...cFilters, toDate: e.target.value })} />
-          <Button onClick={() => setCFilters({ search: '', region: '', country: '', fromDate: '', toDate: '' })}>Clear</Button>
+          <Button onClick={() => setCFilters({ search: '', region: '', country: '', fromDate: '', toDate: '', ownerId: '' })}>Clear</Button>
         </Stack>
       </Paper>
 
