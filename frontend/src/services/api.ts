@@ -235,6 +235,9 @@ export const api = {
   getMIS: () =>
     apiClient.get<ApiResponse<any>>('/reports/mis'),
 
+  getConversionTimeline: (filters?: Record<string, any>) =>
+    apiClient.get<ApiResponse<any[]>>('/reports/conversion-timeline', { params: filters }),
+
   getPipelineReport: () =>
     apiClient.get<ApiResponse<any>>('/reports/pipeline'),
 

@@ -1,6 +1,7 @@
 import { AppDataSource } from '../config/database';
 import { Opportunity } from '../models/Opportunity';
 import { Lead } from '../models/Lead';
+import { Account } from '../models/Account';
 import { OPPORTUNITY_STAGES } from '../utils/constants';
 import logger from '../utils/logger';
 
@@ -14,9 +15,33 @@ interface StageBucket {
   weightedValue: number; // sum of amount * probability / 100 (expected revenue)
 }
 
+// One row per account -> lead -> opportunity chain, showing the timestamp at
+// each stage of the conversion pipeline. An account with no leads yet still
+// appears (leadCreatedAt etc. are null); a lead not yet converted to an
+// opportunity shows null opportunity fields; an opportunity created directly
+// on an account (no lead conversion) appears as its own row with null lead
+// fields.
+interface ConversionTimelineRow {
+  accountId: string;
+  accountName: string;
+  accountCreatedAt: Date;
+  accountOwner: string;
+  leadId: string | null;
+  leadName: string | null;
+  leadCreatedAt: Date | null;
+  leadStatus: string | null;
+  leadConvertedAt: Date | null; // when the lead's status last changed to Converted
+  opportunityId: string | null;
+  opportunityName: string | null;
+  opportunityCreatedAt: Date | null; // = the moment of conversion to opportunity
+  opportunityStage: string | null;
+  opportunityStatus: string | null;
+}
+
 export class ReportService {
   private oppRepository = AppDataSource.getRepository(Opportunity);
   private leadRepository = AppDataSource.getRepository(Lead);
+  private accountRepository = AppDataSource.getRepository(Account);
 
   // Apply Sales Rep ownership scope when an ownerId is provided.
   private scopeOwner<T extends { andWhere: Function }>(query: T, ownerId?: string): T {
@@ -276,6 +301,154 @@ export class ReportService {
         lossReasons: [],
       };
     }
+  }
+
+  // --- Conversion timeline: Account created -> Lead added -> Lead converted
+  // to Opportunity, one row per chain, with a timestamp at each stage.
+  async getConversionTimeline(ownerId?: string): Promise<ConversionTimelineRow[]> {
+    const accountQuery = this.accountRepository
+      .createQueryBuilder('account')
+      .leftJoinAndSelect('account.owner', 'owner')
+      .orderBy('account.createdAt', 'DESC');
+    if (ownerId) {
+      accountQuery.andWhere('(account.ownerId = :ownerId OR account.assigneeIds LIKE :ownerIdLike)', {
+        ownerId,
+        ownerIdLike: `%${ownerId}%`,
+      });
+    }
+    const accounts = await accountQuery.getMany();
+    if (accounts.length === 0) return [];
+
+    const accountIds = accounts.map((a) => a.id);
+
+    const leads = await this.leadRepository
+      .createQueryBuilder('lead')
+      .where('lead.accountId IN (:...accountIds)', { accountIds })
+      .orderBy('lead.createdAt', 'ASC')
+      .getMany();
+
+    const opportunities = await this.oppRepository
+      .createQueryBuilder('opp')
+      .where('opp.accountId IN (:...accountIds)', { accountIds })
+      .orderBy('opp.createdAt', 'ASC')
+      .getMany();
+
+    const oppsByLeadId = new Map<string, Opportunity[]>();
+    const directOppsByAccountId = new Map<string, Opportunity[]>();
+    for (const opp of opportunities) {
+      if (opp.convertedFromLeadId) {
+        const list = oppsByLeadId.get(opp.convertedFromLeadId) || [];
+        list.push(opp);
+        oppsByLeadId.set(opp.convertedFromLeadId, list);
+      } else {
+        const list = directOppsByAccountId.get(opp.accountId) || [];
+        list.push(opp);
+        directOppsByAccountId.set(opp.accountId, list);
+      }
+    }
+
+    const leadsByAccountId = new Map<string, Lead[]>();
+    for (const lead of leads) {
+      const list = leadsByAccountId.get(lead.accountId) || [];
+      list.push(lead);
+      leadsByAccountId.set(lead.accountId, list);
+    }
+
+    const rows: ConversionTimelineRow[] = [];
+
+    for (const account of accounts) {
+      const accountOwner = account.owner
+        ? `${account.owner.firstName} ${account.owner.lastName}`
+        : '';
+      const accountLeads = leadsByAccountId.get(account.id) || [];
+      const accountDirectOpps = directOppsByAccountId.get(account.id) || [];
+
+      if (accountLeads.length === 0 && accountDirectOpps.length === 0) {
+        // Account with no leads and no opportunities yet.
+        rows.push({
+          accountId: account.id,
+          accountName: account.name,
+          accountCreatedAt: account.createdAt,
+          accountOwner,
+          leadId: null,
+          leadName: null,
+          leadCreatedAt: null,
+          leadStatus: null,
+          leadConvertedAt: null,
+          opportunityId: null,
+          opportunityName: null,
+          opportunityCreatedAt: null,
+          opportunityStage: null,
+          opportunityStatus: null,
+        });
+        continue;
+      }
+
+      for (const lead of accountLeads) {
+        const leadOpps = oppsByLeadId.get(lead.id) || [];
+        if (leadOpps.length === 0) {
+          rows.push({
+            accountId: account.id,
+            accountName: account.name,
+            accountCreatedAt: account.createdAt,
+            accountOwner,
+            leadId: lead.id,
+            leadName: `${lead.firstName} ${lead.lastName}`,
+            leadCreatedAt: lead.createdAt,
+            leadStatus: lead.status,
+            // updatedAt is the best available signal for "when status last
+            // changed"; only meaningful once status is actually Converted.
+            leadConvertedAt: lead.status === 'Converted' ? lead.updatedAt : null,
+            opportunityId: null,
+            opportunityName: null,
+            opportunityCreatedAt: null,
+            opportunityStage: null,
+            opportunityStatus: null,
+          });
+        } else {
+          for (const opp of leadOpps) {
+            rows.push({
+              accountId: account.id,
+              accountName: account.name,
+              accountCreatedAt: account.createdAt,
+              accountOwner,
+              leadId: lead.id,
+              leadName: `${lead.firstName} ${lead.lastName}`,
+              leadCreatedAt: lead.createdAt,
+              leadStatus: lead.status,
+              leadConvertedAt: lead.status === 'Converted' ? lead.updatedAt : null,
+              opportunityId: opp.id,
+              opportunityName: opp.name,
+              opportunityCreatedAt: opp.createdAt,
+              opportunityStage: opp.stage,
+              opportunityStatus: opp.status,
+            });
+          }
+        }
+      }
+
+      // Opportunities created directly on the account (no lead conversion).
+      for (const opp of accountDirectOpps) {
+        rows.push({
+          accountId: account.id,
+          accountName: account.name,
+          accountCreatedAt: account.createdAt,
+          accountOwner,
+          leadId: null,
+          leadName: null,
+          leadCreatedAt: null,
+          leadStatus: null,
+          leadConvertedAt: null,
+          opportunityId: opp.id,
+          opportunityName: opp.name,
+          opportunityCreatedAt: opp.createdAt,
+          opportunityStage: opp.stage,
+          opportunityStatus: opp.status,
+        });
+      }
+    }
+
+    return rows;
   }
 
   private async wonInPeriod(

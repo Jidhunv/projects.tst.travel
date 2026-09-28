@@ -39,6 +39,20 @@ export class ReportController {
       next(error);
     }
   }
+
+  async getConversionTimeline(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const scope = getOwnerScope(req.user, 'reports');
+      const { ownerId } = req.query;
+      // Restricted users always see their own; unrestricted (scope undefined)
+      // may optionally filter by a specific owner via the query param.
+      const effectiveOwnerId = scope || (ownerId && ownerId !== '' ? (ownerId as string) : undefined);
+      const data = await reportService.getConversionTimeline(effectiveOwnerId);
+      return res.json({ success: true, data });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 export default new ReportController();

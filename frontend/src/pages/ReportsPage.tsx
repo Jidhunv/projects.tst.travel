@@ -33,6 +33,7 @@ export default function ReportsPage() {
   const [accounts, setAccounts] = React.useState<any[]>([]);
   const [opps, setOpps] = React.useState<any[]>([]);
   const [owners, setOwners] = React.useState<any[]>([]);
+  const [timeline, setTimeline] = React.useState<any[]>([]);
 
   const loadCombined = React.useCallback(async () => {
     const params: any = {};
@@ -46,14 +47,16 @@ export default function ReportsPage() {
       params.ownerId = cFilters.ownerId;
     }
 
-    const [l, a, o] = await Promise.all([
+    const [l, a, o, t] = await Promise.all([
       api.getLeads(1, 1000, params).catch(() => ({ data: { data: [] } })),
       api.getAccounts(1, 1000, params).catch(() => ({ data: { data: [] } })),
       api.getOpportunities(1, 1000, params).catch(() => ({ data: { data: [] } })),
+      api.getConversionTimeline(params).catch(() => ({ data: { data: [] } })),
     ]);
     setLeads(l.data.data || []);
     setAccounts(a.data.data || []);
     setOpps(o.data.data || []);
+    setTimeline(t.data.data || []);
   }, [cFilters, user?.id, user?.role]);
 
   React.useEffect(() => {
@@ -109,6 +112,22 @@ export default function ReportsPage() {
     { header: 'Country', value: (r: any) => r.country },
     { header: 'Owner', value: (r: any) => r.owner ? `${r.owner.firstName} ${r.owner.lastName}` : '' },
   ], opps);
+
+  const fmtDateTime = (v: any) => v ? new Date(v).toLocaleString() : '-';
+
+  const exportTimeline = () => exportToCsv('conversion-timeline-report', [
+    { header: 'Account', value: (r: any) => r.accountName },
+    { header: 'Account Created', value: (r: any) => r.accountCreatedAt ? new Date(r.accountCreatedAt).toLocaleString() : '' },
+    { header: 'Account Owner', value: (r: any) => r.accountOwner },
+    { header: 'Lead', value: (r: any) => r.leadName || '' },
+    { header: 'Lead Created', value: (r: any) => r.leadCreatedAt ? new Date(r.leadCreatedAt).toLocaleString() : '' },
+    { header: 'Lead Status', value: (r: any) => r.leadStatus || '' },
+    { header: 'Lead Converted At', value: (r: any) => r.leadConvertedAt ? new Date(r.leadConvertedAt).toLocaleString() : '' },
+    { header: 'Opportunity', value: (r: any) => r.opportunityName || '' },
+    { header: 'Converted to Opportunity At', value: (r: any) => r.opportunityCreatedAt ? new Date(r.opportunityCreatedAt).toLocaleString() : '' },
+    { header: 'Opportunity Stage', value: (r: any) => r.opportunityStage || '' },
+    { header: 'Opportunity Status', value: (r: any) => r.opportunityStatus || '' },
+  ], timeline);
 
   if (loading) {
     return (
@@ -305,6 +324,23 @@ export default function ReportsPage() {
       <ReportBlock title={`Opportunities (${opps.length})`} onExport={exportOpps}
         head={['Name', 'Company', 'Amount', 'Stage', 'Status', 'Region', 'Owner']}
         rows={opps.map((r) => [r.name, r.company || r.account?.name || '-', formatCurrency(r.amount), r.stage, r.status, r.region || '-', r.owner ? `${r.owner.firstName} ${r.owner.lastName}` : '-'])} />
+
+      <Typography variant="h5" sx={{ mt: 4, mb: 2 }}>Conversion Timeline</Typography>
+      <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+        Account created &rarr; Lead added &rarr; Lead converted to Opportunity, with a timestamp at each stage.
+      </Typography>
+      <ReportBlock title={`Timeline (${timeline.length})`} onExport={exportTimeline}
+        head={['Account', 'Account Created', 'Lead', 'Lead Created', 'Lead Converted', 'Opportunity', 'Converted to Opportunity', 'Stage']}
+        rows={timeline.map((r: any) => [
+          r.accountName,
+          fmtDateTime(r.accountCreatedAt),
+          r.leadName || '-',
+          fmtDateTime(r.leadCreatedAt),
+          fmtDateTime(r.leadConvertedAt),
+          r.opportunityName || '-',
+          fmtDateTime(r.opportunityCreatedAt),
+          r.opportunityStage || '-',
+        ])} />
     </Layout>
   );
 }
