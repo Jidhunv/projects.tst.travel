@@ -128,7 +128,8 @@ export class AccountController {
       let supAccts: string[] | undefined;
       let memAccts: string[] | undefined;
       if (scope === 'all') {
-        effectiveOwnerId = ownerId as string;
+        // Admin can filter by specific owner or view all
+        effectiveOwnerId = ownerId && ownerId !== '' ? (ownerId as string) : undefined;
       } else if (scope === 'team') {
         const uid = req.user!.id;
         // Visibility follows the account -> team link:

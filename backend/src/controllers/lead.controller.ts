@@ -99,7 +99,8 @@ export class LeadController {
 
       // Sales Reps are restricted to their own leads; Admin/Manager see all.
       const scope = getOwnerScope(req.user, 'leads');
-      const effectiveOwnerId = scope ?? (ownerId as string);
+      // If restricted user (scope = user.id), use that. If admin (scope = undefined), use ownerId filter if provided, else undefined.
+      const effectiveOwnerId = scope || (ownerId && ownerId !== '' ? (ownerId as string) : undefined);
 
       const { data, total } = await leadService.getLeads(
         {
