@@ -389,7 +389,7 @@ export class OpportunityController {
       // Self-scoped users only see their own pipeline; the query param cannot
       // widen that. Admin/Manager (all scope) may filter by any ownerId.
       const scope = getOwnerScope(req.user, 'opportunities');
-      const effectiveOwnerId = scope ?? (ownerId as string);
+      const effectiveOwnerId = scope || (ownerId && ownerId !== '' ? (ownerId as string) : undefined);
 
       const pipeline = await opportunityService.getPipeline({
         ownerId: effectiveOwnerId,
@@ -411,7 +411,7 @@ export class OpportunityController {
 
       // Self-scoped users only see their own forecast.
       const scope = getOwnerScope(req.user, 'opportunities');
-      const effectiveOwnerId = scope ?? (ownerId as string);
+      const effectiveOwnerId = scope || (ownerId && ownerId !== '' ? (ownerId as string) : undefined);
 
       const forecast = await opportunityService.getForecast(effectiveOwnerId);
 
