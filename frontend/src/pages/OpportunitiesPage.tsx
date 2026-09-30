@@ -38,8 +38,8 @@ import { Opportunity } from '../types';
 import { formatCurrency } from '@utils/format';
 
 const stageColor: Record<string, 'info' | 'primary' | 'success' | 'error' | 'warning'> = {
-  Prospecting: 'info',
   Qualification: 'info',
+  Demonstration: 'info',
   Proposal: 'primary',
   Negotiation: 'warning',
   'Closed-Won': 'success',
@@ -251,7 +251,7 @@ export default function OpportunitiesPage() {
     setForm({
       name: '',
       amount: '',
-      stage: 'Prospecting',
+      stage: 'Qualification',
       probability: '',
       forecastedCloseDate: '',
       description: '',
@@ -319,8 +319,8 @@ export default function OpportunitiesPage() {
                   size="small"
                 >
                   <MenuItem value="">All Stages</MenuItem>
-                  <MenuItem value="Prospecting">Prospecting</MenuItem>
                   <MenuItem value="Qualification">Qualification</MenuItem>
+                  <MenuItem value="Demonstration">Demonstration</MenuItem>
                   <MenuItem value="Proposal">Proposal</MenuItem>
                   <MenuItem value="Negotiation">Negotiation</MenuItem>
                   <MenuItem value="Closed-Won">Closed-Won</MenuItem>
@@ -459,17 +459,20 @@ export default function OpportunitiesPage() {
         {/* Kanban View */}
         {viewMode === 'kanban' && (
           <Box sx={{ display: 'flex', gap: 2, overflowX: 'auto', pb: 2 }}>
-            {['Prospecting', 'Qualification', 'Proposal', 'Negotiation', 'Closed-Won', 'Closed-Lost'].map((stage) => {
+            {['Qualification', 'Demonstration', 'Proposal', 'Negotiation', 'Closed-Won', 'Closed-Lost'].map((stage) => {
               const stageOpps = opportunities.filter((opp) => opp.stage === stage);
               const isClosed = stage.startsWith('Closed-');
-              const bgColor = stage === 'Closed-Won' ? '#e8f5e9' : stage === 'Closed-Lost' ? '#ffebee' : '#f5f5f5';
 
               return (
                 <Box
                   key={stage}
                   sx={{
                     flex: '0 0 300px',
-                    bgcolor: bgColor,
+                    bgcolor: (theme) => {
+                      if (stage === 'Closed-Won') return theme.palette.mode === 'dark' ? 'rgba(76, 175, 80, 0.15)' : '#e8f5e9';
+                      if (stage === 'Closed-Lost') return theme.palette.mode === 'dark' ? 'rgba(211, 47, 47, 0.15)' : '#ffebee';
+                      return theme.palette.action.hover;
+                    },
                     borderRadius: 2,
                     p: 2,
                   }}
@@ -573,8 +576,8 @@ export default function OpportunitiesPage() {
               onChange={(e) => setForm({ ...form, stage: e.target.value })}
               sx={{ mb: 2 }}
             >
-              <MenuItem value="Prospecting">Prospecting</MenuItem>
               <MenuItem value="Qualification">Qualification</MenuItem>
+              <MenuItem value="Demonstration">Demonstration</MenuItem>
               <MenuItem value="Proposal">Proposal</MenuItem>
               <MenuItem value="Negotiation">Negotiation</MenuItem>
               <MenuItem value="Closed-Won">Closed-Won</MenuItem>

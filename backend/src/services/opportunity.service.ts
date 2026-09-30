@@ -3,6 +3,7 @@ import { Opportunity } from '../models/Opportunity';
 import { LineItem } from '../models/LineItem';
 import { Account } from '../models/Account';
 import { AppError } from '../middleware/errorHandler';
+import { OPPORTUNITY_STAGES } from '../utils/constants';
 
 interface OpportunityFilters {
   stage?: string;
@@ -54,16 +55,7 @@ export class OpportunityService {
     region?: string;
     tier?: string;
   }): Promise<any> {
-    const validStages = [
-      'Prospecting',
-      'Qualification',
-      'Proposal',
-      'Negotiation',
-      'Closed-Won',
-      'Closed-Lost',
-    ];
-
-    if (!validStages.includes(data.stage)) {
+    if (!(OPPORTUNITY_STAGES as readonly string[]).includes(data.stage)) {
       throw new AppError(400, 'Invalid opportunity stage');
     }
 
@@ -202,15 +194,7 @@ export class OpportunityService {
     }
 
     if (data.stage) {
-      const validStages = [
-        'Prospecting',
-        'Qualification',
-        'Proposal',
-        'Negotiation',
-        'Closed-Won',
-        'Closed-Lost',
-      ];
-      if (!validStages.includes(data.stage)) {
+      if (!(OPPORTUNITY_STAGES as readonly string[]).includes(data.stage)) {
         throw new AppError(400, 'Invalid opportunity stage');
       }
     }
@@ -308,16 +292,7 @@ export class OpportunityService {
   }
 
   async updateStage(id: string, stage: string): Promise<any> {
-    const validStages = [
-      'Prospecting',
-      'Qualification',
-      'Proposal',
-      'Negotiation',
-      'Closed-Won',
-      'Closed-Lost',
-    ];
-
-    if (!validStages.includes(stage)) {
+    if (!(OPPORTUNITY_STAGES as readonly string[]).includes(stage)) {
       throw new AppError(400, 'Invalid opportunity stage');
     }
 
@@ -334,8 +309,8 @@ export class OpportunityService {
 
     // Update probability based on stage
     const stageProbability: { [key: string]: number } = {
-      Prospecting: 10,
-      Qualification: 25,
+      Qualification: 10,
+      Demonstration: 25,
       Proposal: 50,
       Negotiation: 75,
       'Closed-Won': 100,
@@ -479,17 +454,8 @@ export class OpportunityService {
 
     const opps = await query.orderBy('opp.forecastedCloseDate', 'ASC').getMany();
 
-    const stages = [
-      'Prospecting',
-      'Qualification',
-      'Proposal',
-      'Negotiation',
-      'Closed-Won',
-      'Closed-Lost',
-    ];
-
     const pipeline: { [stage: string]: Opportunity[] } = {};
-    stages.forEach((stage) => {
+    OPPORTUNITY_STAGES.forEach((stage) => {
       pipeline[stage] = opps.filter((opp) => opp.stage === stage);
     });
 

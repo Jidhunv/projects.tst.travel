@@ -118,8 +118,8 @@ export interface Opportunity {
   name: string;
   amount: number;
   stage:
-    | 'Prospecting'
     | 'Qualification'
+    | 'Demonstration'
     | 'Proposal'
     | 'Negotiation'
     | 'Closed-Won'

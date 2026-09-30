@@ -15,8 +15,8 @@ export const ROLES_CAN_MANAGE_USERS: string[] = [ROLES.ADMIN, ROLES.MANAGER];
 export const LEAD_STATUSES = ['Open', 'Qualified', 'Disqualified', 'Converted'] as const;
 
 export const OPPORTUNITY_STAGES = [
-  'Prospecting',
   'Qualification',
+  'Demonstration',
   'Proposal',
   'Negotiation',
   'Closed-Won',

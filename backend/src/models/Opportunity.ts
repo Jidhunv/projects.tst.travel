@@ -25,9 +25,9 @@ export class Opportunity {
   amount: number;
 
   @Column({
-    default: 'Prospecting',
+    default: 'Qualification',
   })
-  stage: string; // Prospecting, Qualification, Proposal, Negotiation, Closed-Won, Closed-Lost
+  stage: string; // Qualification, Demonstration, Proposal, Negotiation, Closed-Won, Closed-Lost
 
   @Column({ default: 'Open' })
   status: string; // Open, Won, Lost
