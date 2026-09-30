@@ -251,7 +251,7 @@ export class LeadService {
 
     const baseDealName = lead.productName
       ? `${lead.company || lead.firstName} - ${lead.productName}`
-      : `${lead.company || lead.firstName} - New Deal`;
+      : `${lead.company || lead.firstName}`;
 
     // Auto-generated names collide whenever the same company converts
     // another lead with no product (or the same product) set. Disambiguate
