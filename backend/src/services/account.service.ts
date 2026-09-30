@@ -1,6 +1,8 @@
 import { AppDataSource } from '../config/database';
 import { Account } from '../models/Account';
 import { Contact } from '../models/Contact';
+import { AccountStakeholder } from '../models/AccountStakeholder';
+import { STAKEHOLDER_ROLES } from '../utils/constants';
 import { AppError } from '../middleware/errorHandler';
 
 interface AccountFilters {
@@ -32,6 +34,7 @@ interface AccountFilters {
 export class AccountService {
   private accountRepository = AppDataSource.getRepository(Account);
   private contactRepository = AppDataSource.getRepository(Contact);
+  private stakeholderRepository = AppDataSource.getRepository(AccountStakeholder);
 
   async createAccount(data: {
     name: string;
@@ -339,6 +342,61 @@ export class AccountService {
 
     // Set new primary
     return await this.updateContact(accountId, contactId, { isPrimary: true });
+  }
+
+  // --- Buying-committee onboarding (8 fixed roles per account) ---
+
+  async getStakeholders(accountId: string): Promise<AccountStakeholder[]> {
+    return this.stakeholderRepository.find({
+      where: { accountId },
+      relations: ['designation'],
+    });
+  }
+
+  // Bulk upsert: one entry per role in the payload. Missing roles in the
+  // payload are left untouched (partial saves are fine - completeness is
+  // evaluated separately by isOnboardingComplete).
+  async upsertStakeholders(
+    accountId: string,
+    stakeholders: Array<{ role: string; name?: string; designationId?: string }>
+  ): Promise<AccountStakeholder[]> {
+    for (const s of stakeholders) {
+      if (!STAKEHOLDER_ROLES.includes(s.role as any)) {
+        throw new AppError(400, `Invalid stakeholder role: ${s.role}`);
+      }
+      const existing = await this.stakeholderRepository.findOne({
+        where: { accountId, role: s.role },
+      });
+      if (existing) {
+        existing.name = s.name ?? existing.name;
+        existing.designationId = s.designationId ?? existing.designationId;
+        await this.stakeholderRepository.save(existing);
+      } else {
+        await this.stakeholderRepository.save(
+          this.stakeholderRepository.create({
+            accountId,
+            role: s.role,
+            name: s.name,
+            designationId: s.designationId,
+          })
+        );
+      }
+    }
+    return this.getStakeholders(accountId);
+  }
+
+  // Onboarding is complete once every fixed role has both a name and a
+  // designation filled in. Used to gate lead creation against an account.
+  async getOnboardingStatus(
+    accountId: string
+  ): Promise<{ complete: boolean; missingRoles: string[] }> {
+    const stakeholders = await this.getStakeholders(accountId);
+    const byRole = new Map(stakeholders.map((s) => [s.role, s]));
+    const missingRoles = STAKEHOLDER_ROLES.filter((role) => {
+      const s = byRole.get(role);
+      return !s || !s.name || !s.name.trim() || !s.designationId;
+    });
+    return { complete: missingRoles.length === 0, missingRoles };
   }
 }
 

@@ -164,6 +164,7 @@ export default function Layout({ children }: LayoutProps) {
         { text: 'Product Categories', icon: <CategoryIcon />, path: '/product-categories', show: canViewModule('product_categories') },
         { text: 'Suppliers', icon: <SupplierIcon />, path: '/suppliers', show: canViewModule('suppliers') },
         { text: 'Country Master', icon: <CountryIcon />, path: '/countries', show: true },
+        { text: 'Designation Master', icon: <CategoryIcon />, path: '/designations', show: true },
       ],
     },
     {

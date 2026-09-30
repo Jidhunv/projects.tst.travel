@@ -118,6 +118,7 @@ import teamRoutes from './routes/teams';
 import salesVisitRoutes from './routes/sales-visits';
 import expenseRoutes from './routes/expenses';
 import countryRoutes from './routes/countries';
+import designationRoutes from './routes/designations';
 
 // Database initialization
 AppDataSource.initialize()
@@ -160,6 +161,7 @@ app.use('/api/teams', teamRoutes);
 app.use('/api/sales-visits', salesVisitRoutes);
 app.use('/api/expenses', expenseRoutes);
 app.use('/api/countries', countryRoutes);
+app.use('/api/designations', designationRoutes);
 
 // Save traces after response completes (for debugging)
 app.use((req: any, res, next) => {

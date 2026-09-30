@@ -435,6 +435,48 @@ export class AccountController {
       next(error);
     }
   }
+
+  // --- Buying-committee onboarding ---
+
+  async getStakeholders(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const { accountId } = req.params;
+      await this.assertCanAccessAccount(req, accountId, 'read');
+      const stakeholders = await accountService.getStakeholders(accountId);
+      return res.json({ success: true, data: stakeholders });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async saveStakeholders(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const { accountId } = req.params;
+      await this.assertCanAccessAccount(req, accountId, 'update');
+
+      const { stakeholders } = req.body;
+      if (!Array.isArray(stakeholders)) {
+        throw new AppError(400, 'stakeholders must be an array of { role, name, designationId }');
+      }
+
+      const saved = await accountService.upsertStakeholders(accountId, stakeholders);
+      logger.info(`Stakeholders saved for account ${accountId} by ${req.user!.email}`);
+      return res.json({ success: true, data: saved });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getOnboardingStatus(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const { accountId } = req.params;
+      await this.assertCanAccessAccount(req, accountId, 'read');
+      const status = await accountService.getOnboardingStatus(accountId);
+      return res.json({ success: true, data: status });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 export default new AccountController();

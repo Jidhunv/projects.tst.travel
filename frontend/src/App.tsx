@@ -26,6 +26,7 @@ import { RolesPage } from '@pages/RolesPage';
 import { ProductsPage } from '@pages/ProductsPage';
 import { ProductCategoriesPage } from '@pages/ProductCategoriesPage';
 import { CountriesPage } from '@pages/CountriesPage';
+import { DesignationsPage } from '@pages/DesignationsPage';
 import { TeamsPage } from '@pages/TeamsPage';
 import { SuppliersPage } from '@pages/SuppliersPage';
 import { SalesVisitsPage } from '@pages/SalesVisitsPage';
@@ -280,6 +281,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <CountriesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/designations"
+            element={
+              <ProtectedRoute>
+                <DesignationsPage />
               </ProtectedRoute>
             }
           />

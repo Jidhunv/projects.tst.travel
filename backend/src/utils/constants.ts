@@ -43,3 +43,19 @@ export const ACTIVITY_TYPES = ['Call', 'Email', 'Meeting', 'Task', 'Note', 'Syst
 
 // Resource types that can have notes/activities attached
 export const RESOURCE_TYPES = ['Lead', 'Account', 'Contact', 'Opportunity'] as const;
+
+// The 8 fixed buying-committee roles every account must map a stakeholder to
+// (name + designation) before it can be converted into a lead. Fixed list,
+// not master data - these are the roles, not a configurable catalog.
+export const STAKEHOLDER_ROLES = [
+  'Champion',
+  'Coach',
+  'Blocker',
+  'Decision Maker',
+  'Influencer',
+  'Economic Buyer',
+  'End User',
+  'Gatekeeper',
+] as const;
+
+export type StakeholderRole = (typeof STAKEHOLDER_ROLES)[number];

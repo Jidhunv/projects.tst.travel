@@ -37,4 +37,15 @@ router.patch('/:accountId/contacts/:contactId/set-primary', (req, res, next) =>
   AccountController.setPrimaryContact(req, res, next)
 );
 
+// Buying-committee onboarding routes
+router.get('/:accountId/stakeholders', (req, res, next) =>
+  AccountController.getStakeholders(req, res, next)
+);
+router.put('/:accountId/stakeholders', (req, res, next) =>
+  AccountController.saveStakeholders(req, res, next)
+);
+router.get('/:accountId/onboarding-status', (req, res, next) =>
+  AccountController.getOnboardingStatus(req, res, next)
+);
+
 export default router;

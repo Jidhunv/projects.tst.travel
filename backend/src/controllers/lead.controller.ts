@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import leadService from '../services/lead.service';
+import accountService from '../services/account.service';
 import { AuthRequest, getOwnerScope, canAccessRecord, canPerformAction, canReassign } from '../middleware/auth';
 import userService from '../services/user.service';
 import { AppError } from '../middleware/errorHandler';
@@ -57,6 +58,17 @@ export class LeadController {
       // violation (or, where the column was nullable, saved an orphaned lead).
       if (!accountId) {
         throw new AppError(400, 'An account is required to create a lead');
+      }
+
+      // Onboarding gate: the account's buying-committee mapping (8 fixed
+      // roles, each with a name + designation) must be complete before it can
+      // be worked as a lead.
+      const onboarding = await accountService.getOnboardingStatus(accountId);
+      if (!onboarding.complete) {
+        throw new AppError(
+          400,
+          `Onboarding is incomplete for this account. Complete the following stakeholder role(s) first: ${onboarding.missingRoles.join(', ')}`
+        );
       }
 
       const lead = await leadService.createLead({

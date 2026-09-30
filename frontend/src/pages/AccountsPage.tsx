@@ -15,6 +15,8 @@ import {
   Alert,
   Tabs,
   Tab,
+  CircularProgress,
+  Grid,
 } from '@mui/material';
 import { Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import Layout from '@components/Layout';
@@ -46,6 +48,19 @@ const onboardingStatusColor: Record<string, any> = {
   Completed: 'success',
   'On Hold': 'error',
 };
+
+// The 8 fixed buying-committee roles - must match backend
+// utils/constants.ts#STAKEHOLDER_ROLES exactly.
+const STAKEHOLDER_ROLES = [
+  'Champion',
+  'Coach',
+  'Blocker',
+  'Decision Maker',
+  'Influencer',
+  'Economic Buyer',
+  'End User',
+  'Gatekeeper',
+];
 
 export default function AccountsPage() {
   const { hasPermission } = useAuth();
@@ -88,6 +103,13 @@ export default function AccountsPage() {
   const [countriesError, setCountriesError] = React.useState('');
   const [acctFilters, setAcctFilters] = React.useState({ search: '', city: '', region: '', country: '' });
 
+  // Buying-committee stakeholder mapping (the 8 fixed roles). Must be
+  // complete before a lead can be created against this account.
+  const [designations, setDesignations] = React.useState<any[]>([]);
+  const [stakeholderDialog, setStakeholderDialog] = React.useState<{ open: boolean; account: Account | null }>({ open: false, account: null });
+  const [stakeholderForm, setStakeholderForm] = React.useState<Record<string, { name: string; designationId: string }>>({});
+  const [stakeholderLoading, setStakeholderLoading] = React.useState(false);
+
   // Load countries, teams and users on mount (in parallel for speed).
   // allSettled, not all: /api/users is Admin/Manager-only, so it 403s for every
   // other role. Promise.all rejects the whole batch on the first rejection, which
@@ -98,7 +120,8 @@ export default function AccountsPage() {
       api.getCountries(),
       api.getTeams(),
       api.getUsers(1, 500),
-    ]).then(([c, t, u]) => {
+      api.getDesignations({ isActive: true }),
+    ]).then(([c, t, u, d]) => {
       if (c.status === 'fulfilled') {
         const list: Country[] = c.value.data?.data ?? [];
         setCountries([...list].sort((a, b) => a.name.localeCompare(b.name)));
@@ -113,6 +136,7 @@ export default function AccountsPage() {
       // permission for them still gets a working form.
       setTeams(t.status === 'fulfilled' ? t.value.data?.data ?? [] : []);
       setOrgUsers(u.status === 'fulfilled' ? u.value.data?.data ?? [] : []);
+      setDesignations(d.status === 'fulfilled' ? d.value.data?.data ?? [] : []);
     });
   }, []);
 
@@ -274,6 +298,43 @@ export default function AccountsPage() {
     setConfirmDelete({ open: true, account });
   };
 
+  const openStakeholderDialog = async (account: Account) => {
+    setStakeholderDialog({ open: true, account });
+    setStakeholderLoading(true);
+    try {
+      const res = await api.getAccountStakeholders(account.id);
+      const existing: any[] = res.data.data || [];
+      const byRole = new Map(existing.map((s) => [s.role, s]));
+      const nextForm: Record<string, { name: string; designationId: string }> = {};
+      STAKEHOLDER_ROLES.forEach((role) => {
+        const s = byRole.get(role);
+        nextForm[role] = { name: s?.name || '', designationId: s?.designationId || '' };
+      });
+      setStakeholderForm(nextForm);
+    } catch (e: any) {
+      setToast({ msg: e.response?.data?.error || 'Failed to load buying committee', sev: 'error' });
+      setStakeholderDialog({ open: false, account: null });
+    } finally {
+      setStakeholderLoading(false);
+    }
+  };
+
+  const saveStakeholders = async () => {
+    if (!stakeholderDialog.account) return;
+    try {
+      const payload = STAKEHOLDER_ROLES.map((role) => ({
+        role,
+        name: stakeholderForm[role]?.name || '',
+        designationId: stakeholderForm[role]?.designationId || undefined,
+      }));
+      await api.saveAccountStakeholders(stakeholderDialog.account.id, payload);
+      setToast({ msg: 'Buying committee saved', sev: 'success' });
+      setStakeholderDialog({ open: false, account: null });
+    } catch (e: any) {
+      setToast({ msg: e.response?.data?.error || 'Failed to save buying committee', sev: 'error' });
+    }
+  };
+
   const handleConfirmDelete = async () => {
     if (!confirmDelete.account) return;
     try {
@@ -323,6 +384,9 @@ export default function AccountsPage() {
         <Box sx={{ display: 'flex', gap: 1 }}>
           <Button size="small" variant="outlined" startIcon={<EditIcon />} onClick={() => handleEditClick(r)}>
             Edit
+          </Button>
+          <Button size="small" variant="outlined" onClick={() => openStakeholderDialog(r)}>
+            Buying Committee
           </Button>
           {canDelete && (
             <Button size="small" variant="outlined" color="error" startIcon={<DeleteIcon />} onClick={() => handleDeleteAccount(r)}>
@@ -700,6 +764,67 @@ export default function AccountsPage() {
             >
               Save
             </Button>
+          </DialogActions>
+        </Dialog>
+
+        <Dialog open={stakeholderDialog.open} onClose={() => setStakeholderDialog({ open: false, account: null })} maxWidth="md" fullWidth>
+          <DialogTitle>
+            Buying Committee — {stakeholderDialog.account?.name}
+          </DialogTitle>
+          <DialogContent sx={{ pt: 2 }}>
+            <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+              Map a name and designation to each of the 8 roles below. All 8 must be filled in before
+              this account can be converted into a lead.
+            </Typography>
+            {stakeholderLoading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                <CircularProgress />
+              </Box>
+            ) : (
+              <Stack spacing={2}>
+                {STAKEHOLDER_ROLES.map((role) => (
+                  <Grid container spacing={2} key={role} alignItems="center">
+                    <Grid item xs={12} sm={3}>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>{role}</Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={4.5}>
+                      <TextField
+                        size="small"
+                        fullWidth
+                        label="Name"
+                        value={stakeholderForm[role]?.name || ''}
+                        onChange={(e) => setStakeholderForm((prev) => ({
+                          ...prev,
+                          [role]: { ...prev[role], name: e.target.value },
+                        }))}
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={4.5}>
+                      <TextField
+                        size="small"
+                        select
+                        fullWidth
+                        label="Designation"
+                        value={stakeholderForm[role]?.designationId || ''}
+                        onChange={(e) => setStakeholderForm((prev) => ({
+                          ...prev,
+                          [role]: { ...prev[role], designationId: e.target.value },
+                        }))}
+                      >
+                        <MenuItem value="">-- Select designation --</MenuItem>
+                        {designations.map((d) => (
+                          <MenuItem key={d.id} value={d.id}>{d.name}</MenuItem>
+                        ))}
+                      </TextField>
+                    </Grid>
+                  </Grid>
+                ))}
+              </Stack>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setStakeholderDialog({ open: false, account: null })}>Cancel</Button>
+            <Button onClick={saveStakeholders} variant="contained" disabled={stakeholderLoading}>Save</Button>
           </DialogActions>
         </Dialog>
 

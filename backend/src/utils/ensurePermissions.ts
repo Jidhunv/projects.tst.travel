@@ -47,6 +47,7 @@ function buildCatalog(): PermSpec[] {
     ...crud('products', 'products'),
     ...crud('product_categories', 'product categories'),
     ...crud('countries', 'countries'),
+    ...crud('designations', 'designations'),
     // Team scope (hierarchical visibility)
     ...teamScoped('accounts', 'accounts'),
   ];

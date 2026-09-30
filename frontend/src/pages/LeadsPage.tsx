@@ -25,6 +25,7 @@ import {
   ToggleButton,
   ToggleButtonGroup,
   Tooltip,
+  Alert,
 } from '@mui/material';
 import { Search as SearchIcon, ViewAgendaOutlined as ListIcon, ViewWeekOutlined as KanbanIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import Layout from '@components/Layout';
@@ -95,6 +96,9 @@ export default function LeadsPage() {
   const [regionFilter, setRegionFilter] = useState('');
   const [countryFilter, setCountryFilter] = useState('');
   const [accountContacts, setAccountContacts] = useState<any[]>([]);
+  // Buying-committee onboarding must be complete on the selected account
+  // before a lead can be created against it (enforced by the backend too).
+  const [onboardingMissing, setOnboardingMissing] = useState<string[] | null>(null);
 
   const [form, setForm] = useState({
     accountId: '',
@@ -227,8 +231,9 @@ export default function LeadsPage() {
         country: '',
       });
       fetchLeads();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating lead:', error);
+      alert(error.response?.data?.error || 'Failed to create lead');
     }
   };
 
@@ -329,7 +334,7 @@ export default function LeadsPage() {
             Prospecting Management
           </Typography>
           <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-            <Button variant="contained" onClick={() => setOpenCreate(true)}>
+            <Button variant="contained" onClick={() => { setOnboardingMissing(null); setOpenCreate(true); }}>
               Add Lead
             </Button>
             <ToggleButtonGroup
@@ -580,6 +585,14 @@ export default function LeadsPage() {
 
                   // Load contacts for this account
                   if (newAccountId) {
+                    setOnboardingMissing(null);
+                    api.getAccountOnboardingStatus(newAccountId)
+                      .then((res) => {
+                        const status = res.data.data;
+                        setOnboardingMissing(status && !status.complete ? status.missingRoles : null);
+                      })
+                      .catch(() => setOnboardingMissing(null));
+
                     try {
                       const response = await api.getAccountContacts(newAccountId);
                       const contacts = response.data.data || [];
@@ -615,6 +628,7 @@ export default function LeadsPage() {
                     }
                   } else {
                     setAccountContacts([]);
+                    setOnboardingMissing(null);
                   }
 
                   setForm(updatedForm);
@@ -636,6 +650,12 @@ export default function LeadsPage() {
                 <Button size="small" variant="text" onClick={loadAccounts} sx={{ mt: 1 }}>
                   Retry
                 </Button>
+              )}
+              {!openEdit && form.accountId && onboardingMissing && onboardingMissing.length > 0 && (
+                <Alert severity="warning" sx={{ mt: 2 }}>
+                  This account's buying committee is incomplete. Missing role(s): {onboardingMissing.join(', ')}.
+                  Go to MIDT → Buying Committee for this account to fill these in before creating a lead.
+                </Alert>
               )}
               {!openEdit && form.accountId && (
                 <Button
@@ -879,7 +899,7 @@ export default function LeadsPage() {
             <Button
               onClick={openEdit ? handleUpdate : handleCreate}
               variant="contained"
-              disabled={!form.accountId}
+              disabled={!form.accountId || (!openEdit && !!onboardingMissing && onboardingMissing.length > 0)}
             >
               {openEdit ? 'Update' : 'Create'}
             </Button>

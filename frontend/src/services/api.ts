@@ -270,6 +270,23 @@ export const api = {
     apiClient.get<ApiResponse<any[]>>('/countries', { params: filters }),
   createCountry: (data: any) => apiClient.post<ApiResponse<any>>('/countries', data),
 
+  // Designations (master data)
+  getDesignations: (filters?: Record<string, any>) =>
+    apiClient.get<ApiResponse<any[]>>('/designations', { params: filters }),
+  createDesignation: (data: any) => apiClient.post<ApiResponse<any>>('/designations', data),
+  updateDesignation: (id: string, data: any) =>
+    apiClient.patch<ApiResponse<any>>(`/designations/${id}`, data),
+  deleteDesignation: (id: string) =>
+    apiClient.delete<ApiResponse<void>>(`/designations/${id}`),
+
+  // Account stakeholders (buying-committee onboarding)
+  getAccountStakeholders: (accountId: string) =>
+    apiClient.get<ApiResponse<any[]>>(`/accounts/${accountId}/stakeholders`),
+  saveAccountStakeholders: (accountId: string, stakeholders: Array<{ role: string; name?: string; designationId?: string }>) =>
+    apiClient.put<ApiResponse<any[]>>(`/accounts/${accountId}/stakeholders`, { stakeholders }),
+  getAccountOnboardingStatus: (accountId: string) =>
+    apiClient.get<ApiResponse<{ complete: boolean; missingRoles: string[] }>>(`/accounts/${accountId}/onboarding-status`),
+
   // Teams / groups (hierarchical; drives "team" scope visibility)
   getTeams: () => apiClient.get<ApiResponse<any[]>>('/teams'),
   createTeam: (data: any) => apiClient.post<ApiResponse<any>>('/teams', data),
