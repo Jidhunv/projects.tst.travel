@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { AuthRequest, canPerformAction } from '../middleware/auth';
+import { AuthRequest } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
 import importService from '../services/import.service';
 import userService from '../services/user.service';
@@ -10,9 +10,10 @@ import * as fs from 'fs';
 export class ImportController {
   async previewMidtImport(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      // Check permission
-      if (!canPerformAction(req.user, 'accounts', 'create')) {
-        throw new AppError(403, 'You do not have permission to import accounts');
+      // Bulk MIDT import is Admin-only, not just accounts:create - it can
+      // create/overwrite large numbers of accounts at once.
+      if (req.user?.role !== 'Admin') {
+        throw new AppError(403, 'Only Admin can import prospects');
       }
 
       const file = req.file;
@@ -54,9 +55,10 @@ export class ImportController {
 
   async saveMidtImport(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      // Check permission
-      if (!canPerformAction(req.user, 'accounts', 'create')) {
-        throw new AppError(403, 'You do not have permission to import accounts');
+      // Bulk MIDT import is Admin-only, not just accounts:create - it can
+      // create/overwrite large numbers of accounts at once.
+      if (req.user?.role !== 'Admin') {
+        throw new AppError(403, 'Only Admin can import prospects');
       }
 
       const rows = req.body.rows;

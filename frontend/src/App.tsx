@@ -167,7 +167,7 @@ function App() {
           <Route
             path="/import-midt"
             element={
-              <ProtectedRoute module="accounts">
+              <ProtectedRoute adminOnly>
                 <ImportPage />
               </ProtectedRoute>
             }

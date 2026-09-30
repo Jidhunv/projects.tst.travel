@@ -271,7 +271,7 @@ export default function ImportPage() {
     <Layout>
       <Box sx={{ p: 3 }}>
         <Typography variant="h4" sx={{ mb: 3 }}>
-          Import MIDT Records
+          Import Prospects
         </Typography>
 
         <Stepper activeStep={step} sx={{ mb: 4 }}>
