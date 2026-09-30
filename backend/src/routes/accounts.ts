@@ -5,7 +5,24 @@ import ImportController from '../controllers/import.controller';
 import { verifyToken } from '../middleware/auth';
 
 const router = Router();
-const upload = multer({ dest: 'uploads/temp/' });
+
+// MIDT bulk import only ever needs CSV/Excel; cap size well below what a
+// legitimate prospect list needs (multer's bare `{ dest }` form has no size
+// or type limit at all, unlike the hardened upload middleware used for
+// ticket attachments).
+const IMPORT_ALLOWED_EXTENSIONS = ['csv', 'xlsx', 'xls'];
+const upload = multer({
+  dest: 'uploads/temp/',
+  limits: { fileSize: 10 * 1024 * 1024, files: 1 }, // 10MB
+  fileFilter: (req, file, cb) => {
+    const ext = file.originalname.toLowerCase().split('.').pop() || '';
+    if (!IMPORT_ALLOWED_EXTENSIONS.includes(ext)) {
+      cb(new Error(`File type not allowed. Allowed types: ${IMPORT_ALLOWED_EXTENSIONS.join(', ')}`));
+      return;
+    }
+    cb(null, true);
+  },
+});
 
 router.use(verifyToken);
 
