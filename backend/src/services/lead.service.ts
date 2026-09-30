@@ -249,9 +249,19 @@ export class LeadService {
       accountId = account.id;
     }
 
-    const dealName = lead.productName
+    const baseDealName = lead.productName
       ? `${lead.company || lead.firstName} - ${lead.productName}`
       : `${lead.company || lead.firstName} - New Deal`;
+
+    // Auto-generated names collide whenever the same company converts
+    // another lead with no product (or the same product) set. Disambiguate
+    // by appending (1), (2), ... rather than silently creating duplicates.
+    let dealName = baseDealName;
+    let suffix = 0;
+    while (await this.oppRepository.findOne({ where: { name: dealName } })) {
+      suffix++;
+      dealName = `${baseDealName} (${suffix})`;
+    }
 
     const closeDate =
       lead.expectedCloseDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
