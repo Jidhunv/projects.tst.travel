@@ -38,7 +38,7 @@ interface BuyingCommitteeViewDialogProps {
 }
 
 // Read-only view of an account's buying-committee mapping. Editing stays on
-// the Accounts page (MIDT > Buying Committee) - this is just for quickly
+// the Accounts page (Prospects > Buying Committee) - this is just for quickly
 // checking who the stakeholders are while working a lead or opportunity.
 export default function BuyingCommitteeViewDialog({ open, onClose, accountId, accountName }: BuyingCommitteeViewDialogProps) {
   const [loading, setLoading] = React.useState(false);

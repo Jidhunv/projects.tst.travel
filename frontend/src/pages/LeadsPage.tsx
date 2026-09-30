@@ -332,7 +332,7 @@ export default function LeadsPage() {
       <Box sx={{ p: 3 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
           <Typography variant="h4">
-            Prospecting Management
+            Leads Management
           </Typography>
           <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
             <Button variant="contained" onClick={() => { setOnboardingMissing(null); setOpenCreate(true); }}>
@@ -655,7 +655,7 @@ export default function LeadsPage() {
               {!openEdit && form.accountId && onboardingMissing && onboardingMissing.length > 0 && (
                 <Alert severity="warning" sx={{ mt: 2 }}>
                   This account's buying committee is incomplete. Missing role(s): {onboardingMissing.join(', ')}.
-                  Go to MIDT → Buying Committee for this account to fill these in before creating a lead.
+                  Go to Prospects → Buying Committee for this account to fill these in before creating a lead.
                 </Alert>
               )}
               {!openEdit && form.accountId && (

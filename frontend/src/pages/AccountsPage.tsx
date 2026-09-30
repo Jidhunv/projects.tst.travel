@@ -415,7 +415,7 @@ export default function AccountsPage() {
           page={page}
           pageSize={pageSize}
           loading={loading}
-          title="MIDT"
+          title="Prospects"
           onPageChange={setPage}
           onPageSizeChange={setPageSize}
           onAddClick={handleAddClick}
