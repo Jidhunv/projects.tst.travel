@@ -207,10 +207,19 @@ export class AccountService {
     // update() writes exactly the columns given.
     await this.accountRepository.update(id, data as any);
 
-    // If account name changed, sync it to all related leads (denormalized field)
+    // If account name changed, sync it to all related leads and opportunities
+    // (both carry a denormalized "company" snapshot column).
     if (data.name && data.name !== account.name) {
       const leadRepository = AppDataSource.getRepository('Lead');
       await leadRepository
+        .createQueryBuilder()
+        .update()
+        .set({ company: data.name })
+        .where('accountId = :accountId', { accountId: id })
+        .execute();
+
+      const oppRepository = AppDataSource.getRepository('Opportunity');
+      await oppRepository
         .createQueryBuilder()
         .update()
         .set({ company: data.name })

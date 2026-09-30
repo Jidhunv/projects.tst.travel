@@ -103,7 +103,7 @@ export default function ReportsPage() {
 
   const exportOpps = () => exportToCsv('opportunities-report', [
     { header: 'Name', value: (r: any) => r.name },
-    { header: 'Company', value: (r: any) => r.company || r.account?.name },
+    { header: 'Company', value: (r: any) => r.account?.name || r.company || '' },
     { header: 'Amount', value: (r: any) => r.amount },
     { header: 'Business Volume', value: (r: any) => r.businessVolume },
     { header: 'Stage', value: (r: any) => r.stage },
@@ -323,7 +323,7 @@ export default function ReportsPage() {
 
       <ReportBlock title={`Opportunities (${opps.length})`} onExport={exportOpps}
         head={['Name', 'Company', 'Amount', 'Stage', 'Status', 'Region', 'Owner']}
-        rows={opps.map((r) => [r.name, r.company || r.account?.name || '-', formatCurrency(r.amount), r.stage, r.status, r.region || '-', r.owner ? `${r.owner.firstName} ${r.owner.lastName}` : '-'])} />
+        rows={opps.map((r) => [r.name, r.account?.name || r.company || '-', formatCurrency(r.amount), r.stage, r.status, r.region || '-', r.owner ? `${r.owner.firstName} ${r.owner.lastName}` : '-'])} />
 
       <Typography variant="h5" sx={{ mt: 4, mb: 2 }}>Conversion Timeline</Typography>
       <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
