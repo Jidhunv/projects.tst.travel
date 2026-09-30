@@ -29,6 +29,7 @@ import {
 import { Search as SearchIcon, ViewAgendaOutlined as ListIcon, ViewWeekOutlined as KanbanIcon } from '@mui/icons-material';
 import Layout from '@components/Layout';
 import AssignOwner from '@components/AssignOwner';
+import BuyingCommitteeViewDialog from '@components/BuyingCommitteeViewDialog';
 import ConfirmDialog from '@components/ConfirmDialog';
 import SearchableSelect from '@components/SearchableSelect';
 import useAuth from '@hooks/useAuth';
@@ -719,7 +720,9 @@ const OpportunityTableRow = React.memo(
     onDelete: (id: string) => void;
     canDelete: boolean;
     onAssigned: () => void;
-  }) => (
+  }) => {
+    const [showCommittee, setShowCommittee] = React.useState(false);
+    return (
     <TableRow>
       <TableCell sx={{ fontWeight: 'bold' }}>
         <Tooltip title={opp.description || 'No description'} arrow>
@@ -750,6 +753,9 @@ const OpportunityTableRow = React.memo(
         <Button size="small" variant="text" onClick={() => onEdit(opp)}>
           Edit
         </Button>
+        <Button size="small" variant="text" onClick={() => setShowCommittee(true)}>
+          Buying Committee
+        </Button>
         <AssignOwner
           module="opportunities"
           recordId={opp.id}
@@ -763,6 +769,13 @@ const OpportunityTableRow = React.memo(
           </Button>
         )}
       </TableCell>
+      <BuyingCommitteeViewDialog
+        open={showCommittee}
+        onClose={() => setShowCommittee(false)}
+        accountId={(opp as any).accountId || null}
+        accountName={(opp as any).account?.name || (opp as any).company}
+      />
     </TableRow>
-  )
+    );
+  }
 );

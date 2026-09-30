@@ -30,6 +30,7 @@ import {
 import { Search as SearchIcon, ViewAgendaOutlined as ListIcon, ViewWeekOutlined as KanbanIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import Layout from '@components/Layout';
 import AssignOwner from '@components/AssignOwner';
+import BuyingCommitteeViewDialog from '@components/BuyingCommitteeViewDialog';
 import ConfirmDialog from '@components/ConfirmDialog';
 import SearchableSelect from '@components/SearchableSelect';
 import useAuth from '@hooks/useAuth';
@@ -935,7 +936,9 @@ const LeadTableRow = React.memo(
     onDelete: (id: string) => void;
     canDelete: boolean;
     onAssigned: () => void;
-  }) => (
+  }) => {
+    const [showCommittee, setShowCommittee] = React.useState(false);
+    return (
     <TableRow>
       <TableCell sx={{ fontWeight: 'bold' }}>
         {lead.firstName} {lead.lastName}
@@ -973,6 +976,9 @@ const LeadTableRow = React.memo(
         <Button size="small" variant="text" onClick={() => onEdit(lead)}>
           Edit
         </Button>
+        <Button size="small" variant="text" onClick={() => setShowCommittee(true)}>
+          Buying Committee
+        </Button>
         <AssignOwner
           module="leads"
           recordId={lead.id}
@@ -986,6 +992,13 @@ const LeadTableRow = React.memo(
           </Button>
         )}
       </TableCell>
+      <BuyingCommitteeViewDialog
+        open={showCommittee}
+        onClose={() => setShowCommittee(false)}
+        accountId={(lead as any).accountId || null}
+        accountName={(lead as any).account?.name || lead.company}
+      />
     </TableRow>
-  )
+    );
+  }
 );
