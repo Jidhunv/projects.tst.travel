@@ -1,40 +1,51 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import CssBaseline from '@mui/material/CssBaseline';
+import CircularProgress from '@mui/material/CircularProgress';
+import Box from '@mui/material/Box';
 import useAuth from '@hooks/useAuth';
 import FirstLoginPasswordChangeDialog from '@components/FirstLoginPasswordChangeDialog';
 import ErrorBoundary from '@components/ErrorBoundary';
 import { initializeCsrfToken } from '@services/api';
 import { ThemeContextProvider } from '@context/ThemeContext';
 
-// Pages
+// Pages - lazy-loaded so each route is its own chunk instead of all ~25
+// pages shipping in the single initial bundle (was flagged by the build as
+// a 1.1MB+ chunk). LoginPage stays eager since it's the very first thing an
+// unauthenticated visitor needs, with nothing to gain from splitting it out.
 import LoginPage from '@pages/LoginPage';
-import DashboardPage from '@pages/DashboardPage';
-import LeadsPage from '@pages/LeadsPage';
-import AccountsPage from '@pages/AccountsPage';
-import ImportPage from '@pages/ImportPage';
-import OpportunitiesPage from '@pages/OpportunitiesPage';
-import ReportsPage from '@pages/ReportsPage';
-import { ContractsPage } from '@pages/ContractsPage';
-import { ProjectsPage } from '@pages/ProjectsPage';
-import { InvoicesPage } from '@pages/InvoicesPage';
-import { TicketsPage } from '@pages/TicketsPage';
-import { AuditLogsPage } from '@pages/AuditLogsPage';
-import { NotificationsPage } from '@pages/NotificationsPage';
-import { UsersPage } from '@pages/UsersPage';
-import { RolesPage } from '@pages/RolesPage';
-import { ProductsPage } from '@pages/ProductsPage';
-import { ProductCategoriesPage } from '@pages/ProductCategoriesPage';
-import { CountriesPage } from '@pages/CountriesPage';
-import { DesignationsPage } from '@pages/DesignationsPage';
-import { TeamsPage } from '@pages/TeamsPage';
-import { SuppliersPage } from '@pages/SuppliersPage';
-import { SalesVisitsPage } from '@pages/SalesVisitsPage';
-import { ExpensesPage } from '@pages/ExpensesPage';
-import { SettingsPage } from '@pages/SettingsPage';
-import { ForgotPasswordPage } from '@pages/ForgotPasswordPage';
-import { ResetPasswordPage } from '@pages/ResetPasswordPage';
-import FixOpportunityDatesPage from '@pages/admin/FixOpportunityDatesPage';
+const DashboardPage = lazy(() => import('@pages/DashboardPage'));
+const LeadsPage = lazy(() => import('@pages/LeadsPage'));
+const AccountsPage = lazy(() => import('@pages/AccountsPage'));
+const ImportPage = lazy(() => import('@pages/ImportPage'));
+const OpportunitiesPage = lazy(() => import('@pages/OpportunitiesPage'));
+const ReportsPage = lazy(() => import('@pages/ReportsPage'));
+const ContractsPage = lazy(() => import('@pages/ContractsPage').then((m) => ({ default: m.ContractsPage })));
+const ProjectsPage = lazy(() => import('@pages/ProjectsPage').then((m) => ({ default: m.ProjectsPage })));
+const InvoicesPage = lazy(() => import('@pages/InvoicesPage').then((m) => ({ default: m.InvoicesPage })));
+const TicketsPage = lazy(() => import('@pages/TicketsPage').then((m) => ({ default: m.TicketsPage })));
+const AuditLogsPage = lazy(() => import('@pages/AuditLogsPage').then((m) => ({ default: m.AuditLogsPage })));
+const NotificationsPage = lazy(() => import('@pages/NotificationsPage').then((m) => ({ default: m.NotificationsPage })));
+const UsersPage = lazy(() => import('@pages/UsersPage').then((m) => ({ default: m.UsersPage })));
+const RolesPage = lazy(() => import('@pages/RolesPage').then((m) => ({ default: m.RolesPage })));
+const ProductsPage = lazy(() => import('@pages/ProductsPage').then((m) => ({ default: m.ProductsPage })));
+const ProductCategoriesPage = lazy(() => import('@pages/ProductCategoriesPage'));
+const CountriesPage = lazy(() => import('@pages/CountriesPage'));
+const DesignationsPage = lazy(() => import('@pages/DesignationsPage'));
+const TeamsPage = lazy(() => import('@pages/TeamsPage'));
+const SuppliersPage = lazy(() => import('@pages/SuppliersPage'));
+const SalesVisitsPage = lazy(() => import('@pages/SalesVisitsPage'));
+const ExpensesPage = lazy(() => import('@pages/ExpensesPage'));
+const SettingsPage = lazy(() => import('@pages/SettingsPage').then((m) => ({ default: m.SettingsPage })));
+const ForgotPasswordPage = lazy(() => import('@pages/ForgotPasswordPage').then((m) => ({ default: m.ForgotPasswordPage })));
+const ResetPasswordPage = lazy(() => import('@pages/ResetPasswordPage').then((m) => ({ default: m.ResetPasswordPage })));
+const FixOpportunityDatesPage = lazy(() => import('@pages/admin/FixOpportunityDatesPage'));
+
+const RouteLoadingFallback: React.FC = () => (
+  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+    <CircularProgress />
+  </Box>
+);
 
 const ProtectedRoute: React.FC<{
   children: React.ReactNode;
@@ -138,6 +149,7 @@ function App() {
             v7_relativeSplatPath: true,
           }}
         >
+          <Suspense fallback={<RouteLoadingFallback />}>
           <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route
@@ -336,6 +348,7 @@ function App() {
           />
           <Route path="/" element={<RootRoute />} />
           </Routes>
+          </Suspense>
         </Router>
       </ErrorBoundary>
     </ThemeContextProvider>
