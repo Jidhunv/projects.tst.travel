@@ -52,7 +52,6 @@ export function startSpan(traceId: string, operation: string, input?: any): Trac
   };
 
   context.spans.push(span);
-  const prev = context.currentSpan;
   context.currentSpan = span;
   return span;
 }

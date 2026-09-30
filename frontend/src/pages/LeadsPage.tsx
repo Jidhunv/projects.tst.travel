@@ -24,10 +24,9 @@ import {
   InputAdornment,
   ToggleButton,
   ToggleButtonGroup,
-  Tooltip,
   Alert,
 } from '@mui/material';
-import { Search as SearchIcon, ViewAgendaOutlined as ListIcon, ViewWeekOutlined as KanbanIcon, Delete as DeleteIcon } from '@mui/icons-material';
+import { Search as SearchIcon, ViewAgendaOutlined as ListIcon, ViewWeekOutlined as KanbanIcon } from '@mui/icons-material';
 import Layout from '@components/Layout';
 import AssignOwner from '@components/AssignOwner';
 import BuyingCommitteeViewDialog from '@components/BuyingCommitteeViewDialog';
@@ -275,15 +274,6 @@ export default function LeadsPage() {
       fetchLeads();
     } catch (error) {
       console.error('Error updating lead:', error);
-    }
-  };
-
-  const handleConvert = async (lead: Lead) => {
-    try {
-      await apiClient.post(`/leads/${lead.id}/convert-to-account`, {});
-      fetchLeads();
-    } catch (error) {
-      console.error('Error converting lead:', error);
     }
   };
 

@@ -19,7 +19,6 @@ import {
   Typography,
   Chip,
   Stack,
-  FormControlLabel,
   Checkbox,
 } from '@mui/material';
 import Layout from '@components/Layout';

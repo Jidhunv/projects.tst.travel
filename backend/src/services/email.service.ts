@@ -7,15 +7,6 @@ import fs from 'fs';
 import path from 'path';
 import logger from '../utils/logger';
 
-interface EmailConfig {
-  smtpHost: string;
-  smtpPort: number;
-  smtpUser: string;
-  smtpPassword: string;
-  fromEmail: string;
-  fromName: string;
-}
-
 class EmailService {
   private emailSettingsRepository = AppDataSource.getRepository(EmailSettings);
   private templatesDir = path.join(process.cwd(), 'src', 'templates');

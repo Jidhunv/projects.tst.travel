@@ -1,7 +1,6 @@
 import { AppDataSource } from './config/database';
 import { User } from './models/User';
 import { Role } from './models/Role';
-import { Permission } from './models/Permission';
 import { Country } from './models/Country';
 import { countriesData } from './data/countries';
 import bcrypt from 'bcryptjs';
@@ -22,7 +21,6 @@ async function seed() {
     logger.info('Database connected');
 
     const roleRepository = AppDataSource.getRepository(Role);
-    const permissionRepository = AppDataSource.getRepository(Permission);
     const userRepository = AppDataSource.getRepository(User);
 
     // Create default roles

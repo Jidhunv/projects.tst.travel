@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import { Response, NextFunction } from 'express';
 import accountService from '../services/account.service';
 import teamService from '../services/team.service';
 import { AuthRequest, getReadScope, getScope, canAccessRecord, canPerformAction, canReassign } from '../middleware/auth';

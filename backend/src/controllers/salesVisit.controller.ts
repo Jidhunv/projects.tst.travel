@@ -1,5 +1,4 @@
 import { Response, NextFunction } from 'express';
-import { Between, ILike } from 'typeorm';
 import { AppDataSource } from '../config/database';
 import { SalesVisit } from '../models/SalesVisit';
 import { FollowupEntry } from '../models/FollowupEntry';

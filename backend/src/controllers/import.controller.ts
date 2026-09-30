@@ -1,10 +1,9 @@
-import { Request, Response, NextFunction } from 'express';
+import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
 import importService from '../services/import.service';
 import userService from '../services/user.service';
 import logger from '../utils/logger';
-import * as path from 'path';
 import * as fs from 'fs';
 
 export class ImportController {

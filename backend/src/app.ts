@@ -8,7 +8,6 @@ import { tracingMiddleware } from './middleware/tracing';
 import { auditMiddleware } from './middleware/audit';
 import { generateCsrfToken, verifyCsrfToken } from './middleware/csrf';
 import { sanitizeResponse } from './middleware/sanitizeResponse';
-import traceService from './services/trace.service';
 import logger from './utils/logger';
 import ensurePermissions from './utils/ensurePermissions';
 
@@ -162,16 +161,6 @@ app.use('/api/sales-visits', salesVisitRoutes);
 app.use('/api/expenses', expenseRoutes);
 app.use('/api/countries', countryRoutes);
 app.use('/api/designations', designationRoutes);
-
-// Save traces after response completes (for debugging)
-app.use((req: any, res, next) => {
-  res.on('finish', () => {
-    if (req.traceId) {
-      traceService.saveTrace(req.traceId);
-    }
-  });
-  next();
-});
 
 // Error handling middleware
 app.use(errorHandler);

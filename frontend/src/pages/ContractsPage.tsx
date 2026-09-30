@@ -18,7 +18,6 @@ import {
   Chip,
   Card,
   CardContent,
-  Grid,
   Typography,
 } from '@mui/material';
 import Layout from '@components/Layout';

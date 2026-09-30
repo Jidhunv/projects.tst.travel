@@ -2,10 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
   Box,
   Button,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
   Stepper,
   Step,
   StepLabel,
@@ -22,13 +18,10 @@ import {
   AlertTitle,
   Select,
   MenuItem,
-  TextField,
-  Chip,
   CircularProgress,
   Checkbox,
   FormControlLabel,
   Typography,
-  Grid,
 } from '@mui/material';
 import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
@@ -159,19 +152,6 @@ export default function ImportPage() {
       console.error('Error parsing file:', error);
       alert('Error reading file. Please make sure it is a valid CSV or Excel file.');
     }
-  };
-
-  // Step 1: Column Mapping
-  const handleMappingChange = (csvColumn: string, miditField: string) => {
-    setColumnMapping(prev => {
-      const next = { ...prev };
-      if (miditField === '') {
-        delete next[csvColumn];
-      } else {
-        next[csvColumn] = miditField;
-      }
-      return next;
-    });
   };
 
   const handlePreview = async () => {

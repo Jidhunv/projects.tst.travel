@@ -2,9 +2,8 @@ import React, { useEffect, useState } from 'react';
 import {
   Box, Typography, Button, Paper, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, Dialog, DialogTitle, DialogContent, DialogActions, TextField,
-  MenuItem, Chip, Card, CardContent, Autocomplete, Snackbar, Alert, IconButton,
+  Chip, Card, CardContent, Autocomplete, Snackbar, Alert,
 } from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
 import Layout from '@components/Layout';
 import { api } from '@services/api';
 

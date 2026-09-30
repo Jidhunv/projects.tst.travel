@@ -1,6 +1,7 @@
-import { Request, Response, NextFunction, RequestHandler } from 'express';
+import { Response, NextFunction } from 'express';
 import { AuthRequest } from './auth';
 import { initTrace, startSpan, endSpan, clearTrace } from '../utils/tracer';
+import traceService from '../services/trace.service';
 import logger from '../utils/logger';
 
 export interface TracedRequest extends AuthRequest {
@@ -29,7 +30,21 @@ export function tracingMiddleware(req: TracedRequest, res: Response, next: NextF
     // Log trace info and keep for retrieval (development only)
     if (process.env.LOG_LEVEL === 'debug') {
       logger.debug(`[TRACE ${traceId}] ${req.method} ${req.path} → ${res.statusCode}`);
+      traceService.saveTrace(traceId);
     }
+
+    // initTrace() above has no counterpart without this: every request
+    // added an entry to tracer.ts's module-level Map with nothing ever
+    // removing it - an unconditional (including production) memory leak.
+    // This must live in THIS handler, not a later separate middleware: a
+    // route earlier in the stack that sends its own response (which is
+    // nearly all of them) ends the middleware chain there, so a save/clear
+    // step registered after the routes in app.ts would only ever fire for
+    // requests that fall through unmatched. res.on('finish', ...) here
+    // fires on actual response completion regardless of what else in the
+    // chain ran, since this listener is attached before any route handler
+    // gets a chance to respond.
+    clearTrace(traceId);
   });
 
   next();

@@ -23,11 +23,9 @@ import Layout from '@components/Layout';
 import DataTable from '@components/DataTable';
 import AssignOwner from '@components/AssignOwner';
 import ConfirmDialog from '@components/ConfirmDialog';
-import SearchableSelect from '@components/SearchableSelect';
 import useAuth from '@hooks/useAuth';
 import { api } from '@services/api';
 import { Account } from '../types';
-import { formatCurrency } from '@utils/format';
 
 interface Country {
   id: string;
@@ -35,12 +33,6 @@ interface Country {
   name: string;
   region?: string;
 }
-
-const statusColor: Record<string, any> = {
-  Prospect: 'info',
-  Customer: 'success',
-  Inactive: 'error',
-};
 
 const onboardingStatusColor: Record<string, any> = {
   'Not Started': 'default',

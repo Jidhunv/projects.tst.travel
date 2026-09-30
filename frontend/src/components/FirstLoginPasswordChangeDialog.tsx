@@ -7,7 +7,6 @@ import {
   TextField,
   Button,
   Typography,
-  Box,
   Alert,
   LinearProgress,
 } from '@mui/material';

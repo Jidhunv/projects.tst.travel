@@ -1,4 +1,4 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router } from 'express';
 import TraceController from '../controllers/trace.controller';
 import { TracedRequest } from '../middleware/tracing';
 import { verifyToken, requireRole } from '../middleware/auth';

@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import { Response, NextFunction } from 'express';
 import auditLogService from '../services/audit-log.service';
 import { AuthRequest } from './auth';
 import logger from '../utils/logger';

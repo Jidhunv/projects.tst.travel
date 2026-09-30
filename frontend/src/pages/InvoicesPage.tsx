@@ -25,7 +25,7 @@ import {
 } from '@mui/material';
 import Layout from '@components/Layout';
 import { apiClient } from '../services/api';
-import { Invoice, Payment } from '../types';
+import { Invoice } from '../types';
 
 interface TabPanelProps {
   children?: React.ReactNode;

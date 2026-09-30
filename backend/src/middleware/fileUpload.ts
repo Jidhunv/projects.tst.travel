@@ -1,4 +1,4 @@
-import multer, { StorageEngine, Multer } from 'multer';
+import multer, { StorageEngine } from 'multer';
 import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';

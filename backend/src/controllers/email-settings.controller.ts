@@ -3,7 +3,7 @@ import { AuthRequest } from '../middleware/auth';
 import { AppDataSource } from '../config/database';
 import { EmailSettings } from '../models/EmailSettings';
 import { AppError } from '../middleware/errorHandler';
-import { initializeEmailTransport, testEmailConnection, maskPassword } from '../config/email';
+import { testEmailConnection, maskPassword } from '../config/email';
 import emailService from '../services/email.service';
 import logger from '../utils/logger';
 

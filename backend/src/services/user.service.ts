@@ -1,6 +1,5 @@
 import { AppDataSource } from '../config/database';
 import { User } from '../models/User';
-import { Role } from '../models/Role';
 import { LoginSecurity } from '../models/LoginSecurity';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
@@ -9,7 +8,6 @@ import { AppError } from '../middleware/errorHandler';
 
 export class UserService {
   private userRepository = AppDataSource.getRepository(User);
-  private roleRepository = AppDataSource.getRepository(Role);
 
   async createUser(data: {
     email: string;

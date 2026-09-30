@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
   Box,
   Card,
-  CardContent,
   Tabs,
   Tab,
   TextField,
@@ -13,7 +12,6 @@ import {
   Checkbox,
   FormControlLabel,
   Stack,
-  Divider,
 } from '@mui/material';
 import Layout from '@components/Layout';
 import { apiClient } from '../services/api';
