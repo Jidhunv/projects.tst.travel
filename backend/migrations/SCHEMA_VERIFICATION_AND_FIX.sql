@@ -629,6 +629,69 @@ CREATE INDEX IF NOT EXISTS idx_account_teams_accountId ON account_teams("account
 CREATE INDEX IF NOT EXISTS idx_account_teams_teamId ON account_teams("teamId");
 
 -- ============================================================================
+-- DESIGNATIONS TABLE (Master data - job titles for stakeholder mapping)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS designations (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(255) UNIQUE NOT NULL,
+    "isActive" BOOLEAN DEFAULT TRUE,
+    "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+INSERT INTO schema_verification_log (check_name, status, message) VALUES ('designations', 'EXISTS', 'Table verified');
+
+SELECT add_column_if_not_exists('designations', 'name', 'VARCHAR(255)');
+SELECT add_column_if_not_exists('designations', 'isActive', 'BOOLEAN DEFAULT TRUE');
+SELECT add_column_if_not_exists('designations', 'createdAt', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP');
+SELECT add_column_if_not_exists('designations', 'updatedAt', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP');
+
+CREATE INDEX IF NOT EXISTS idx_designations_name ON designations(name);
+
+INSERT INTO designations (name) VALUES
+    ('CEO'), ('CFO'), ('COO'), ('CTO'),
+    ('VP Sales'), ('VP Operations'), ('VP Finance'),
+    ('Procurement Manager'), ('IT Manager'), ('Operations Manager'),
+    ('Finance Manager'), ('Travel Manager'), ('Executive Assistant'),
+    ('Team Lead'), ('Analyst'), ('Other')
+ON CONFLICT (name) DO NOTHING;
+
+-- ============================================================================
+-- ACCOUNT_STAKEHOLDERS TABLE (buying-committee onboarding: 8 fixed roles
+-- per account - Champion, Coach, Blocker, Decision Maker, Influencer,
+-- Economic Buyer, End User, Gatekeeper)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS account_stakeholders (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    "accountId" UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+    role VARCHAR(50) NOT NULL,
+    name VARCHAR(255),
+    "designationId" UUID REFERENCES designations(id),
+    "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE("accountId", role)
+);
+INSERT INTO schema_verification_log (check_name, status, message) VALUES ('account_stakeholders', 'EXISTS', 'Table verified');
+
+SELECT add_column_if_not_exists('account_stakeholders', 'accountId', 'UUID');
+SELECT add_column_if_not_exists('account_stakeholders', 'role', 'VARCHAR(50)');
+SELECT add_column_if_not_exists('account_stakeholders', 'name', 'VARCHAR(255)');
+SELECT add_column_if_not_exists('account_stakeholders', 'designationId', 'UUID');
+SELECT add_column_if_not_exists('account_stakeholders', 'createdAt', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP');
+SELECT add_column_if_not_exists('account_stakeholders', 'updatedAt', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP');
+
+CREATE INDEX IF NOT EXISTS idx_account_stakeholders_accountId ON account_stakeholders("accountId");
+CREATE INDEX IF NOT EXISTS idx_account_stakeholders_designationId ON account_stakeholders("designationId");
+
+-- ============================================================================
+-- OPPORTUNITIES: "Prospecting" stage retired, "Qualification" is now the
+-- earliest/default stage, "Demonstration" is new (see migration 017).
+-- Existing rows still on "Prospecting" are moved to "Qualification" here too,
+-- so this script alone is enough to bring a database fully up to date.
+-- ============================================================================
+UPDATE opportunities SET stage = 'Qualification', probability = 10 WHERE stage = 'Prospecting';
+ALTER TABLE opportunities ALTER COLUMN stage SET DEFAULT 'Qualification';
+
+-- ============================================================================
 -- VERIFICATION REPORT - Pure SQL Only
 -- ============================================================================
 
