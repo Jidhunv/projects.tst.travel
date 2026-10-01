@@ -1,5 +1,14 @@
 # Dependencies
-node_modules/
+# backend/node_modules is intentionally committed (not ignored) - same reason
+# as dist/: production runs the backend as a live Node process and needs
+# these at runtime, and `npm install` has been a point of failure there.
+# Verified no native-compiled (.node) binaries in backend's tree before this
+# decision. frontend/node_modules stays ignored: the frontend ships as a
+# pre-built dist/ served statically, needs no Node process in production at
+# all, and its tree *does* contain platform-specific native binaries
+# (Rollup) that would carry real cross-machine risk for zero benefit.
+/node_modules/
+frontend/node_modules/
 /.pnp
 .pnp.js
 
