@@ -1,0 +1,43 @@
+import { User } from './User';
+import { Account } from './Account';
+import { Contact } from './Contact';
+import { LineItem } from './LineItem';
+export declare class Opportunity {
+    id: string;
+    name: string;
+    amount: number;
+    stage: string;
+    status: string;
+    description: string;
+    forecastedCloseDate: Date;
+    probability: number;
+    account: Account;
+    accountId: string;
+    primaryContact: Contact;
+    primaryContactId: string;
+    owner: User;
+    ownerId: string;
+    lineItems: LineItem[];
+    businessVolume: number;
+    supplierList: string[];
+    region: string;
+    country: string;
+    city: string;
+    company: string;
+    contactPerson: string;
+    contactEmail: string;
+    contactPhone: string;
+    jobTitle: string;
+    source: string;
+    remark: string;
+    convertedFromLeadId: string;
+    tags: string;
+    assigneeIds: string[];
+    closedAt: Date;
+    closedReason: string;
+    expectedCloseMonth: string;
+    tier: string;
+    createdAt: Date;
+    updatedAt: Date;
+}
+//# sourceMappingURL=Opportunity.d.ts.map

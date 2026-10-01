@@ -1,0 +1,292 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.LeadService = void 0;
+const database_1 = require("../config/database");
+const Lead_1 = require("../models/Lead");
+const Account_1 = require("../models/Account");
+const Opportunity_1 = require("../models/Opportunity");
+const LineItem_1 = require("../models/LineItem");
+const errorHandler_1 = require("../middleware/errorHandler");
+const constants_1 = require("../utils/constants");
+const tracer_1 = require("../utils/tracer");
+class LeadService {
+    constructor() {
+        this.leadRepository = database_1.AppDataSource.getRepository(Lead_1.Lead);
+        this.accountRepository = database_1.AppDataSource.getRepository(Account_1.Account);
+        this.oppRepository = database_1.AppDataSource.getRepository(Opportunity_1.Opportunity);
+        this.lineItemRepository = database_1.AppDataSource.getRepository(LineItem_1.LineItem);
+    }
+    async createLead(data) {
+        const existingLead = await this.leadRepository.findOne({
+            where: { email: data.email },
+        });
+        if (existingLead) {
+            throw new errorHandler_1.AppError(409, 'Lead with this email already exists');
+        }
+        // Get account to populate tier from it
+        const account = await this.accountRepository.findOne({
+            where: { id: data.accountId },
+        });
+        const lead = this.leadRepository.create({
+            ...data,
+            value: data.value ?? 0,
+            status: 'Open',
+            score: 0,
+            productIds: data.productIds || [],
+            productNames: data.productNames || [],
+            tier: account?.tier,
+        });
+        return await this.leadRepository.save(lead);
+    }
+    async getLeadById(id) {
+        const lead = await this.leadRepository.findOne({
+            where: { id },
+            relations: ['owner', 'account'],
+        });
+        if (!lead) {
+            throw new errorHandler_1.AppError(404, 'Lead not found');
+        }
+        return lead;
+    }
+    async getLeads(filters = {}, traceId) {
+        const { page = 1, limit = 20, search, fromDate, toDate, ...where } = filters;
+        const skip = (page - 1) * limit;
+        let dbSpan;
+        if (traceId) {
+            dbSpan = (0, tracer_1.startSpan)(traceId, 'service.lead.getLeads', {
+                page,
+                limit,
+                filters: { ...where, search: search ? '***masked***' : undefined },
+            });
+        }
+        try {
+            const query = this.leadRepository
+                .createQueryBuilder('lead')
+                .leftJoinAndSelect('lead.owner', 'owner')
+                .leftJoinAndSelect('lead.account', 'account');
+            // Add search filter
+            if (search) {
+                query.where('(lead.firstName ILIKE :search OR lead.lastName ILIKE :search OR lead.email ILIKE :search OR lead.company ILIKE :search)', { search: `%${search}%` });
+            }
+            // Add other filters
+            if (where.status) {
+                query.andWhere('lead.status = :status', { status: where.status });
+            }
+            if (where.source) {
+                query.andWhere('lead.source = :source', { source: where.source });
+            }
+            if (where.ownerId) {
+                // Owner OR one of the additional assignees (multi-assign).
+                query.andWhere('(lead.ownerId = :ownerId OR lead.assigneeIds LIKE :ownerIdLike)', {
+                    ownerId: where.ownerId,
+                    ownerIdLike: `%${where.ownerId}%`,
+                });
+            }
+            if (where.region) {
+                query.andWhere('lead.region ILIKE :region', { region: `%${where.region}%` });
+            }
+            if (where.country) {
+                query.andWhere('lead.country ILIKE :country', { country: `%${where.country}%` });
+            }
+            if (fromDate) {
+                query.andWhere('lead.createdAt >= :fromDate', { fromDate: new Date(`${fromDate}T00:00:00.000Z`) });
+            }
+            if (toDate) {
+                query.andWhere('lead.createdAt <= :toDate', { toDate: new Date(`${toDate}T23:59:59.999Z`) });
+            }
+            const [data, total] = await query
+                .orderBy('lead.createdAt', 'DESC')
+                .skip(skip)
+                .take(limit)
+                .getManyAndCount();
+            if (traceId && dbSpan) {
+                (0, tracer_1.endSpan)(traceId, dbSpan.id, { count: data.length, total });
+            }
+            return { data, total };
+        }
+        catch (err) {
+            if (traceId && dbSpan) {
+                (0, tracer_1.endSpan)(traceId, dbSpan.id, undefined, err.message);
+            }
+            throw err;
+        }
+    }
+    async updateLead(id, data) {
+        await this.getLeadById(id);
+        // Column-level update: the getById above eager-loads relations, and save()
+        // gives a loaded relation precedence over its FK column -- so changing only
+        // the FK would be silently overwritten by the stale relation object.
+        // update() writes exactly the columns given.
+        await this.leadRepository.update(id, data);
+        return await this.getLeadById(id);
+    }
+    async updateLeadStatus(id, status) {
+        const lead = await this.getLeadById(id);
+        const validStatuses = ['Open', 'Qualified', 'Disqualified', 'Converted'];
+        if (!validStatuses.includes(status)) {
+            throw new errorHandler_1.AppError(400, 'Invalid lead status');
+        }
+        lead.status = status;
+        return await this.leadRepository.save(lead);
+    }
+    async deleteLead(id) {
+        const lead = await this.getLeadById(id);
+        await this.leadRepository.remove(lead);
+    }
+    async convertLeadToAccount(leadId) {
+        const lead = await this.getLeadById(leadId);
+        if (lead.status !== 'Qualified') {
+            throw new errorHandler_1.AppError(400, 'Lead must be qualified to convert');
+        }
+        // Check if account already exists
+        if (lead.accountId) {
+            throw new errorHandler_1.AppError(409, 'Lead is already converted to an account');
+        }
+        // Create account from lead
+        const account = this.accountRepository.create({
+            name: lead.company || `${lead.firstName} ${lead.lastName}`,
+            ownerId: lead.ownerId,
+            type: 'Prospect',
+            status: 'Prospect',
+        });
+        const savedAccount = await this.accountRepository.save(account);
+        // Update lead with account reference
+        lead.accountId = savedAccount.id;
+        lead.status = 'Converted';
+        await this.leadRepository.save(lead);
+        return savedAccount;
+    }
+    // Convert a lead directly into a sales opportunity.
+    // Creates (or reuses) an account, then an opportunity seeded with the lead's
+    // value, expected close date, and product of interest.
+    async convertLeadToOpportunity(leadId) {
+        const lead = await this.getLeadById(leadId);
+        if (lead.status === 'Converted') {
+            throw new errorHandler_1.AppError(409, 'Lead is already converted');
+        }
+        if (lead.status === 'Disqualified') {
+            throw new errorHandler_1.AppError(400, 'A lost lead cannot be converted');
+        }
+        // Reuse a linked account or create one from the lead's company.
+        let accountId = lead.accountId;
+        if (!accountId) {
+            const account = await this.accountRepository.save(this.accountRepository.create({
+                name: lead.company || `${lead.firstName} ${lead.lastName}`,
+                ownerId: lead.ownerId,
+                type: 'Prospect',
+                status: 'Prospect',
+                contactPerson: `${lead.firstName} ${lead.lastName}`.trim(),
+                region: lead.region,
+                country: lead.country,
+                phoneNumber: lead.phoneNumber,
+            }));
+            accountId = account.id;
+        }
+        const baseDealName = lead.productName
+            ? `${lead.company || lead.firstName} - ${lead.productName}`
+            : `${lead.company || lead.firstName}`;
+        // Auto-generated names collide whenever the same company converts
+        // another lead with no product (or the same product) set. Disambiguate
+        // by appending (1), (2), ... rather than silently creating duplicates.
+        let dealName = baseDealName;
+        let suffix = 0;
+        while (await this.oppRepository.findOne({ where: { name: dealName } })) {
+            suffix++;
+            dealName = `${baseDealName} (${suffix})`;
+        }
+        const closeDate = lead.expectedCloseDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+        const opp = await this.oppRepository.save(this.oppRepository.create({
+            name: dealName,
+            amount: lead.value || 0,
+            stage: 'Qualification',
+            status: 'Open',
+            probability: 25,
+            forecastedCloseDate: closeDate,
+            accountId,
+            ownerId: lead.ownerId,
+            // Carry over ALL lead details so nothing is lost on conversion.
+            businessVolume: lead.businessVolume,
+            supplierList: lead.supplierList,
+            region: lead.region,
+            country: lead.country,
+            company: lead.company,
+            contactPerson: `${lead.firstName} ${lead.lastName}`.trim(),
+            contactEmail: lead.email,
+            contactPhone: lead.phoneNumber,
+            jobTitle: lead.jobTitle,
+            source: lead.source,
+            remark: lead.remark,
+            tags: lead.tags,
+            convertedFromLeadId: lead.id,
+        }));
+        // Carry the lead's products across as line items.
+        // Support both single product (legacy) and multiple products (array).
+        const productIds = lead.productIds && lead.productIds.length > 0 ? lead.productIds : (lead.productId ? [lead.productId] : []);
+        const productNames = lead.productNames && lead.productNames.length > 0 ? lead.productNames : (lead.productName ? [lead.productName] : []);
+        if (productIds.length > 0) {
+            for (let i = 0; i < productIds.length; i++) {
+                await this.lineItemRepository.save(this.lineItemRepository.create({
+                    productId: productIds[i],
+                    productName: productNames[i] || '',
+                    quantity: 1,
+                    unitPrice: lead.value || 0,
+                    opportunityId: opp.id,
+                }));
+            }
+        }
+        lead.accountId = accountId;
+        lead.status = 'Converted';
+        await this.leadRepository.save(lead);
+        return opp;
+    }
+    // Close a lead as lost, recording a reason from the fixed list.
+    async markLeadLost(leadId, lostReason) {
+        if (!constants_1.REJECTION_REASONS.includes(lostReason)) {
+            throw new errorHandler_1.AppError(400, `A valid reason is required. Allowed: ${constants_1.REJECTION_REASONS.join(', ')}`);
+        }
+        const lead = await this.getLeadById(leadId);
+        if (lead.status === 'Converted') {
+            throw new errorHandler_1.AppError(400, 'A converted lead cannot be marked lost');
+        }
+        lead.status = 'Disqualified';
+        lead.lostReason = lostReason;
+        return await this.leadRepository.save(lead);
+    }
+    async updateLeadScore(id, points) {
+        const lead = await this.getLeadById(id);
+        lead.score += points;
+        return await this.leadRepository.save(lead);
+    }
+    async bulkImportLeads(leads, ownerId) {
+        let success = 0;
+        let failed = 0;
+        for (const leadData of leads) {
+            try {
+                // A lead requires an account; rows without one fail (counted below)
+                // rather than saving an orphaned lead.
+                if (!leadData.accountId) {
+                    throw new errorHandler_1.AppError(400, 'accountId is required');
+                }
+                await this.createLead({
+                    accountId: leadData.accountId,
+                    firstName: leadData.firstName || '',
+                    lastName: leadData.lastName || '',
+                    email: leadData.email || '',
+                    phoneNumber: leadData.phoneNumber,
+                    company: leadData.company,
+                    jobTitle: leadData.jobTitle,
+                    source: leadData.source || 'bulk-import',
+                    ownerId,
+                });
+                success++;
+            }
+            catch (error) {
+                failed++;
+            }
+        }
+        return { success, failed };
+    }
+}
+exports.LeadService = LeadService;
+exports.default = new LeadService();
+//# sourceMappingURL=lead.service.js.map

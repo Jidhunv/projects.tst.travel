@@ -1,0 +1,1 @@
+{"version":3,"file":"LoginSecurity.d.ts","sourceRoot":"","sources":["../../src/models/LoginSecurity.ts"],"names":[],"mappings":"AAIA,qBACa,aAAa;IAExB,MAAM,EAAE,MAAM,CAAC;IAGf,cAAc,EAAE,MAAM,CAAC;IAGvB,YAAY,EAAE,IAAI,GAAG,IAAI,CAAC;IAG1B,SAAS,EAAE,IAAI,CAAC;CACjB"}

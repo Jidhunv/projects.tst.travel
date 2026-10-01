@@ -1,0 +1,211 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.SalesVisitController = void 0;
+const database_1 = require("../config/database");
+const SalesVisit_1 = require("../models/SalesVisit");
+const FollowupEntry_1 = require("../models/FollowupEntry");
+const Account_1 = require("../models/Account");
+const auth_1 = require("../middleware/auth");
+const errorHandler_1 = require("../middleware/errorHandler");
+const logger_1 = __importDefault(require("../utils/logger"));
+const repo = () => database_1.AppDataSource.getRepository(SalesVisit_1.SalesVisit);
+const followupRepo = () => database_1.AppDataSource.getRepository(FollowupEntry_1.FollowupEntry);
+class SalesVisitController {
+    async list(req, res, next) {
+        try {
+            if (!(0, auth_1.canPerformAction)(req.user, 'sales_visits', 'read')) {
+                throw new errorHandler_1.AppError(403, 'You do not have permission to view sales visits');
+            }
+            const { search, accountId, visitType, fromDate, toDate } = req.query;
+            const qb = repo()
+                .createQueryBuilder('v')
+                .leftJoinAndSelect('v.createdBy', 'creator')
+                .leftJoinAndSelect('v.account', 'account')
+                .leftJoinAndSelect('v.followups', 'followups')
+                .leftJoinAndSelect('followups.createdBy', 'followupCreator')
+                .orderBy('v.visitDate', 'DESC')
+                .addOrderBy('followups.createdAt', 'DESC');
+            // Self-scope: users with only read:self see their own visits.
+            const scope = (0, auth_1.getOwnerScope)(req.user, 'sales_visits');
+            if (scope)
+                qb.andWhere('v.createdById = :scope', { scope });
+            if (accountId)
+                qb.andWhere('v.accountId = :accountId', { accountId });
+            if (visitType)
+                qb.andWhere('v.visitType = :visitType', { visitType });
+            if (search)
+                qb.andWhere('(v.discussion ILIKE :s OR v.companyName ILIKE :s)', { s: `%${search}%` });
+            if (fromDate)
+                qb.andWhere('v.visitDate >= :fromDate', { fromDate: new Date(fromDate) });
+            if (toDate)
+                qb.andWhere('v.visitDate <= :toDate', { toDate: new Date(toDate) });
+            const data = await qb.getMany();
+            return res.json({ success: true, data });
+        }
+        catch (error) {
+            next(error);
+        }
+    }
+    async create(req, res, next) {
+        try {
+            if (!(0, auth_1.canPerformAction)(req.user, 'sales_visits', 'create')) {
+                throw new errorHandler_1.AppError(403, 'You do not have permission to log sales visits');
+            }
+            const { accountId, companyName, visitType, discussion, visitDate, followupDate, followupNotes, followupCompleted } = req.body;
+            if (!discussion)
+                throw new errorHandler_1.AppError(400, 'Please describe what was discussed');
+            // Snapshot the company name from the account when available.
+            let resolvedCompany = companyName;
+            if (accountId && !resolvedCompany) {
+                const account = await database_1.AppDataSource.getRepository(Account_1.Account).findOne({ where: { id: accountId } });
+                resolvedCompany = account?.name;
+            }
+            // Safely parse dates
+            let parsedVisitDate = new Date();
+            if (visitDate) {
+                const parsed = new Date(visitDate);
+                if (!isNaN(parsed.getTime())) {
+                    parsedVisitDate = parsed;
+                }
+            }
+            let parsedFollowupDate = null;
+            if (followupDate && followupDate !== '') {
+                const parsed = new Date(followupDate);
+                if (!isNaN(parsed.getTime())) {
+                    parsedFollowupDate = parsed;
+                }
+            }
+            const visit = repo().create({
+                accountId: accountId || null,
+                companyName: resolvedCompany,
+                visitType: visitType || 'Visit',
+                discussion,
+                visitDate: parsedVisitDate,
+                followupDate: parsedFollowupDate,
+                followupNotes: followupNotes || null,
+                followupCompleted: Boolean(followupCompleted) || false,
+                createdById: req.user.id,
+            });
+            try {
+                await repo().save(visit);
+                logger_1.default.info(`Sales visit logged by ${req.user.email}`);
+                // If followup notes are provided during creation, create a FollowupEntry
+                if (followupNotes) {
+                    const followupEntry = followupRepo().create({
+                        visitId: visit.id,
+                        notes: followupNotes,
+                        followupDate: parsedFollowupDate,
+                        completed: Boolean(followupCompleted) || false,
+                        createdById: req.user.id,
+                    });
+                    await followupRepo().save(followupEntry);
+                }
+                const saved = await repo().findOne({
+                    where: { id: visit.id },
+                    relations: ['createdBy', 'account', 'followups', 'followups.createdBy']
+                });
+                return res.status(201).json({ success: true, data: saved });
+            }
+            catch (dbError) {
+                logger_1.default.error('Failed to save sales visit:', dbError.message);
+                throw new errorHandler_1.AppError(400, `Failed to save sales visit: ${dbError.message}`);
+            }
+        }
+        catch (error) {
+            next(error);
+        }
+    }
+    async update(req, res, next) {
+        try {
+            if (!(0, auth_1.canPerformAction)(req.user, 'sales_visits', 'update')) {
+                throw new errorHandler_1.AppError(403, 'You do not have permission to update sales visits');
+            }
+            const visit = await repo().findOne({ where: { id: req.params.id } });
+            if (!visit)
+                throw new errorHandler_1.AppError(404, 'Sales visit not found');
+            // self-scoped users may only edit their own entries
+            const uScope = (0, auth_1.getOwnerScope)(req.user, 'sales_visits');
+            if (uScope && visit.createdById !== uScope) {
+                throw new errorHandler_1.AppError(403, 'You can only edit your own sales visits');
+            }
+            const { companyName, visitType, discussion, visitDate, accountId, followupDate, followupNotes, followupCompleted } = req.body;
+            try {
+                if (companyName !== undefined)
+                    visit.companyName = companyName;
+                if (visitType !== undefined)
+                    visit.visitType = visitType;
+                if (discussion !== undefined)
+                    visit.discussion = discussion;
+                if (accountId !== undefined)
+                    visit.accountId = accountId;
+                // Safely parse dates - handle ISO strings and empty values
+                if (visitDate !== undefined && visitDate) {
+                    const parsedDate = new Date(visitDate);
+                    if (!isNaN(parsedDate.getTime())) {
+                        visit.visitDate = parsedDate;
+                    }
+                }
+                // Save the main visit record
+                await repo().save(visit);
+                // If followup notes are provided, create a new FollowupEntry
+                // This allows multiple followups to accumulate
+                if (followupNotes !== undefined && followupNotes) {
+                    let entryDate = null;
+                    if (followupDate && followupDate !== '') {
+                        const parsed = new Date(followupDate);
+                        if (!isNaN(parsed.getTime()))
+                            entryDate = parsed;
+                    }
+                    const followupEntry = followupRepo().create({
+                        visitId: visit.id,
+                        notes: followupNotes,
+                        followupDate: entryDate,
+                        completed: Boolean(followupCompleted) || false,
+                        createdById: req.user?.id,
+                    });
+                    await followupRepo().save(followupEntry);
+                    logger_1.default.info(`Followup added to visit ${visit.id} by ${req.user?.email}`);
+                }
+                // Reload with all relations for response
+                const updated = await repo().findOne({
+                    where: { id: visit.id },
+                    relations: ['createdBy', 'account', 'followups', 'followups.createdBy']
+                });
+                logger_1.default.info(`Sales visit updated by ${req.user?.email}: ${visit.id}`);
+                return res.json({ success: true, data: updated });
+            }
+            catch (dbError) {
+                logger_1.default.error(`Failed to update sales visit ${req.params.id}:`, dbError.message);
+                throw new errorHandler_1.AppError(400, `Failed to update sales visit: ${dbError.message}`);
+            }
+        }
+        catch (error) {
+            next(error);
+        }
+    }
+    async remove(req, res, next) {
+        try {
+            if (!(0, auth_1.canPerformAction)(req.user, 'sales_visits', 'delete')) {
+                throw new errorHandler_1.AppError(403, 'You do not have permission to delete sales visits');
+            }
+            const visit = await repo().findOne({ where: { id: req.params.id } });
+            if (!visit)
+                throw new errorHandler_1.AppError(404, 'Sales visit not found');
+            const dScope = (0, auth_1.getOwnerScope)(req.user, 'sales_visits');
+            if (dScope && visit.createdById !== dScope) {
+                throw new errorHandler_1.AppError(403, 'You can only delete your own sales visits');
+            }
+            await repo().remove(visit);
+            return res.json({ success: true, data: { message: 'Sales visit deleted' } });
+        }
+        catch (error) {
+            next(error);
+        }
+    }
+}
+exports.SalesVisitController = SalesVisitController;
+exports.default = new SalesVisitController();
+//# sourceMappingURL=salesVisit.controller.js.map

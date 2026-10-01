@@ -6,8 +6,11 @@ node_modules/
 # Testing
 /coverage
 
-# Production (any level)
-dist/
+# dist/ is intentionally committed (not ignored) - production deploys via
+# `git pull` alone with no separate build step, since that build step has
+# repeatedly failed/been skipped on that server. Rebuild and commit dist/
+# whenever source changes; a stale committed dist/ is just as broken as a
+# missing one.
 build/
 
 # Environment

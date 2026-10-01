@@ -1,0 +1,1 @@
+const e=t=>Number(t||0).toLocaleString("en-US",{style:"currency",currency:"USD",maximumFractionDigits:0}),n=t=>{const r=Number(t||0);return Math.abs(r)>=1e6?`$${(r/1e6).toFixed(1)}M`:Math.abs(r)>=1e3?`$${(r/1e3).toFixed(0)}K`:`$${r}`};export{e as a,n as f};

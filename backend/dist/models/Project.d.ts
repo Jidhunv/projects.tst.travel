@@ -1,0 +1,48 @@
+import { Account } from './Account';
+import { Contract } from './Contract';
+import { User } from './User';
+import { Invoice } from './Invoice';
+import { ProjectMilestone } from './ProjectMilestone';
+export declare class Project {
+    id: string;
+    projectName: string;
+    status: string;
+    description: string;
+    startDate: Date;
+    endDate: Date;
+    goLiveDate: Date;
+    budget: number;
+    revenue: number;
+    progressPercent: number;
+    account: Account;
+    accountId: string;
+    contract: Contract;
+    contractId: string;
+    projectManager: User;
+    projectManagerId: string;
+    isLoaded: boolean;
+    loadedDate: Date;
+    loadedBy: string;
+    demoConducted: boolean;
+    demoDate: Date;
+    conductedBy: string;
+    clientDemoApproval: boolean;
+    uatStatus: string;
+    uatStartDate: Date;
+    uatCompletedDate: Date;
+    uatSignoffBy: string;
+    uatRemarks: string;
+    prodDeploymentStatus: string;
+    prodDeploymentDate: Date;
+    prodDeploymentBy: string;
+    goLiveApproval: boolean;
+    projectClosureSigned: boolean;
+    projectClosureSignDate: Date;
+    projectClosureSignedBy: string;
+    closureRemarks: string;
+    milestones: ProjectMilestone[];
+    invoices: Invoice[];
+    createdAt: Date;
+    updatedAt: Date;
+}
+//# sourceMappingURL=Project.d.ts.map
