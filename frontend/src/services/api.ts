@@ -1,7 +1,14 @@
 import axios, { AxiosInstance } from 'axios';
 import type { ApiResponse, PaginatedResponse } from '../types';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:3001/api';
+// Relative by default so the browser always resolves it against whatever
+// origin actually served the page - works through Vite's own dev-server
+// proxy (vite.config.ts forwards /api -> the backend) and through a
+// production reverse proxy forwarding /api on the same domain, with no
+// environment variable required. An absolute http://127.0.0.1:3001/api
+// fallback here previously made every browser try to connect to ITS OWN
+// machine's port 3001, not the server's - broken for every real visitor.
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 export const apiClient: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
