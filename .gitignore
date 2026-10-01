@@ -20,7 +20,13 @@ frontend/node_modules/
 # repeatedly failed/been skipped on that server. Rebuild and commit dist/
 # whenever source changes; a stale committed dist/ is just as broken as a
 # missing one.
-build/
+#
+# (There used to be a blanket `build/` rule here. Gitignore patterns with no
+# leading slash match at ANY depth, so it was silently excluding every
+# node_modules/*/build/ folder too - including libphonenumber-js's actual
+# runtime code, breaking it at require() time in production despite express
+# itself being present. No top-level build/ folder exists in this repo, so
+# the rule is removed rather than scoped - nothing legitimate was protected.)
 
 # Environment
 .env
