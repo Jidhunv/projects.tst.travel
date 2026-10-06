@@ -81,6 +81,18 @@ canReassign('leads')               // update at "all" scope
 
 This is **cosmetic only** — it hides UI. The backend check is the real control. Never rely on the frontend for access.
 
+## Targets & staff KPIs
+
+Three modules, all seeded by `ensurePermissions` (granted to Admin only - grant the rest in Role Management):
+
+| Module | What it controls | `self` vs `all` |
+|---|---|---|
+| `kpis` | Daily KPI entries, monthly projections, the KPI meeting report and the KPI audit trail | `self` = own figures only; `all` = every staff member's, and may record/edit on their behalf |
+| `kpi_setup` | Defining the questions/figures each staff member reports | any scope = full access |
+| `targets` | Sales targets (won revenue / new opportunity value) | `all` = any owner or the whole team; `self` = own targets only |
+
+Every KPI entry and projection change is appended to `kpi_audit_trail` (before/after, actor, time). The trail has no foreign keys, so it survives deleted entries. Projections lock when their month ends unless the role has `kpis:update:all`. The working week used for "missed reporting days" is `WORKWEEK` in `utils/salesStrategy.ts`.
+
 ## Seeded roles
 
 | Role | Intent |

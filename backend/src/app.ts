@@ -117,6 +117,7 @@ import teamRoutes from './routes/teams';
 import salesVisitRoutes from './routes/sales-visits';
 import expenseRoutes from './routes/expenses';
 import countryRoutes from './routes/countries';
+import performanceRoutes from './routes/performance';
 import designationRoutes from './routes/designations';
 
 // Database initialization
@@ -161,6 +162,7 @@ app.use('/api/sales-visits', salesVisitRoutes);
 app.use('/api/expenses', expenseRoutes);
 app.use('/api/countries', countryRoutes);
 app.use('/api/designations', designationRoutes);
+app.use('/api/performance', performanceRoutes);
 
 // Error handling middleware
 app.use(errorHandler);

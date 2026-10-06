@@ -14,12 +14,13 @@ import {
   TableRow,
   Chip,
 } from '@mui/material';
-import { Button, MenuItem, Paper, Stack, TextField } from '@mui/material';
+import { Button, MenuItem, Paper, Stack, TablePagination, TextField } from '@mui/material';
 import Layout from '@components/Layout';
 import { api } from '@services/api';
 import { formatCurrency } from '@utils/format';
 import { exportToCsv } from '@utils/exportCsv';
 import useAuth from '@hooks/useAuth';
+import { usePagedReport } from '@hooks/usePagedReport';
 
 export default function ReportsPage() {
   const { user } = useAuth();
@@ -29,35 +30,25 @@ export default function ReportsPage() {
 
   // Combined report (Leads + Accounts + Opportunities) with shared filters.
   const [cFilters, setCFilters] = React.useState({ search: '', region: '', country: '', fromDate: '', toDate: '', ownerId: '' });
-  const [leads, setLeads] = React.useState<any[]>([]);
-  const [accounts, setAccounts] = React.useState<any[]>([]);
-  const [opps, setOpps] = React.useState<any[]>([]);
   const [owners, setOwners] = React.useState<any[]>([]);
-  const [timeline, setTimeline] = React.useState<any[]>([]);
 
-  const loadCombined = React.useCallback(async () => {
-    const params: any = {};
-    Object.entries(cFilters).forEach(([k, v]) => { if (v && k !== 'ownerId') params[k] = v; });
-
-    // For non-admin users, filter by their own records
-    // For admin users, optionally filter by selected owner
+  // Shared filter params; non-admins are pinned to their own records, admins may pick an owner.
+  const params = React.useMemo(() => {
+    const p: Record<string, string> = {};
+    Object.entries(cFilters).forEach(([k, v]) => { if (v && k !== 'ownerId') p[k] = v; });
     if (user?.role?.name !== 'Admin') {
-      params.ownerId = user?.id;
+      if (user?.id) p.ownerId = user.id;
     } else if (cFilters.ownerId) {
-      params.ownerId = cFilters.ownerId;
+      p.ownerId = cFilters.ownerId;
     }
-
-    const [l, a, o, t] = await Promise.all([
-      api.getLeads(1, 1000, params).catch(() => ({ data: { data: [] } })),
-      api.getAccounts(1, 1000, params).catch(() => ({ data: { data: [] } })),
-      api.getOpportunities(1, 1000, params).catch(() => ({ data: { data: [] } })),
-      api.getConversionTimeline(params).catch(() => ({ data: { data: [] } })),
-    ]);
-    setLeads(l.data.data || []);
-    setAccounts(a.data.data || []);
-    setOpps(o.data.data || []);
-    setTimeline(t.data.data || []);
+    return p;
   }, [cFilters, user?.id, user?.role]);
+  const filterKey = JSON.stringify(params);
+
+  const leadsR = usePagedReport<any>((pg, lim) => api.getLeads(pg, lim, params), filterKey);
+  const accountsR = usePagedReport<any>((pg, lim) => api.getAccounts(pg, lim, params), filterKey);
+  const oppsR = usePagedReport<any>((pg, lim) => api.getOpportunities(pg, lim, params), filterKey);
+  const timelineR = usePagedReport<any>((pg, lim) => api.getConversionTimeline({ ...params, page: pg, limit: lim }), filterKey);
 
   React.useEffect(() => {
     Promise.all([
@@ -74,9 +65,7 @@ export default function ReportsPage() {
       .finally(() => setLoading(false));
   }, [user?.role]);
 
-  React.useEffect(() => { loadCombined(); }, [loadCombined]);
-
-  const exportLeads = () => exportToCsv('leads-report', [
+  const exportLeads = async () => exportToCsv('leads-report', [
     { header: 'Name', value: (r: any) => `${r.firstName} ${r.lastName}` },
     { header: 'Email', value: (r: any) => r.email },
     { header: 'Company', value: (r: any) => r.account?.name || r.company || '' },
@@ -87,9 +76,9 @@ export default function ReportsPage() {
     { header: 'Status', value: (r: any) => r.status },
     { header: 'Value', value: (r: any) => r.value },
     { header: 'Owner', value: (r: any) => r.owner ? `${r.owner.firstName} ${r.owner.lastName}` : '' },
-  ], leads);
+  ], await leadsR.fetchAllRows());
 
-  const exportAccounts = () => exportToCsv('accounts-report', [
+  const exportAccounts = async () => exportToCsv('accounts-report', [
     { header: 'Name', value: (r: any) => r.name },
     { header: 'Contact Person', value: (r: any) => r.contactPerson },
     { header: 'Industry', value: (r: any) => r.industry },
@@ -99,9 +88,9 @@ export default function ReportsPage() {
     { header: 'Type', value: (r: any) => r.type },
     { header: 'Phone', value: (r: any) => r.phoneNumber },
     { header: 'Owner', value: (r: any) => r.owner ? `${r.owner.firstName} ${r.owner.lastName}` : '' },
-  ], accounts);
+  ], await accountsR.fetchAllRows());
 
-  const exportOpps = () => exportToCsv('opportunities-report', [
+  const exportOpps = async () => exportToCsv('opportunities-report', [
     { header: 'Name', value: (r: any) => r.name },
     { header: 'Company', value: (r: any) => r.account?.name || r.company || '' },
     { header: 'Amount', value: (r: any) => r.amount },
@@ -111,11 +100,11 @@ export default function ReportsPage() {
     { header: 'Region', value: (r: any) => r.region },
     { header: 'Country', value: (r: any) => r.country },
     { header: 'Owner', value: (r: any) => r.owner ? `${r.owner.firstName} ${r.owner.lastName}` : '' },
-  ], opps);
+  ], await oppsR.fetchAllRows());
 
   const fmtDateTime = (v: any) => v ? new Date(v).toLocaleString() : '-';
 
-  const exportTimeline = () => exportToCsv('conversion-timeline-report', [
+  const exportTimeline = async () => exportToCsv('conversion-timeline-report', [
     { header: 'Account', value: (r: any) => r.accountName },
     { header: 'Account Created', value: (r: any) => r.accountCreatedAt ? new Date(r.accountCreatedAt).toLocaleString() : '' },
     { header: 'Account Owner', value: (r: any) => r.accountOwner },
@@ -127,7 +116,7 @@ export default function ReportsPage() {
     { header: 'Converted to Opportunity At', value: (r: any) => r.opportunityCreatedAt ? new Date(r.opportunityCreatedAt).toLocaleString() : '' },
     { header: 'Opportunity Stage', value: (r: any) => r.opportunityStage || '' },
     { header: 'Opportunity Status', value: (r: any) => r.opportunityStatus || '' },
-  ], timeline);
+  ], await timelineR.fetchAllRows());
 
   if (loading) {
     return (
@@ -313,25 +302,25 @@ export default function ReportsPage() {
         </Stack>
       </Paper>
 
-      <ReportBlock title={`Leads (${leads.length})`} onExport={exportLeads}
+      <ReportBlock title="Leads" paged={leadsR} onExport={exportLeads}
         head={['Name', 'Company', 'Business Volume', 'Region', 'Country', 'Status', 'Owner']}
-        rows={leads.map((r) => [`${r.firstName} ${r.lastName}`, r.account?.name || r.company || '-', r.businessVolume ?? '-', r.region || '-', r.country || '-', r.status, r.owner ? `${r.owner.firstName} ${r.owner.lastName}` : '-'])} />
+        rows={leadsR.rows.map((r) => [`${r.firstName} ${r.lastName}`, r.account?.name || r.company || '-', r.businessVolume ?? '-', r.region || '-', r.country || '-', r.status, r.owner ? `${r.owner.firstName} ${r.owner.lastName}` : '-'])} />
 
-      <ReportBlock title={`Accounts (${accounts.length})`} onExport={exportAccounts}
+      <ReportBlock title="Accounts" paged={accountsR} onExport={exportAccounts}
         head={['Name', 'Contact Person', 'City', 'Region', 'Country', 'Type', 'Owner']}
-        rows={accounts.map((r) => [r.name, r.contactPerson || '-', r.city || '-', r.region || '-', r.country || '-', r.type, r.owner ? `${r.owner.firstName} ${r.owner.lastName}` : '-'])} />
+        rows={accountsR.rows.map((r) => [r.name, r.contactPerson || '-', r.city || '-', r.region || '-', r.country || '-', r.type, r.owner ? `${r.owner.firstName} ${r.owner.lastName}` : '-'])} />
 
-      <ReportBlock title={`Opportunities (${opps.length})`} onExport={exportOpps}
+      <ReportBlock title="Opportunities" paged={oppsR} onExport={exportOpps}
         head={['Name', 'Company', 'Amount', 'Stage', 'Status', 'Region', 'Owner']}
-        rows={opps.map((r) => [r.name, r.account?.name || r.company || '-', formatCurrency(r.amount), r.stage, r.status, r.region || '-', r.owner ? `${r.owner.firstName} ${r.owner.lastName}` : '-'])} />
+        rows={oppsR.rows.map((r) => [r.name, r.account?.name || r.company || '-', formatCurrency(r.amount), r.stage, r.status, r.region || '-', r.owner ? `${r.owner.firstName} ${r.owner.lastName}` : '-'])} />
 
       <Typography variant="h5" sx={{ mt: 4, mb: 2 }}>Conversion Timeline</Typography>
       <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
         Account created &rarr; Lead added &rarr; Lead converted to Opportunity, with a timestamp at each stage.
       </Typography>
-      <ReportBlock title={`Timeline (${timeline.length})`} onExport={exportTimeline}
+      <ReportBlock title="Timeline" paged={timelineR} onExport={exportTimeline}
         head={['Account', 'Account Created', 'Lead', 'Lead Created', 'Lead Converted', 'Opportunity', 'Converted to Opportunity', 'Stage']}
-        rows={timeline.map((r: any) => [
+        rows={timelineR.rows.map((r: any) => [
           r.accountName,
           fmtDateTime(r.accountCreatedAt),
           r.leadName || '-',
@@ -345,26 +334,59 @@ export default function ReportsPage() {
   );
 }
 
-function ReportBlock({ title, head, rows, onExport }: { title: string; head: string[]; rows: any[][]; onExport: () => void }) {
+function ReportBlock({ title, head, rows, onExport, paged }: {
+  title: string;
+  head: string[];
+  rows: any[][];
+  onExport: () => Promise<void>;
+  paged: { total: number; page: number; limit: number; loading: boolean; error: string; setPage: (p: number) => void; setLimit: (l: number) => void };
+}) {
+  const [exporting, setExporting] = React.useState(false);
+  const [exportError, setExportError] = React.useState('');
+  const runExport = async () => {
+    setExporting(true);
+    setExportError('');
+    try { await onExport(); } catch (e: any) { setExportError(e?.message || 'Export failed'); } finally { setExporting(false); }
+  };
   return (
     <Card sx={{ mb: 2 }}>
       <CardContent>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-          <Typography variant="h6">{title}</Typography>
-          <Button size="small" variant="outlined" onClick={onExport}>Export CSV</Button>
+          <Typography variant="h6">{title} ({paged.total})</Typography>
+          <Button size="small" variant="outlined" onClick={runExport} disabled={exporting || paged.total === 0}>
+            {exporting ? 'Exporting…' : 'Export CSV'}
+          </Button>
         </Box>
-        <Table size="small">
-          <TableHead>
-            <TableRow>{head.map((h) => <TableCell key={h}>{h}</TableCell>)}</TableRow>
-          </TableHead>
-          <TableBody>
-            {rows.map((row, i) => (
-              <TableRow key={i}>{row.map((c, j) => <TableCell key={j}>{c as any}</TableCell>)}</TableRow>
-            ))}
-            {rows.length === 0 && <TableRow><TableCell colSpan={head.length} align="center">No records</TableCell></TableRow>}
-          </TableBody>
-        </Table>
-        {rows.length > 100 && <Typography variant="caption" color="textSecondary">Showing {rows.length} records. Use Export CSV for a file download.</Typography>}
+        {paged.error && <Alert severity="error" sx={{ mb: 1 }}>{paged.error}</Alert>}
+        {exportError && <Alert severity="error" sx={{ mb: 1 }}>{exportError}</Alert>}
+        <Box sx={{ overflowX: 'auto', opacity: paged.loading ? 0.5 : 1 }}>
+          <Table size="small">
+            <TableHead>
+              <TableRow>{head.map((h) => <TableCell key={h}>{h}</TableCell>)}</TableRow>
+            </TableHead>
+            <TableBody>
+              {rows.map((row, i) => (
+                <TableRow key={i}>{row.map((c, j) => <TableCell key={j}>{c as any}</TableCell>)}</TableRow>
+              ))}
+              {rows.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={head.length} align="center">
+                    {paged.loading ? 'Loading…' : paged.error ? 'Could not load records' : 'No records match these filters'}
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </Box>
+        <TablePagination
+          component="div"
+          count={paged.total}
+          page={paged.page}
+          rowsPerPage={paged.limit}
+          rowsPerPageOptions={[10, 25, 50, 100]}
+          onPageChange={(_, p) => paged.setPage(p)}
+          onRowsPerPageChange={(e) => paged.setLimit(parseInt(e.target.value, 10))}
+        />
       </CardContent>
     </Card>
   );

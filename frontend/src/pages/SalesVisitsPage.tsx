@@ -4,6 +4,7 @@ import {
   TableHead, TableRow, Dialog, DialogTitle, DialogContent, DialogActions, TextField,
   Stack, MenuItem, Checkbox, FormControlLabel, Card, CardContent, Chip,
 } from '@mui/material';
+import { Link as RouterLink } from 'react-router-dom';
 import Layout from '@components/Layout';
 import ConfirmDialog from '@components/ConfirmDialog';
 import { api } from '@services/api';
@@ -156,6 +157,7 @@ export const SalesVisitsPage: React.FC = () => {
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
           <Typography variant="h4">Sales Report (Visits / Calls)</Typography>
           <Stack direction="row" spacing={1}>
+            <Button variant="outlined" component={RouterLink} to="/my-kpis">My KPIs</Button>
             <Button variant="outlined" onClick={exportCsv}>Export CSV</Button>
             {canCreate && <Button variant="contained" onClick={openNew}>Log Visit / Call</Button>}
           </Stack>

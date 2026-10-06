@@ -1,1 +1,1 @@
-{"version":3,"file":"ensurePermissions.d.ts","sourceRoot":"","sources":["../../src/utils/ensurePermissions.ts"],"names":[],"mappings":"AAuDA,wBAAsB,iBAAiB,IAAI,OAAO,CAAC,IAAI,CAAC,CAiCvD;AAED,eAAe,iBAAiB,CAAC"}
+{"version":3,"file":"ensurePermissions.d.ts","sourceRoot":"","sources":["../../src/utils/ensurePermissions.ts"],"names":[],"mappings":"AA4DA,wBAAsB,iBAAiB,IAAI,OAAO,CAAC,IAAI,CAAC,CAiCvD;AAED,eAAe,iBAAiB,CAAC"}

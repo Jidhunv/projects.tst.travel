@@ -48,6 +48,11 @@ function buildCatalog() {
         ...crud('product_categories', 'product categories'),
         ...crud('countries', 'countries'),
         ...crud('designations', 'designations'),
+        // Sales targets, staff KPIs (daily entries, monthly projections, meeting report,
+        // audit trail) and KPI configuration. See docs/RBAC.md.
+        ...crud('targets', 'sales targets'),
+        ...crud('kpis', 'staff KPI entries and projections'),
+        ...crud('kpi_setup', 'KPI definitions'),
         // Team scope (hierarchical visibility)
         ...teamScoped('accounts', 'accounts'),
     ];

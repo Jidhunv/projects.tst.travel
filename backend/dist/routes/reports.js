@@ -12,5 +12,6 @@ router.get('/pipeline', (req, res, next) => report_controller_1.default.getPipel
 router.get('/sales', (req, res, next) => report_controller_1.default.getSalesReport(req, res, next));
 router.get('/mis', (req, res, next) => report_controller_1.default.getMIS(req, res, next));
 router.get('/conversion-timeline', (req, res, next) => report_controller_1.default.getConversionTimeline(req, res, next));
+router.get('/sales-health', (req, res, next) => report_controller_1.default.getSalesHealth(req, res, next));
 exports.default = router;
 //# sourceMappingURL=reports.js.map

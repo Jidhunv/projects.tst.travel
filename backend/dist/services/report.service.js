@@ -219,7 +219,17 @@ class ReportService {
     }
     // --- Conversion timeline: Account created -> Lead added -> Lead converted
     // to Opportunity, one row per chain, with a timestamp at each stage.
-    async getConversionTimeline(ownerId) {
+    async getConversionTimeline(ownerId, opts = {}) {
+        const all = await this.buildConversionTimeline(ownerId, opts);
+        const limit = opts.all ? Math.max(all.length, 1) : Math.min(Math.max(opts.limit || 25, 1), 200);
+        const totalPages = Math.max(1, Math.ceil(all.length / limit));
+        const page = Math.min(Math.max(opts.page || 1, 1), totalPages);
+        return {
+            rows: opts.all ? all : all.slice((page - 1) * limit, page * limit),
+            meta: { page, limit, total: all.length, totalPages },
+        };
+    }
+    async buildConversionTimeline(ownerId, opts = {}) {
         const accountQuery = this.accountRepository
             .createQueryBuilder('account')
             .leftJoinAndSelect('account.owner', 'owner')
@@ -229,6 +239,16 @@ class ReportService {
                 ownerId,
                 ownerIdLike: `%${ownerId}%`,
             });
+        }
+        // Date range applies to when the account was added (UTC day boundaries).
+        if (opts.fromDate) {
+            accountQuery.andWhere('account.createdAt >= :tf', { tf: new Date(`${opts.fromDate}T00:00:00.000Z`) });
+        }
+        if (opts.toDate) {
+            accountQuery.andWhere('account.createdAt <= :tt', { tt: new Date(`${opts.toDate}T23:59:59.999Z`) });
+        }
+        if (opts.search?.trim()) {
+            accountQuery.andWhere('account.name ILIKE :ts', { ts: `%${opts.search.trim()}%` });
         }
         const accounts = await accountQuery.getMany();
         if (accounts.length === 0)

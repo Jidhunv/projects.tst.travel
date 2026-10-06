@@ -53,7 +53,23 @@ export declare class ReportService {
         winRate: number;
     }[]>;
     getMIS(ownerId?: string): Promise<any>;
-    getConversionTimeline(ownerId?: string): Promise<ConversionTimelineRow[]>;
+    getConversionTimeline(ownerId?: string, opts?: {
+        page?: number;
+        limit?: number;
+        fromDate?: string;
+        toDate?: string;
+        search?: string;
+        all?: boolean;
+    }): Promise<{
+        rows: ConversionTimelineRow[];
+        meta: {
+            page: number;
+            limit: number;
+            total: number;
+            totalPages: number;
+        };
+    }>;
+    private buildConversionTimeline;
     private wonInPeriod;
 }
 declare const _default: ReportService;

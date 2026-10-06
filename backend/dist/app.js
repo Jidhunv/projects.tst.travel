@@ -116,6 +116,7 @@ const teams_1 = __importDefault(require("./routes/teams"));
 const sales_visits_1 = __importDefault(require("./routes/sales-visits"));
 const expenses_1 = __importDefault(require("./routes/expenses"));
 const countries_1 = __importDefault(require("./routes/countries"));
+const performance_1 = __importDefault(require("./routes/performance"));
 const designations_1 = __importDefault(require("./routes/designations"));
 // Database initialization
 database_1.AppDataSource.initialize()
@@ -157,6 +158,7 @@ app.use('/api/sales-visits', sales_visits_1.default);
 app.use('/api/expenses', expenses_1.default);
 app.use('/api/countries', countries_1.default);
 app.use('/api/designations', designations_1.default);
+app.use('/api/performance', performance_1.default);
 // Error handling middleware
 app.use(errorHandler_1.errorHandler);
 // Start server

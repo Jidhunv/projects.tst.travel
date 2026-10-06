@@ -20,6 +20,11 @@ const AccountsPage = lazy(() => import('@pages/AccountsPage'));
 const ImportPage = lazy(() => import('@pages/ImportPage'));
 const OpportunitiesPage = lazy(() => import('@pages/OpportunitiesPage'));
 const ReportsPage = lazy(() => import('@pages/ReportsPage'));
+const PerformancePage = lazy(() => import('@pages/PerformancePage'));
+const MyKpisPage = lazy(() => import('@pages/MyKpisPage'));
+const MeetingReportPage = lazy(() => import('@pages/MeetingReportPage'));
+const KpiConfigPage = lazy(() => import('@pages/KpiConfigPage'));
+const SalesHealthPage = lazy(() => import('@pages/SalesHealthPage'));
 const ContractsPage = lazy(() => import('@pages/ContractsPage').then((m) => ({ default: m.ContractsPage })));
 const ProjectsPage = lazy(() => import('@pages/ProjectsPage').then((m) => ({ default: m.ProjectsPage })));
 const InvoicesPage = lazy(() => import('@pages/InvoicesPage').then((m) => ({ default: m.InvoicesPage })));
@@ -197,6 +202,46 @@ function App() {
             element={
               <ProtectedRoute module="reports">
                 <ReportsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/performance"
+            element={
+              <ProtectedRoute module="reports">
+                <PerformancePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/my-kpis"
+            element={
+              <ProtectedRoute module="kpis">
+                <MyKpisPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/meeting-report"
+            element={
+              <ProtectedRoute module="kpis">
+                <MeetingReportPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/kpi-config"
+            element={
+              <ProtectedRoute module="kpi_setup">
+                <KpiConfigPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/sales-health"
+            element={
+              <ProtectedRoute module="reports">
+                <SalesHealthPage />
               </ProtectedRoute>
             }
           />

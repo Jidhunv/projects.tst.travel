@@ -1,0 +1,1 @@
+{"version":3,"file":"KpiProjection.d.ts","sourceRoot":"","sources":["../../src/models/KpiProjection.ts"],"names":[],"mappings":"AAKA,qBAEa,aAAa;IAExB,EAAE,EAAE,MAAM,CAAC;IAGX,MAAM,EAAE,MAAM,CAAC;IAGf,KAAK,EAAE,MAAM,CAAC;IAGd,MAAM,EAAE,MAAM,CAAC;IAGf,MAAM,EAAE,MAAM,CAAC;IAGf,IAAI,EAAE,MAAM,GAAG,IAAI,CAAC;IAGpB,SAAS,EAAE,IAAI,CAAC;IAGhB,SAAS,EAAE,IAAI,CAAC;CACjB"}

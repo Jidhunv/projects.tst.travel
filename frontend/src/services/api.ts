@@ -248,7 +248,38 @@ export const api = {
     apiClient.get<ApiResponse<any>>('/reports/mis'),
 
   getConversionTimeline: (filters?: Record<string, any>) =>
-    apiClient.get<ApiResponse<any[]>>('/reports/conversion-timeline', { params: filters }),
+    apiClient.get<PaginatedResponse<any>>('/reports/conversion-timeline', { params: filters }),
+
+  // Performance: statistics, targets, staff KPIs
+  getPerformanceOverview: (filters?: Record<string, any>) =>
+    apiClient.get<ApiResponse<any>>('/performance/overview', { params: filters }),
+  getTargets: () => apiClient.get<ApiResponse<any[]>>('/performance/targets'),
+  createTarget: (data: any) => apiClient.post<ApiResponse<any>>('/performance/targets', data),
+  updateTarget: (id: string, data: any) => apiClient.patch<ApiResponse<any>>(`/performance/targets/${id}`, data),
+  deleteTarget: (id: string) => apiClient.delete<ApiResponse<any>>(`/performance/targets/${id}`),
+  getKpiDefinitions: (filters?: Record<string, any>) =>
+    apiClient.get<ApiResponse<any[]>>('/performance/kpis', { params: filters }),
+  createKpiDefinition: (data: any) => apiClient.post<ApiResponse<any>>('/performance/kpis', data),
+  updateKpiDefinition: (id: string, data: any) => apiClient.patch<ApiResponse<any>>(`/performance/kpis/${id}`, data),
+  deleteKpiDefinition: (id: string) => apiClient.delete<ApiResponse<any>>(`/performance/kpis/${id}`),
+  getKpiSummary: (filters?: Record<string, any>) =>
+    apiClient.get<ApiResponse<any>>('/performance/kpi-summary', { params: filters }),
+  getKpiEntries: (filters?: Record<string, any>) =>
+    apiClient.get<PaginatedResponse<any>>('/performance/kpi-entries', { params: filters }),
+  createKpiEntry: (data: any) => apiClient.post<ApiResponse<any>>('/performance/kpi-entries', data),
+  updateKpiEntry: (id: string, data: any) => apiClient.patch<ApiResponse<any>>(`/performance/kpi-entries/${id}`, data),
+  getProjections: (filters?: Record<string, any>) =>
+    apiClient.get<ApiResponse<any>>('/performance/projections', { params: filters }),
+  saveProjection: (data: any) => apiClient.put<ApiResponse<any>>('/performance/projections', data),
+  deleteProjection: (id: string) => apiClient.delete<ApiResponse<any>>(`/performance/projections/${id}`),
+  getKpiAudit: (filters?: Record<string, any>) =>
+    apiClient.get<PaginatedResponse<any>>('/performance/kpi-audit', { params: filters }),
+  getMeetingReport: (filters?: Record<string, any>) =>
+    apiClient.get<ApiResponse<any>>('/performance/meeting-report', { params: filters }),
+  deleteKpiEntry: (id: string) => apiClient.delete<ApiResponse<any>>(`/performance/kpi-entries/${id}`),
+
+  getSalesHealth: (filters?: Record<string, any>) =>
+    apiClient.get<ApiResponse<any>>('/reports/sales-health', { params: filters }),
 
   getPipelineReport: () =>
     apiClient.get<ApiResponse<any>>('/reports/pipeline'),
