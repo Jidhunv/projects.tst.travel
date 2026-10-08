@@ -12,6 +12,8 @@ interface SearchableSelectProps {
   placeholder?: string;
   helperText?: string;
   error?: boolean;
+  // When set the options are searched on the server: called as the user types.
+  onSearch?: (query: string) => void;
 }
 
 export const SearchableSelect: React.FC<SearchableSelectProps> = ({
@@ -25,6 +27,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   placeholder,
   helperText,
   error = false,
+  onSearch,
 }) => {
   const selectedOption = options.find((opt) => opt.id === value) || null;
 
@@ -32,12 +35,15 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
     <Autocomplete
       fullWidth
       options={options}
+      filterOptions={onSearch ? (x) => x : undefined}
+      onInputChange={onSearch ? (_, v, reason) => { if (reason === 'input') onSearch(v); else if (reason === 'clear') onSearch(''); } : undefined}
       getOptionLabel={(option) => option.name || ''}
       value={selectedOption}
       onChange={(_, newValue) => {
         onChange(newValue?.id || null);
       }}
-      disabled={disabled || loading}
+      // With server-side search the list reloads on every keystroke; disabling then would drop focus.
+      disabled={disabled || (loading && !onSearch)}
       loading={loading}
       noOptionsText="No options"
       sx={{ mb: 2 }}

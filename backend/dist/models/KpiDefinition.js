@@ -36,9 +36,17 @@ __decorate([
     __metadata("design:type", Object)
 ], KpiDefinition.prototype, "unit", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: 'uuid', nullable: true }),
+    __metadata("design:type", Object)
+], KpiDefinition.prototype, "masterId", void 0);
+__decorate([
     (0, typeorm_1.Column)({ type: 'uuid' }),
     __metadata("design:type", String)
 ], KpiDefinition.prototype, "userId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'date' }),
+    __metadata("design:type", String)
+], KpiDefinition.prototype, "startDate", void 0);
 __decorate([
     (0, typeorm_1.Column)({ default: 'weekly' }),
     __metadata("design:type", String)

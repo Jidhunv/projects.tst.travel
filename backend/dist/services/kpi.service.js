@@ -42,25 +42,28 @@ class KpiService {
     // Per staff, per KPI: what was reported in [from, to] against what was expected.
     // `onlyUserId` restricts the result to one person.
     async summary(from, to, onlyUserId) {
-        const rows = await database_1.AppDataSource.query(`SELECT d.id, d.name, d.type, d.unit, d.frequency, d."targetValue", d."userId",
+        const rows = await database_1.AppDataSource.query(`SELECT d.id, d.name, d.type, d.unit, d.frequency, d."targetValue", d."userId", d."startDate",
               u."firstName" || ' ' || u."lastName" AS "userName",
               COALESCE(SUM(e."numberValue"), 0) AS total, COUNT(e.id) AS entries,
               COUNT(DISTINCT e."entryDate") AS "daysReported", MAX(e."entryDate") AS "lastEntry"
        FROM kpi_definitions d
        JOIN users u ON u.id = d."userId"
        LEFT JOIN kpi_entries e ON e."kpiId" = d.id AND e."entryDate" >= $1 AND e."entryDate" <= $2
-       WHERE d."isActive" = TRUE ${onlyUserId ? 'AND d."userId" = $3' : ''}
+       WHERE d."isActive" = TRUE AND NOT EXISTS (SELECT 1 FROM kpi_master mm WHERE mm.id = d."masterId" AND mm."isActive" = FALSE) ${onlyUserId ? 'AND d."userId" = $3' : ''}
        GROUP BY d.id, u."firstName", u."lastName"
        ORDER BY u."firstName", d.name`, onlyUserId ? [from, to, onlyUserId] : [from, to]);
         return rows.map((r) => {
-            const periods = (0, targets_engine_1.periodsInRange)(r.frequency, from, to);
-            const target = r.targetValue === null ? null : num(r.targetValue) * periods;
+            // A KPI only counts from its start date; one that starts after the range has no target in it.
+            const start = dayStr(r.startDate) || from;
+            const effFrom = start > from ? start : from;
+            const periods = effFrom > to ? 0 : (0, targets_engine_1.periodsInRange)(r.frequency, effFrom, to);
+            const target = r.targetValue === null || periods === 0 ? null : num(r.targetValue) * periods;
             // yes/no answers are stored as 1/0, so summing counts the "yes" answers;
             // text answers have no number, so they count entries.
-            const total = r.type === 'text' ? num(r.entries) : num(r.total);
+            const total = r.type === 'text' || r.type === 'choice' ? num(r.entries) : num(r.total);
             return {
                 kpiId: r.id, name: r.name, type: r.type, unit: r.unit, frequency: r.frequency,
-                userId: r.userId, userName: r.userName,
+                userId: r.userId, userName: r.userName, startDate: start,
                 total, entries: num(r.entries), daysReported: num(r.daysReported), lastEntry: dayStr(r.lastEntry),
                 periods, target,
                 pctOfTarget: target && target > 0 ? Math.round((total / target) * 1000) / 10 : null,
@@ -99,7 +102,7 @@ class KpiService {
         const months = (0, targets_engine_1.monthsInRange)(from, to);
         // Who is in the meeting: anyone with a KPI, a projection for these months, or pipeline activity in the range.
         const candidates = await database_1.AppDataSource.query(`SELECT DISTINCT id FROM (
-         SELECT "userId" id FROM kpi_definitions WHERE "isActive" = TRUE
+         SELECT "userId" id FROM kpi_definitions d WHERE d."isActive" = TRUE AND NOT EXISTS (SELECT 1 FROM kpi_master mm WHERE mm.id = d."masterId" AND mm."isActive" = FALSE)
          UNION SELECT "userId" FROM kpi_projections WHERE month = ANY($1::date[])
          UNION SELECT "ownerId" FROM opportunities WHERE ("createdAt" >= $2 AND "createdAt" < $3) OR (status='Won' AND "closedAt" >= $2 AND "closedAt" < $3)
        ) c WHERE id IS NOT NULL`, [months, fromD, toD]);
@@ -110,7 +113,7 @@ class KpiService {
             return { from, to, today, people: [], combined: null };
         const [users, defs, entries, created, won, leads, visits, projections] = await Promise.all([
             database_1.AppDataSource.query(`SELECT id, "firstName" || ' ' || "lastName" AS name FROM users WHERE id = ANY($1::uuid[])`, [ids]),
-            database_1.AppDataSource.query(`SELECT * FROM kpi_definitions WHERE "isActive" = TRUE AND "userId" = ANY($1::uuid[]) ORDER BY name`, [ids]),
+            database_1.AppDataSource.query(`SELECT d.* FROM kpi_definitions d WHERE d."isActive" = TRUE AND NOT EXISTS (SELECT 1 FROM kpi_master mm WHERE mm.id = d."masterId" AND mm."isActive" = FALSE) AND d."userId" = ANY($1::uuid[]) ORDER BY d.name`, [ids]),
             database_1.AppDataSource.query(`SELECT e."kpiId", e."userId", e."entryDate", e."numberValue", e."textValue", a.name AS "accountName"
          FROM kpi_entries e LEFT JOIN accounts a ON a.id = e."accountId"
          WHERE e."entryDate" >= $1 AND e."entryDate" <= $2 AND e."userId" = ANY($3::uuid[]) ORDER BY e."entryDate", e."createdAt"`, [from, to, ids]),
@@ -123,21 +126,21 @@ class KpiService {
         const byId = (rows) => new Map(rows.map((r) => [r.id, r]));
         const cM = byId(created), wM = byId(won), lM = byId(leads), vM = byId(visits);
         const workdays = (0, targets_engine_1.workdaysInRange)(from, to);
-        const periodsCache = new Map();
-        const periods = (f) => { if (!periodsCache.has(f))
-            periodsCache.set(f, (0, targets_engine_1.periodsInRange)(f, from, to)); return periodsCache.get(f); };
+        const periodsFor = (f, start) => { const eff = start > from ? start : from; return eff > to ? 0 : (0, targets_engine_1.periodsInRange)(f, eff, to); };
         const people = users.map((u) => {
             const myEntries = entries.filter((e) => e.userId === u.id);
             const reportedDates = new Set(myEntries.map((e) => dayStr(e.entryDate)));
+            const myStarts = defs.filter((d) => d.userId === u.id).map((d) => dayStr(d.startDate) || from);
             const kpis = defs.filter((d) => d.userId === u.id).map((d) => {
                 const es = myEntries.filter((e) => e.kpiId === d.id);
                 const daily = {};
                 for (const e of es) {
                     const k = dayStr(e.entryDate);
-                    daily[k] = (daily[k] || 0) + (d.type === 'text' ? 1 : num(e.numberValue));
+                    daily[k] = (daily[k] || 0) + (d.type === 'text' || d.type === 'choice' ? 1 : num(e.numberValue));
                 }
                 const total = Object.values(daily).reduce((a, b) => a + b, 0);
-                const target = d.targetValue === null ? null : num(d.targetValue) * periods(d.frequency);
+                const pn = periodsFor(d.frequency, dayStr(d.startDate) || from);
+                const target = d.targetValue === null || pn === 0 ? null : num(d.targetValue) * pn;
                 return {
                     kpiId: d.id, name: d.name, type: d.type, unit: d.unit, frequency: d.frequency, total, target,
                     pct: target && target > 0 ? Math.round((total / target) * 1000) / 10 : null,
@@ -150,7 +153,8 @@ class KpiService {
             });
             return {
                 userId: u.id, name: u.name,
-                compliance: (0, targets_engine_1.reportingCompliance)(workdays, reportedDates, today),
+                // Days before a person's first KPI started are not owed, so a newly assigned KPI does not look like missed days.
+                compliance: (0, targets_engine_1.reportingCompliance)(workdays.filter((w) => !myStarts.length || w >= myStarts.reduce((a, b) => (a < b ? a : b))), reportedDates, today),
                 kpis,
                 pipeline: {
                     createdValue: num(cM.get(u.id)?.v), createdCount: num(cM.get(u.id)?.n),

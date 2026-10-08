@@ -18,8 +18,16 @@ export class KpiDefinition {
   @Column({ type: 'varchar', nullable: true })
   unit: string | null;
 
+  // The master question this assignment comes from.
+  @Column({ type: 'uuid', nullable: true })
+  masterId: string | null;
+
   @Column({ type: 'uuid' })
   userId: string; // the staff member who answers it
+
+  // First day this KPI applies (YYYY-MM-DD). Nothing is expected, or accepted, before it.
+  @Column({ type: 'date' })
+  startDate: string;
 
   @Column({ default: 'weekly' })
   frequency: string; // daily | weekly | monthly

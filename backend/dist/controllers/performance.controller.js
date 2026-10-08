@@ -9,6 +9,7 @@ const SalesTarget_1 = require("../models/SalesTarget");
 const KpiDefinition_1 = require("../models/KpiDefinition");
 const KpiEntry_1 = require("../models/KpiEntry");
 const KpiProjection_1 = require("../models/KpiProjection");
+const KpiMaster_1 = require("../models/KpiMaster");
 const Account_1 = require("../models/Account");
 const performance_service_1 = __importDefault(require("../services/performance.service"));
 const kpi_service_1 = __importDefault(require("../services/kpi.service"));
@@ -31,11 +32,11 @@ const todayStr = () => new Date().toISOString().slice(0, 10);
 const str = (v) => (typeof v === 'string' && v !== '' ? v : undefined);
 const DAY = 86400000;
 const METRICS = ['won_value', 'opportunity_value'];
-const KPI_TYPES = ['number', 'yes_no', 'text'];
+const KPI_TYPES = ['number', 'yes_no', 'text', 'choice'];
 const FREQUENCIES = ['daily', 'weekly', 'monthly'];
 const MAX_REPORT_DAYS = 92;
 // Validates an answer against its KPI's type and returns the columns to store.
-function parseAnswer(def, body) {
+function parseAnswer(def, body, options = null) {
     let numberValue = null;
     let textValue = null;
     if (def.type === 'number') {
@@ -48,12 +49,19 @@ function parseAnswer(def, body) {
             throw new errorHandler_1.AppError(400, 'Answer yes or no');
         numberValue = Number(body.numberValue);
     }
+    else if (def.type === 'choice') {
+        textValue = typeof body.textValue === 'string' ? body.textValue.trim() : '';
+        if (!textValue)
+            throw new errorHandler_1.AppError(400, 'Pick an answer');
+        if (!options || !options.includes(textValue))
+            throw new errorHandler_1.AppError(400, 'That is not one of the allowed answers for this question');
+    }
     else {
         textValue = typeof body.textValue === 'string' ? body.textValue.trim() : '';
         if (!textValue)
             throw new errorHandler_1.AppError(400, 'Enter an answer');
     }
-    if (def.type !== 'text' && typeof body.textValue === 'string' && body.textValue.trim())
+    if (def.type !== 'text' && def.type !== 'choice' && typeof body.textValue === 'string' && body.textValue.trim())
         textValue = body.textValue.trim().slice(0, 2000); // optional note
     return { numberValue, textValue };
 }
@@ -180,34 +188,171 @@ class PerformanceController {
             }
             else {
                 need(req, 'kpis', 'read', 'view KPIs');
-                qb.where('d.userId = :u AND d.isActive = TRUE', { u: req.user.id });
+                qb.where('d.userId = :u AND d.isActive = TRUE AND d.startDate <= :today', { u: req.user.id, today: todayStr() })
+                    .andWhere(`NOT EXISTS (SELECT 1 FROM kpi_master mm WHERE mm.id = d."masterId" AND mm."isActive" = FALSE)`);
             }
-            res.json({ success: true, data: await qb.getMany() });
+            const defs = await qb.getMany();
+            const mids = [...new Set(defs.map((d) => d.masterId).filter(Boolean))];
+            const masters = mids.length ? await database_1.AppDataSource.getRepository(KpiMaster_1.KpiMaster).createQueryBuilder('m').where('m.id = ANY(:mids)', { mids }).getMany() : [];
+            const opts = new Map(masters.map((m) => [m.id, m.answerOptions]));
+            res.json({ success: true, data: defs.map((d) => ({ ...d, answerOptions: d.masterId ? opts.get(d.masterId) ?? null : null })) });
         }
         catch (e) {
             next(e);
         }
     }
-    parseDefinition(body, partial) {
-        const d = (0, pick_1.default)(body || {}, ['name', 'description', 'type', 'unit', 'userId', 'frequency', 'targetValue', 'isActive']);
+    // ---- KPI master (the approved question list; kpi_setup privilege) --------
+    async listMaster(req, res, next) {
+        try {
+            need(req, 'kpi_setup', 'read', 'view the KPI master');
+            const rows = await database_1.AppDataSource.query(`SELECT m.*, (SELECT COUNT(*) FROM kpi_definitions d WHERE d."masterId" = m.id) AS "assignedCount"
+         FROM kpi_master m ORDER BY m."isActive" DESC, LOWER(m.name)`);
+            res.json({ success: true, data: rows.map((r) => ({ ...r, assignedCount: Number(r.assignedCount) })) });
+        }
+        catch (e) {
+            next(e);
+        }
+    }
+    parseMaster(body, partial) {
+        const d = (0, pick_1.default)(body || {}, ['name', 'description', 'type', 'unit', 'defaultFrequency', 'defaultTarget', 'isActive', 'answerOptions']);
         const bad = (m) => { throw new errorHandler_1.AppError(400, m); };
         if (!partial || 'name' in d) {
             if (typeof d.name !== 'string' || !d.name.trim() || d.name.length > 255)
-                bad('The question/name is required (max 255 characters)');
+                bad('The question is required (max 255 characters)');
             d.name = d.name.trim();
         }
         if (!partial || 'type' in d) {
             if (!KPI_TYPES.includes(d.type))
                 bad(`Type must be one of: ${KPI_TYPES.join(', ')}`);
         }
-        if (!partial || 'frequency' in d) {
-            if (!FREQUENCIES.includes(d.frequency))
+        if (!partial || 'defaultFrequency' in d) {
+            if (!FREQUENCIES.includes(d.defaultFrequency))
                 bad(`Frequency must be one of: ${FREQUENCIES.join(', ')}`);
+        }
+        if ('defaultTarget' in d) {
+            if (d.defaultTarget === '' || d.defaultTarget === null)
+                d.defaultTarget = null;
+            else {
+                d.defaultTarget = Number(d.defaultTarget);
+                if (!isFinite(d.defaultTarget) || d.defaultTarget < 0)
+                    bad('Target must be a non-negative number');
+            }
+        }
+        if ('unit' in d && d.unit !== null && String(d.unit).length > 32)
+            bad('Unit is too long (max 32 characters)');
+        if (d.unit === '')
+            d.unit = null;
+        if (d.description === '')
+            d.description = null;
+        if ('answerOptions' in d && d.answerOptions !== null) {
+            if (!Array.isArray(d.answerOptions))
+                bad('Answer choices must be a list');
+            const seen = new Set();
+            const cleaned = [];
+            for (const o of d.answerOptions) {
+                const t = typeof o === 'string' ? o.trim() : '';
+                if (!t)
+                    continue;
+                if (t.length > 100)
+                    bad('Each answer choice must be 100 characters or fewer');
+                if (seen.has(t.toLowerCase()))
+                    continue;
+                seen.add(t.toLowerCase());
+                cleaned.push(t);
+            }
+            if (cleaned.length > 20)
+                bad('A question can have at most 20 answer choices');
+            d.answerOptions = cleaned;
+        }
+        return d;
+    }
+    async createMaster(req, res, next) {
+        try {
+            need(req, 'kpi_setup', 'create', 'add KPI questions');
+            const d = this.parseMaster(req.body, false);
+            if (d.type === 'choice') {
+                if (!d.answerOptions || d.answerOptions.length < 2)
+                    throw new errorHandler_1.AppError(400, 'Add at least two answer choices');
+            }
+            else
+                d.answerOptions = null;
+            const repo = database_1.AppDataSource.getRepository(KpiMaster_1.KpiMaster);
+            if ((await database_1.AppDataSource.query('SELECT 1 FROM kpi_master WHERE LOWER(name) = LOWER($1)', [d.name])).length)
+                throw new errorHandler_1.AppError(409, `"${d.name}" already exists in the KPI master`);
+            res.status(201).json({ success: true, data: await repo.save(repo.create(d)) });
+        }
+        catch (e) {
+            next(e);
+        }
+    }
+    async updateMaster(req, res, next) {
+        try {
+            need(req, 'kpi_setup', 'update', 'edit KPI questions');
+            const repo = database_1.AppDataSource.getRepository(KpiMaster_1.KpiMaster);
+            const existing = await repo.findOne({ where: { id: req.params.id } });
+            if (!existing)
+                throw new errorHandler_1.AppError(404, 'KPI question not found');
+            const d = this.parseMaster(req.body, true);
+            const inUse = Number((await database_1.AppDataSource.query('SELECT COUNT(*) n FROM kpi_definitions WHERE "masterId" = $1', [existing.id]))[0].n);
+            // Changing the answer type would invalidate answers already recorded.
+            if ('type' in d && d.type !== existing.type && inUse > 0)
+                throw new errorHandler_1.AppError(409, `This question is assigned to ${inUse} staff; its answer type can no longer change. Add a new question instead.`);
+            if ('name' in d && d.name.toLowerCase() !== existing.name.toLowerCase() && (await database_1.AppDataSource.query('SELECT 1 FROM kpi_master WHERE LOWER(name) = LOWER($1) AND id <> $2', [d.name, existing.id])).length) {
+                throw new errorHandler_1.AppError(409, `"${d.name}" already exists in the KPI master`);
+            }
+            const finalType = d.type ?? existing.type;
+            if (finalType === 'choice') {
+                const opts = 'answerOptions' in d ? d.answerOptions : existing.answerOptions;
+                if (!opts || opts.length < 2)
+                    throw new errorHandler_1.AppError(400, 'Add at least two answer choices');
+            }
+            else if ('type' in d)
+                d.answerOptions = null;
+            await repo.update(existing.id, d);
+            // Wording, guidance and unit flow through to every assignment so staff always see the current text.
+            const sync = {};
+            for (const k of ['name', 'description', 'unit'])
+                if (k in d)
+                    sync[k] = d[k];
+            if (Object.keys(sync).length)
+                await database_1.AppDataSource.getRepository(KpiDefinition_1.KpiDefinition).update({ masterId: existing.id }, sync);
+            res.json({ success: true, data: await repo.findOne({ where: { id: existing.id } }) });
+        }
+        catch (e) {
+            next(e);
+        }
+    }
+    async deleteMaster(req, res, next) {
+        try {
+            need(req, 'kpi_setup', 'delete', 'delete KPI questions');
+            const inUse = Number((await database_1.AppDataSource.query('SELECT COUNT(*) n FROM kpi_definitions WHERE "masterId" = $1', [req.params.id]))[0].n);
+            if (inUse > 0)
+                throw new errorHandler_1.AppError(409, `This question is assigned to ${inUse} staff. Set it inactive instead, or delete those assignments first.`);
+            const r = await database_1.AppDataSource.getRepository(KpiMaster_1.KpiMaster).delete(req.params.id);
+            if (!r.affected)
+                throw new errorHandler_1.AppError(404, 'KPI question not found');
+            res.json({ success: true });
+        }
+        catch (e) {
+            next(e);
+        }
+    }
+    // ---- KPI assignments (a master question given to a staff member) ---------
+    parseAssignment(body, partial) {
+        const d = (0, pick_1.default)(body || {}, ['masterId', 'userId', 'frequency', 'targetValue', 'isActive', 'startDate']);
+        const bad = (m) => { throw new errorHandler_1.AppError(400, m); };
+        if (!partial || 'masterId' in d) {
+            if (typeof d.masterId !== 'string' || !d.masterId)
+                bad('Pick a question from the KPI master');
         }
         if (!partial || 'userId' in d) {
             if (typeof d.userId !== 'string' || !d.userId)
                 bad('Pick the staff member this KPI is for');
         }
+        if ('startDate' in d && !isDate(d.startDate))
+            bad('Start date must be YYYY-MM-DD');
+        if ('frequency' in d && !FREQUENCIES.includes(d.frequency))
+            bad(`Frequency must be one of: ${FREQUENCIES.join(', ')}`);
         if ('targetValue' in d) {
             if (d.targetValue === '' || d.targetValue === null)
                 d.targetValue = null;
@@ -217,19 +362,28 @@ class PerformanceController {
                     bad('Target must be a non-negative number');
             }
         }
-        if ('unit' in d && d.unit !== null && String(d.unit).length > 32)
-            bad('Unit is too long (max 32 characters)');
         return d;
     }
     async createDefinition(req, res, next) {
         try {
             need(req, 'kpi_setup', 'create', 'configure KPIs');
-            const d = this.parseDefinition(req.body, false);
-            const user = await database_1.AppDataSource.query('SELECT id FROM users WHERE id = $1', [d.userId]);
-            if (user.length === 0)
+            const d = this.parseAssignment(req.body, false);
+            const master = await database_1.AppDataSource.getRepository(KpiMaster_1.KpiMaster).findOne({ where: { id: d.masterId } });
+            if (!master)
+                throw new errorHandler_1.AppError(400, 'That question is not in the KPI master');
+            if (!master.isActive)
+                throw new errorHandler_1.AppError(400, 'That question is inactive in the KPI master');
+            if ((await database_1.AppDataSource.query('SELECT id FROM users WHERE id = $1', [d.userId])).length === 0)
                 throw new errorHandler_1.AppError(400, 'That staff member does not exist');
             const repo = database_1.AppDataSource.getRepository(KpiDefinition_1.KpiDefinition);
-            const saved = await repo.save(repo.create({ ...d, createdById: req.user.id }));
+            if (await repo.findOne({ where: { userId: d.userId, masterId: master.id } }))
+                throw new errorHandler_1.AppError(409, 'That staff member already has this KPI');
+            const saved = await repo.save(repo.create({
+                masterId: master.id, userId: d.userId, name: master.name, description: master.description, type: master.type, unit: master.unit,
+                frequency: d.frequency ?? master.defaultFrequency,
+                targetValue: 'targetValue' in d ? d.targetValue : master.defaultTarget,
+                isActive: d.isActive ?? true, startDate: d.startDate ?? todayStr(), createdById: req.user.id,
+            }));
             res.status(201).json({ success: true, data: saved });
         }
         catch (e) {
@@ -242,7 +396,9 @@ class PerformanceController {
             const repo = database_1.AppDataSource.getRepository(KpiDefinition_1.KpiDefinition);
             if (!(await repo.findOne({ where: { id: req.params.id } })))
                 throw new errorHandler_1.AppError(404, 'KPI not found');
-            await repo.update(req.params.id, this.parseDefinition(req.body, true));
+            // The question itself is owned by the master; only the per-person settings change here.
+            const d = (0, pick_1.default)(this.parseAssignment(req.body, true), ['frequency', 'targetValue', 'isActive', 'startDate']);
+            await repo.update(req.params.id, d);
             res.json({ success: true, data: await repo.findOne({ where: { id: req.params.id } }) });
         }
         catch (e) {
@@ -256,6 +412,39 @@ class PerformanceController {
             if (!r.affected)
                 throw new errorHandler_1.AppError(404, 'KPI not found');
             res.json({ success: true });
+        }
+        catch (e) {
+            next(e);
+        }
+    }
+    // Copies one staff member's active KPIs to others (e.g. a new hire), skipping names they already have.
+    async copyDefinitions(req, res, next) {
+        try {
+            need(req, 'kpi_setup', 'create', 'configure KPIs');
+            const { fromUserId, toUserIds } = req.body || {};
+            if (typeof fromUserId !== 'string' || !fromUserId)
+                throw new errorHandler_1.AppError(400, 'Pick the staff member to copy from');
+            if (!Array.isArray(toUserIds) || toUserIds.length === 0 || toUserIds.length > 200 || toUserIds.some((i) => typeof i !== 'string')) {
+                throw new errorHandler_1.AppError(400, 'Pick one or more staff members to copy to');
+            }
+            const repo = database_1.AppDataSource.getRepository(KpiDefinition_1.KpiDefinition);
+            const source = await repo.find({ where: { userId: fromUserId, isActive: true } });
+            if (source.length === 0)
+                throw new errorHandler_1.AppError(400, 'That staff member has no active KPIs to copy');
+            const targets = (await database_1.AppDataSource.query('SELECT id FROM users WHERE id = ANY($1::uuid[])', [toUserIds.filter((i) => i !== fromUserId)])).map((u) => u.id);
+            let created = 0, skipped = 0;
+            for (const uid of targets) {
+                const have = new Set((await repo.find({ where: { userId: uid }, select: ['name'] })).map((d) => d.name));
+                for (const d of source) {
+                    if (have.has(d.name)) {
+                        skipped++;
+                        continue;
+                    }
+                    await repo.save(repo.create({ masterId: d.masterId, name: d.name, description: d.description, type: d.type, unit: d.unit, frequency: d.frequency, targetValue: d.targetValue, isActive: true, startDate: todayStr(), userId: uid, createdById: req.user.id }));
+                    created++;
+                }
+            }
+            res.json({ success: true, data: { staff: targets.length, created, skipped } });
         }
         catch (e) {
             next(e);
@@ -299,7 +488,15 @@ class PerformanceController {
         // Someone else's KPI looks the same as a missing one unless the privilege reaches all staff.
         if (!def || !def.isActive || (scope === 'self' && def.userId !== req.user.id))
             throw new errorHandler_1.AppError(404, 'KPI not found');
+        if (def.masterId && !(await database_1.AppDataSource.getRepository(KpiMaster_1.KpiMaster).findOne({ where: { id: def.masterId, isActive: true } })))
+            throw new errorHandler_1.AppError(400, 'This KPI question has been made inactive by an administrator');
         return def;
+    }
+    // The allowed answers for a 'choice' KPI come from its master question.
+    async optionsFor(def) {
+        if (def.type !== 'choice' || !def.masterId)
+            return null;
+        return (await database_1.AppDataSource.getRepository(KpiMaster_1.KpiMaster).findOne({ where: { id: def.masterId } }))?.answerOptions ?? null;
     }
     async checkAccount(accountId) {
         if (!accountId)
@@ -318,7 +515,9 @@ class PerformanceController {
                 throw new errorHandler_1.AppError(400, 'Date must be YYYY-MM-DD');
             if (entryDate > todayStr())
                 throw new errorHandler_1.AppError(400, 'You cannot report a KPI for a future date');
-            const { numberValue, textValue } = parseAnswer(def, body);
+            if (entryDate < String(def.startDate).slice(0, 10))
+                throw new errorHandler_1.AppError(400, `This KPI starts on ${String(def.startDate).slice(0, 10)}; earlier dates cannot be reported`);
+            const { numberValue, textValue } = parseAnswer(def, body, await this.optionsFor(def));
             const accountId = await this.checkAccount(body.accountId);
             const repo = database_1.AppDataSource.getRepository(KpiEntry_1.KpiEntry);
             // The figure belongs to the KPI's owner, even when someone with wider access records it.
@@ -344,8 +543,10 @@ class PerformanceController {
                 throw new errorHandler_1.AppError(400, 'Date must be YYYY-MM-DD');
             if (entryDate > todayStr())
                 throw new errorHandler_1.AppError(400, 'You cannot report a KPI for a future date');
+            if (entryDate < String(def.startDate).slice(0, 10))
+                throw new errorHandler_1.AppError(400, `This KPI starts on ${String(def.startDate).slice(0, 10)}; earlier dates cannot be reported`);
             const merged = { numberValue: 'numberValue' in body ? body.numberValue : existing.numberValue, textValue: 'textValue' in body ? body.textValue : existing.textValue };
-            const { numberValue, textValue } = parseAnswer(def, merged);
+            const { numberValue, textValue } = parseAnswer(def, merged, await this.optionsFor(def));
             const accountId = 'accountId' in body ? await this.checkAccount(body.accountId) : existing.accountId;
             const before = entrySnapshot(existing, def);
             await repo.update(existing.id, { entryDate, numberValue, textValue, accountId });

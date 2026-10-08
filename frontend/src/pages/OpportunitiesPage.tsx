@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
+  Alert,
   Box,
   Table,
   TableBody,
@@ -27,11 +28,13 @@ import {
   Tooltip,
 } from '@mui/material';
 import { Search as SearchIcon, ViewAgendaOutlined as ListIcon, ViewWeekOutlined as KanbanIcon } from '@mui/icons-material';
+import StaffFilter from '@components/StaffFilter';
 import Layout from '@components/Layout';
 import AssignOwner from '@components/AssignOwner';
 import BuyingCommitteeViewDialog from '@components/BuyingCommitteeViewDialog';
 import ConfirmDialog from '@components/ConfirmDialog';
 import SearchableSelect from '@components/SearchableSelect';
+import { useAccountOptions } from '@hooks/useAccountOptions';
 import useAuth from '@hooks/useAuth';
 import { apiClient } from '../services/api';
 import { Opportunity } from '../types';
@@ -61,6 +64,7 @@ export default function OpportunitiesPage() {
   // Filters
   const [search, setSearch] = useState('');
   const [stageFilter, setStageFilter] = useState('');
+  const [ownerFilter, setOwnerFilter] = useState('');
   const [amountFromFilter, setAmountFromFilter] = useState('');
   const [amountToFilter, setAmountToFilter] = useState('');
   const [dateFromFilter, setDateFromFilter] = useState('');
@@ -87,9 +91,12 @@ export default function OpportunitiesPage() {
     accountId: '',
   });
   const [products, setProducts] = useState<any[]>([]);
-  const [accounts, setAccounts] = useState<any[]>([]);
 
   const [lostReason, setLostReason] = useState('');
+
+  const [saveError, setSaveError] = useState('');
+  const errText = (e: any, fb: string) => e?.response?.data?.error || e?.response?.data?.message || e?.message || fb;
+  const { accounts, loading: accountsLoading, error: accountsError, search: searchAccounts } = useAccountOptions(form.accountId);
 
   const fetchOpportunities = React.useCallback(async () => {
     setLoading(true);
@@ -97,6 +104,7 @@ export default function OpportunitiesPage() {
       const params: any = { page, limit: pageSize };
       if (search) params.search = search;
       if (stageFilter) params.stage = stageFilter;
+      if (ownerFilter) params.ownerId = ownerFilter;
       if (amountFromFilter) params.amountFrom = amountFromFilter;
       if (amountToFilter) params.amountTo = amountToFilter;
       if (dateFromFilter) params.fromDate = dateFromFilter;
@@ -112,24 +120,25 @@ export default function OpportunitiesPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, search, stageFilter, amountFromFilter, amountToFilter, dateFromFilter, dateToFilter, countryFilter, regionFilter, cityFilter, productsFilter]);
+  }, [page, pageSize, search, stageFilter, ownerFilter, amountFromFilter, amountToFilter, dateFromFilter, dateToFilter, countryFilter, regionFilter, cityFilter, productsFilter]);
 
   useEffect(() => {
     setPage(1);
-  }, [search, stageFilter, amountFromFilter, amountToFilter, dateFromFilter, dateToFilter, countryFilter, regionFilter, cityFilter, productsFilter]);
+  }, [search, stageFilter, ownerFilter, amountFromFilter, amountToFilter, dateFromFilter, dateToFilter, countryFilter, regionFilter, cityFilter, productsFilter]);
 
   useEffect(() => {
     fetchOpportunities();
     apiClient.get('/products').then((r) => setProducts(r.data.data || []));
-    apiClient.get('/accounts').then((r) => setAccounts(r.data.data || []));
   }, [fetchOpportunities]);
 
   const handleCreate = async () => {
+    setSaveError('');
     try {
-      if (!form.accountId) {
-        alert('Please select an account');
-        return;
-      }
+      if (!form.accountId) { setSaveError('Select an account'); return; }
+      if (!form.name.trim()) { setSaveError('Enter an opportunity name'); return; }
+      if (!form.amount || Number(form.amount) <= 0) { setSaveError('Enter an amount greater than 0'); return; }
+      if (!form.stage) { setSaveError('Select a stage'); return; }
+      if (!form.forecastedCloseDate) { setSaveError('Select a forecast close date'); return; }
       const productNames = form.productIds.map((id) => products.find((p) => p.id === id)?.name).filter(Boolean);
       await apiClient.post('/opportunities', {
         name: form.name,
@@ -156,6 +165,7 @@ export default function OpportunitiesPage() {
       fetchOpportunities();
     } catch (error) {
       console.error('Error creating opportunity:', error);
+      setSaveError(errText(error, 'Could not create the opportunity'));
     }
   };
 
@@ -182,6 +192,7 @@ export default function OpportunitiesPage() {
       fetchOpportunities();
     } catch (error) {
       console.error('Error updating opportunity:', error);
+      setSaveError(errText(error, 'Could not update the opportunity'));
     }
   };
 
@@ -247,7 +258,7 @@ export default function OpportunitiesPage() {
   };
 
   const handleOpenCreate = () => {
-    setOpenCreate(true);
+    setSaveError(""); setOpenCreate(true);
     setForm({
       name: '',
       amount: '',
@@ -308,6 +319,9 @@ export default function OpportunitiesPage() {
                   }
                   size="small"
                 />
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <StaffFilter value={ownerFilter} onChange={setOwnerFilter} label="Staff (owner)" />
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
                 <TextField
@@ -546,11 +560,16 @@ export default function OpportunitiesPage() {
         <Dialog open={openCreate || !!openEdit} onClose={() => { setOpenCreate(false); setOpenEdit(null); }} maxWidth="sm" fullWidth>
           <DialogTitle>{openEdit ? 'Edit Opportunity' : 'Add New Opportunity'}</DialogTitle>
           <DialogContent sx={{ pt: 2 }}>
+            {saveError && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setSaveError('')}>{saveError}</Alert>}
             <SearchableSelect
               label="Select Account (Type to search)"
               value={form.accountId}
               onChange={(newAccountId) => setForm({ ...form, accountId: newAccountId || '' })}
               options={accounts}
+              onSearch={searchAccounts}
+              loading={accountsLoading}
+              error={accountsError}
+              helperText={accountsError ? 'Could not load accounts' : 'Type a name to search all accounts'}
               required
             />
             <TextField

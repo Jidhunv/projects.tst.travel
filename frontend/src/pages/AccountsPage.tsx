@@ -19,6 +19,7 @@ import {
   Grid,
 } from '@mui/material';
 import { Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
+import StaffFilter from '@components/StaffFilter';
 import Layout from '@components/Layout';
 import DataTable from '@components/DataTable';
 import AssignOwner from '@components/AssignOwner';
@@ -93,7 +94,7 @@ export default function AccountsPage() {
   const [teams, setTeams] = React.useState<any[]>([]);
   const [orgUsers, setOrgUsers] = React.useState<any[]>([]);
   const [countriesError, setCountriesError] = React.useState('');
-  const [acctFilters, setAcctFilters] = React.useState({ search: '', city: '', region: '', country: '' });
+  const [acctFilters, setAcctFilters] = React.useState({ search: '', city: '', region: '', country: '', ownerId: '' });
 
   // Buying-committee stakeholder mapping (the 8 fixed roles). Must be
   // complete before a lead can be created against this account.
@@ -395,10 +396,11 @@ export default function AccountsPage() {
       <Box>
         <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 2 }}>
           <TextField size="small" label="Search" value={acctFilters.search} onChange={(e) => setAcctFilters({ ...acctFilters, search: e.target.value })} />
+          <Box sx={{ minWidth: 180 }}><StaffFilter value={acctFilters.ownerId} onChange={(v) => setAcctFilters({ ...acctFilters, ownerId: v })} label="Staff (owner)" /></Box>
           <TextField size="small" label="City" value={acctFilters.city} onChange={(e) => setAcctFilters({ ...acctFilters, city: e.target.value })} />
           <TextField size="small" label="Region" value={acctFilters.region} onChange={(e) => setAcctFilters({ ...acctFilters, region: e.target.value })} />
           <TextField size="small" label="Country" value={acctFilters.country} onChange={(e) => setAcctFilters({ ...acctFilters, country: e.target.value })} />
-          <Button onClick={() => setAcctFilters({ search: '', city: '', region: '', country: '' })}>Clear</Button>
+          <Button onClick={() => setAcctFilters({ search: '', city: '', region: '', country: '', ownerId: '' })}>Clear</Button>
         </Box>
         <DataTable
           columns={columns}
@@ -765,8 +767,8 @@ export default function AccountsPage() {
           </DialogTitle>
           <DialogContent sx={{ pt: 2 }}>
             <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
-              Map a name and designation to each of the 8 roles below. All 8 must be filled in before
-              this account can be converted into a lead.
+              Map a name and designation to the roles below. This is optional: fill in what you know now
+              and add the rest later. It does not block creating leads or opportunities.
             </Typography>
             {stakeholderLoading ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>

@@ -27,11 +27,13 @@ import {
   Alert,
 } from '@mui/material';
 import { Search as SearchIcon, ViewAgendaOutlined as ListIcon, ViewWeekOutlined as KanbanIcon } from '@mui/icons-material';
+import StaffFilter from '@components/StaffFilter';
 import Layout from '@components/Layout';
 import AssignOwner from '@components/AssignOwner';
 import BuyingCommitteeViewDialog from '@components/BuyingCommitteeViewDialog';
 import ConfirmDialog from '@components/ConfirmDialog';
 import SearchableSelect from '@components/SearchableSelect';
+import { useAccountOptions } from '@hooks/useAccountOptions';
 import useAuth from '@hooks/useAuth';
 import { debounce } from '@utils/debounce';
 import { apiClient, api } from '../services/api';
@@ -61,9 +63,6 @@ export default function LeadsPage() {
   const [pageSize, setPageSize] = useState(20);
   const [loading, setLoading] = useState(false);
   const [products, setProducts] = useState<any[]>([]);
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [accountsLoading, setAccountsLoading] = useState(false);
-  const [accountsError, setAccountsError] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list');
   const [confirmDelete, setConfirmDelete] = useState<{ open: boolean; leadId: string | null }>({ open: false, leadId: null });
 
@@ -72,6 +71,7 @@ export default function LeadsPage() {
   const [searchLocal, setSearchLocal] = useState(''); // Local state for instant UI feedback
   const [statusFilter, setStatusFilter] = useState('');
   const [sourceFilter, setSourceFilter] = useState('');
+  const [ownerFilter, setOwnerFilter] = useState('');
   const [dateFromFilter, setDateFromFilter] = useState('');
   const [dateToFilter, setDateToFilter] = useState('');
 
@@ -96,8 +96,8 @@ export default function LeadsPage() {
   const [regionFilter, setRegionFilter] = useState('');
   const [countryFilter, setCountryFilter] = useState('');
   const [accountContacts, setAccountContacts] = useState<any[]>([]);
-  // Buying-committee onboarding must be complete on the selected account
-  // before a lead can be created against it (enforced by the backend too).
+  // Buying-committee mapping on the selected account (informational only - never blocks)
+  // It is optional, so this only drives the hint shown in the create dialog.
   const [onboardingMissing, setOnboardingMissing] = useState<string[] | null>(null);
 
   const [form, setForm] = useState({
@@ -126,6 +126,7 @@ export default function LeadsPage() {
       if (search) params.search = search;
       if (statusFilter) params.status = statusFilter;
       if (sourceFilter) params.source = sourceFilter;
+      if (ownerFilter) params.ownerId = ownerFilter;
       if (dateFromFilter) params.fromDate = dateFromFilter;
       if (dateToFilter) params.toDate = dateToFilter;
       if (regionFilter) params.region = regionFilter;
@@ -137,11 +138,11 @@ export default function LeadsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, search, statusFilter, sourceFilter, dateFromFilter, dateToFilter, regionFilter, countryFilter]);
+  }, [page, pageSize, search, statusFilter, sourceFilter, ownerFilter, dateFromFilter, dateToFilter, regionFilter, countryFilter]);
 
   useEffect(() => {
     setPage(1);
-  }, [search, statusFilter, sourceFilter, dateFromFilter, dateToFilter, regionFilter, countryFilter]);
+  }, [search, statusFilter, sourceFilter, ownerFilter, dateFromFilter, dateToFilter, regionFilter, countryFilter]);
 
   useEffect(() => {
     fetchLeads();
@@ -149,24 +150,8 @@ export default function LeadsPage() {
 
   // Accounts drive the required "Select Account" step, so a failed load must be
   // visible and retryable rather than leaving an unexplained empty dropdown.
-  const loadAccounts = React.useCallback(async () => {
-    setAccountsLoading(true);
-    try {
-      const r = await api.getAccounts(1, 200);
-      const accountsList = r.data.data || [];
-      // Sort accounts alphabetically by name for better UX
-      const sortedAccounts = [...accountsList].sort((a, b) =>
-        a.name.localeCompare(b.name)
-      );
-      setAccounts(sortedAccounts);
-      setAccountsError(false);
-    } catch (error) {
-      console.error('Error loading accounts:', error);
-      setAccountsError(true);
-    } finally {
-      setAccountsLoading(false);
-    }
-  }, []);
+  const { accounts: accountOptions, loading: accountsLoading, error: accountsError, reload: loadAccounts, search: searchAccounts } = useAccountOptions(form.accountId);
+  const accounts = accountOptions as Account[];
 
   useEffect(() => {
     // Load data once on mount (in parallel for speed). allSettled, not all: these
@@ -402,6 +387,9 @@ export default function LeadsPage() {
                 </TextField>
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
+                <StaffFilter value={ownerFilter} onChange={setOwnerFilter} label="Staff (owner)" />
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
                 <TextField
                   fullWidth
                   label="From Date"
@@ -560,6 +548,7 @@ export default function LeadsPage() {
               <SearchableSelect
                 label="Select Account (Type to search)"
                 value={form.accountId}
+                onSearch={searchAccounts}
                 onChange={async (newAccountId) => {
                   const selectedAcct = accounts.find((a) => a.id === newAccountId);
                   let updatedForm: any = {
@@ -625,7 +614,7 @@ export default function LeadsPage() {
                   setForm(updatedForm);
                 }}
                 options={accounts}
-                disabled={!!openEdit || accountsLoading}
+                disabled={!!openEdit}
                 required
                 error={accountsError}
                 loading={accountsLoading}
@@ -643,9 +632,9 @@ export default function LeadsPage() {
                 </Button>
               )}
               {!openEdit && form.accountId && onboardingMissing && onboardingMissing.length > 0 && (
-                <Alert severity="warning" sx={{ mt: 2 }}>
-                  This account's buying committee is incomplete. Missing role(s): {onboardingMissing.join(', ')}.
-                  Go to Prospects → Buying Committee for this account to fill these in before creating a lead.
+                <Alert severity="info" sx={{ mt: 2 }}>
+                  Optional: this account's buying committee is not fully mapped (missing {onboardingMissing.join(', ')}).
+                  You can create the lead now and add them later from Prospects → Buying Committee.
                 </Alert>
               )}
               {!openEdit && form.accountId && (
@@ -890,7 +879,7 @@ export default function LeadsPage() {
             <Button
               onClick={openEdit ? handleUpdate : handleCreate}
               variant="contained"
-              disabled={!form.accountId || (!openEdit && !!onboardingMissing && onboardingMissing.length > 0)}
+              disabled={!form.accountId}
             >
               {openEdit ? 'Update' : 'Create'}
             </Button>

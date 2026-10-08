@@ -60,16 +60,7 @@ export class LeadController {
         throw new AppError(400, 'An account is required to create a lead');
       }
 
-      // Onboarding gate: the account's buying-committee mapping (8 fixed
-      // roles, each with a name + designation) must be complete before it can
-      // be worked as a lead.
-      const onboarding = await accountService.getOnboardingStatus(accountId);
-      if (!onboarding.complete) {
-        throw new AppError(
-          400,
-          `Onboarding is incomplete for this account. Complete the following stakeholder role(s) first: ${onboarding.missingRoles.join(', ')}`
-        );
-      }
+      // The buying committee is optional: a lead can be created before it is mapped.
 
       const lead = await leadService.createLead({
         accountId,

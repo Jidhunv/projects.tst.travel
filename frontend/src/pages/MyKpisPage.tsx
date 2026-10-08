@@ -118,7 +118,7 @@ function DailyTab({ userId, canCreate, canEdit, canDelete, setError, setSuccess 
 
   const answered = defs.filter((d) => {
     const v = drafts[d.id];
-    return v && (d.type === 'text' ? v.text.trim() !== '' : v.number !== '');
+    return v && (d.type === 'text' || d.type === 'choice' ? v.text.trim() !== '' : v.number !== '');
   });
 
   const submit = async () => {
@@ -130,7 +130,7 @@ function DailyTab({ userId, canCreate, canEdit, canDelete, setError, setSuccess 
     for (const d of answered) {
       const v = drafts[d.id];
       try {
-        await api.createKpiEntry({ kpiId: d.id, entryDate: date, accountId: prospect?.id || null, numberValue: d.type === 'text' ? undefined : Number(v.number), textValue: v.text || undefined });
+        await api.createKpiEntry({ kpiId: d.id, entryDate: date, accountId: prospect?.id || null, numberValue: d.type === 'text' || d.type === 'choice' ? undefined : Number(v.number), textValue: v.text || undefined });
         done.push(d.id);
       } catch (e) { failed.push(`${d.name}: ${errMsg(e, 'failed')}`); }
     }
@@ -152,7 +152,7 @@ function DailyTab({ userId, canCreate, canEdit, canDelete, setError, setSuccess 
     setEditError('');
     const t = edit.entry.kpi?.type;
     try {
-      await api.updateKpiEntry(edit.entry.id, { entryDate: edit.date, ...(t === 'text' ? { textValue: edit.text } : { numberValue: Number(edit.number), textValue: edit.text }) });
+      await api.updateKpiEntry(edit.entry.id, { entryDate: edit.date, ...(t === 'text' || t === 'choice' ? { textValue: edit.text } : { numberValue: Number(edit.number), textValue: edit.text }) });
       setEdit(null);
       setSuccess('Entry updated. The change is recorded in the audit trail.');
       await Promise.all([loadDefs(), loadHistory()]);
@@ -161,7 +161,7 @@ function DailyTab({ userId, canCreate, canEdit, canDelete, setError, setSuccess 
 
   const display = (e: any) => {
     if (e.kpi?.type === 'yes_no') return Number(e.numberValue) === 1 ? 'Yes' : 'No';
-    if (e.kpi?.type === 'text') return e.textValue;
+    if (e.kpi?.type === 'text' || e.kpi?.type === 'choice') return e.textValue;
     return `${Number(e.numberValue)}${e.kpi?.unit ? ` ${e.kpi.unit}` : ''}`;
   };
 
@@ -197,6 +197,12 @@ function DailyTab({ userId, canCreate, canEdit, canDelete, setError, setSuccess 
                     {d.type === 'yes_no' && (
                       <TextField size="small" select sx={{ minWidth: 120 }} label="Answer" value={drafts[d.id]?.number ?? ''} onChange={(e) => setDraft(d.id, { number: e.target.value })}>
                         <MenuItem value="">-</MenuItem><MenuItem value="1">Yes</MenuItem><MenuItem value="0">No</MenuItem>
+                      </TextField>
+                    )}
+                    {d.type === 'choice' && (
+                      <TextField size="small" select sx={{ minWidth: 240 }} label="Answer" value={drafts[d.id]?.text ?? ''} onChange={(e) => setDraft(d.id, { text: e.target.value })}>
+                        <MenuItem value="">-</MenuItem>
+                        {(d.answerOptions || []).map((o: string) => <MenuItem key={o} value={o}>{o}</MenuItem>)}
                       </TextField>
                     )}
                     {d.type === 'text' && <TextField size="small" fullWidth multiline minRows={2} label="Answer" value={drafts[d.id]?.text ?? ''} onChange={(e) => setDraft(d.id, { text: e.target.value })} />}
@@ -274,6 +280,11 @@ function DailyTab({ userId, canCreate, canEdit, canDelete, setError, setSuccess 
               {edit.entry.kpi?.type === 'number' && <TextField type="number" label={edit.entry.kpi?.unit || 'Value'} value={edit.number} onChange={(e) => setEdit({ ...edit, number: e.target.value })} />}
               {edit.entry.kpi?.type === 'yes_no' && (
                 <TextField select label="Answer" value={edit.number} onChange={(e) => setEdit({ ...edit, number: e.target.value })}><MenuItem value="1">Yes</MenuItem><MenuItem value="0">No</MenuItem></TextField>
+              )}
+              {edit.entry.kpi?.type === 'choice' && (
+                <TextField select label="Answer" value={edit.text} onChange={(e) => setEdit({ ...edit, text: e.target.value })}>
+                  {(defs.find((d) => d.id === edit.entry.kpiId)?.answerOptions || []).map((o: string) => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                </TextField>
               )}
               {edit.entry.kpi?.type === 'text' && <TextField multiline minRows={3} label="Answer" value={edit.text} onChange={(e) => setEdit({ ...edit, text: e.target.value })} />}
               <Alert severity="info" icon={false}>The old and new values are both kept in the audit trail.</Alert>

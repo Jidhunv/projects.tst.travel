@@ -13,7 +13,13 @@ router.post('/targets', (req, res, next) => C.createTarget(req, res, next));
 router.patch('/targets/:id', (req, res, next) => C.updateTarget(req, res, next));
 router.delete('/targets/:id', (req, res, next) => C.deleteTarget(req, res, next));
 
+router.get('/kpi-master', (req, res, next) => C.listMaster(req, res, next));
+router.post('/kpi-master', (req, res, next) => C.createMaster(req, res, next));
+router.patch('/kpi-master/:id', (req, res, next) => C.updateMaster(req, res, next));
+router.delete('/kpi-master/:id', (req, res, next) => C.deleteMaster(req, res, next));
+
 router.get('/kpis', (req, res, next) => C.listDefinitions(req, res, next));
+router.post('/kpis/copy', (req, res, next) => C.copyDefinitions(req, res, next));
 router.post('/kpis', (req, res, next) => C.createDefinition(req, res, next));
 router.patch('/kpis/:id', (req, res, next) => C.updateDefinition(req, res, next));
 router.delete('/kpis/:id', (req, res, next) => C.deleteDefinition(req, res, next));

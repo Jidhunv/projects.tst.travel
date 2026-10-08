@@ -260,6 +260,11 @@ export const api = {
   getKpiDefinitions: (filters?: Record<string, any>) =>
     apiClient.get<ApiResponse<any[]>>('/performance/kpis', { params: filters }),
   createKpiDefinition: (data: any) => apiClient.post<ApiResponse<any>>('/performance/kpis', data),
+  getKpiMaster: () => apiClient.get<ApiResponse<any[]>>('/performance/kpi-master'),
+  createKpiMaster: (data: any) => apiClient.post<ApiResponse<any>>('/performance/kpi-master', data),
+  updateKpiMaster: (id: string, data: any) => apiClient.patch<ApiResponse<any>>(`/performance/kpi-master/${id}`, data),
+  deleteKpiMaster: (id: string) => apiClient.delete<ApiResponse<any>>(`/performance/kpi-master/${id}`),
+  copyKpiDefinitions: (data: any) => apiClient.post<ApiResponse<any>>('/performance/kpis/copy', data),
   updateKpiDefinition: (id: string, data: any) => apiClient.patch<ApiResponse<any>>(`/performance/kpis/${id}`, data),
   deleteKpiDefinition: (id: string) => apiClient.delete<ApiResponse<any>>(`/performance/kpis/${id}`),
   getKpiSummary: (filters?: Record<string, any>) =>

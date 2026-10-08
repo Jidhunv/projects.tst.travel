@@ -181,6 +181,7 @@ export default function Layout({ children }: LayoutProps) {
         { text: 'Targets & Performance', icon: <TargetIcon />, path: '/performance', show: canViewModule('reports') },
         { text: 'My KPIs', icon: <TargetIcon />, path: '/my-kpis', show: canViewModule('kpis') },
         { text: 'KPI Meeting Report', icon: <ReportsIcon />, path: '/meeting-report', show: canViewModule('kpis') },
+        { text: 'KPI Master', icon: <TargetIcon />, path: '/kpi-master', show: canViewModule('kpi_setup') },
         { text: 'KPI Setup', icon: <TargetIcon />, path: '/kpi-config', show: canViewModule('kpi_setup') },
         { text: 'Sales Health', icon: <HealthIcon />, path: '/sales-health', show: canViewModule('reports') },
       ],
@@ -412,6 +413,9 @@ export default function Layout({ children }: LayoutProps) {
         component="main"
         sx={{
           flexGrow: 1,
+          // Without this a wide table stretches the flex item past the window and clips
+          // everything on the right (page action buttons, last table columns).
+          minWidth: 0,
           p: 3,
           marginTop: '64px',
           minHeight: 'calc(100vh - 64px)',

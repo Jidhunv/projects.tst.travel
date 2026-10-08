@@ -4,7 +4,9 @@ export declare class KpiDefinition {
     description: string | null;
     type: string;
     unit: string | null;
+    masterId: string | null;
     userId: string;
+    startDate: string;
     frequency: string;
     targetValue: number | null;
     isActive: boolean;
