@@ -28,6 +28,18 @@ const TICKET_UPDATABLE = [
     'slaResponseHours',
     'slaResolutionHours',
 ];
+// SLA hours are optional whole numbers. A blank form field arrives as "" - treat that as "not set"
+// (it used to reach the integer column as an empty string and fail with a 500).
+const optionalHours = (v, label) => {
+    if (v === undefined)
+        return undefined;
+    if (v === '' || v === null)
+        return null;
+    const n = Number(v);
+    if (!Number.isInteger(n) || n < 0 || n > 100000)
+        throw new errorHandler_1.AppError(400, `${label} must be a whole number of hours`);
+    return n;
+};
 class TicketController {
     async createTicket(req, res, next) {
         try {
@@ -47,8 +59,8 @@ class TicketController {
                 productId,
                 moduleType,
                 reporterId: req.user?.id || '',
-                slaResponseHours,
-                slaResolutionHours,
+                slaResponseHours: optionalHours(slaResponseHours, 'SLA response hours') ?? undefined,
+                slaResolutionHours: optionalHours(slaResolutionHours, 'SLA resolution hours') ?? undefined,
             };
             if (contactId) {
                 ticketData.contact = { id: contactId };
@@ -128,7 +140,12 @@ class TicketController {
             }
             const record = await ticket_service_1.default.getTicketById(req.params.id);
             (0, auth_1.assertOwnsViaAccount)(req.user, 'tickets', 'update', record.account?.ownerId, [record.reporter?.id, record.assignee?.id, record.assigneeIds]);
-            const ticket = await ticket_service_1.default.updateTicket(req.params.id, (0, pick_1.default)(req.body, TICKET_UPDATABLE));
+            const changes = (0, pick_1.default)(req.body, TICKET_UPDATABLE);
+            if ('slaResponseHours' in changes)
+                changes.slaResponseHours = optionalHours(changes.slaResponseHours, 'SLA response hours');
+            if ('slaResolutionHours' in changes)
+                changes.slaResolutionHours = optionalHours(changes.slaResolutionHours, 'SLA resolution hours');
+            const ticket = await ticket_service_1.default.updateTicket(req.params.id, changes);
             logger_1.default.info(`Ticket updated: ${ticket.id} by ${req.user?.email}`);
             return res.json({ success: true, data: ticket });
         }

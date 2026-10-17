@@ -41,6 +41,9 @@ function sanitizeObject(obj) {
     return sanitized;
 }
 const auditMiddleware = async (req, res, next) => {
+    // Proofreading requests carry the text of client notes: never write it to the audit log.
+    if ((req.originalUrl || req.url || '').startsWith('/api/text'))
+        return next();
     const originalSend = res.send;
     // Store original request body (sanitized) for logging if needed
     if (req.body && (['POST', 'PATCH', 'DELETE'].includes(req.method))) {

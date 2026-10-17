@@ -283,6 +283,22 @@ export const api = {
     apiClient.get<ApiResponse<any>>('/performance/meeting-report', { params: filters }),
   deleteKpiEntry: (id: string) => apiClient.delete<ApiResponse<any>>(`/performance/kpi-entries/${id}`),
 
+  polishText: (data: { text: string; context: string }) => apiClient.post<ApiResponse<any>>('/text/polish', data),
+  getTextStatus: () => apiClient.get<ApiResponse<any>>('/text/status'),
+
+  // Client issue log (issues inside tickets, with stage tracking)
+  getIssueWorkflow: () => apiClient.get<ApiResponse<any>>('/issues/workflow'),
+  getIssueClients: (filters?: Record<string, any>) => apiClient.get<any>('/issues/clients', { params: filters }),
+  getIssues: (filters?: Record<string, any>) => apiClient.get<PaginatedResponse<any>>('/issues', { params: filters }),
+  createIssue: (data: any) => apiClient.post<ApiResponse<any>>('/issues', data),
+  updateIssue: (id: string, data: any) => apiClient.patch<ApiResponse<any>>(`/issues/${id}`, data),
+  moveIssueStage: (id: string, data: any) => apiClient.post<any>(`/issues/${id}/stage`, data),
+  getIssueSlaReport: (filters?: Record<string, any>) => apiClient.get<ApiResponse<any>>('/issues/sla-report', { params: filters }),
+  getIssueHistory: (id: string) => apiClient.get<ApiResponse<any[]>>(`/issues/${id}/history`),
+  deleteIssue: (id: string) => apiClient.delete<ApiResponse<any>>(`/issues/${id}`),
+  getClientTickets: (accountId: string) => apiClient.get<any>('/tickets', { params: { accountId, limit: 200 } }),
+  createTicketQuick: (data: any) => apiClient.post<ApiResponse<any>>('/tickets', data),
+
   getSalesHealth: (filters?: Record<string, any>) =>
     apiClient.get<ApiResponse<any>>('/reports/sales-health', { params: filters }),
 

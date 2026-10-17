@@ -5,6 +5,7 @@ import {
   Stack, MenuItem, Checkbox, FormControlLabel, Card, CardContent, Chip,
 } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
+import VoiceTextField from '@components/VoiceTextField';
 import Layout from '@components/Layout';
 import ConfirmDialog from '@components/ConfirmDialog';
 import { api } from '@services/api';
@@ -254,13 +255,14 @@ export const SalesVisitsPage: React.FC = () => {
                 <MenuItem value="Visit">Visit</MenuItem>
                 <MenuItem value="Call">Call</MenuItem>
               </TextField>
-              <TextField
+              <VoiceTextField
+                context="sales"
                 label="What Was Discussed"
                 required
                 multiline
                 rows={3}
                 value={form.discussion}
-                onChange={(e) => setForm({ ...form, discussion: e.target.value })}
+                onChange={(v) => setForm({ ...form, discussion: v })}
                 disabled={!!editingId}
               />
               <TextField
@@ -285,13 +287,13 @@ export const SalesVisitsPage: React.FC = () => {
                   onChange={(e) => setForm({ ...form, followupDate: e.target.value })}
                   sx={{ mb: 2 }}
                 />
-                <TextField
-                  fullWidth
+                <VoiceTextField
+                  context="sales"
                   label="Followup Notes"
                   multiline
                   rows={2}
                   value={form.followupNotes}
-                  onChange={(e) => setForm({ ...form, followupNotes: e.target.value })}
+                  onChange={(v) => setForm({ ...form, followupNotes: v })}
                   sx={{ mb: 2 }}
                   placeholder="What to follow up on..."
                 />

@@ -23,6 +23,7 @@ const ReportsPage = lazy(() => import('@pages/ReportsPage'));
 const PerformancePage = lazy(() => import('@pages/PerformancePage'));
 const MyKpisPage = lazy(() => import('@pages/MyKpisPage'));
 const MeetingReportPage = lazy(() => import('@pages/MeetingReportPage'));
+const IssueLogPage = lazy(() => import('@pages/IssueLogPage'));
 const KpiMasterPage = lazy(() => import('@pages/KpiMasterPage'));
 const KpiConfigPage = lazy(() => import('@pages/KpiConfigPage'));
 const SalesHealthPage = lazy(() => import('@pages/SalesHealthPage'));
@@ -227,6 +228,14 @@ function App() {
             element={
               <ProtectedRoute module="kpis">
                 <MeetingReportPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/issue-log"
+            element={
+              <ProtectedRoute module="issue_log">
+                <IssueLogPage />
               </ProtectedRoute>
             }
           />

@@ -25,6 +25,16 @@ const TICKET_UPDATABLE = [
   'slaResolutionHours',
 ] as const;
 
+// SLA hours are optional whole numbers. A blank form field arrives as "" - treat that as "not set"
+// (it used to reach the integer column as an empty string and fail with a 500).
+const optionalHours = (v: unknown, label: string): number | null | undefined => {
+  if (v === undefined) return undefined;
+  if (v === '' || v === null) return null;
+  const n = Number(v);
+  if (!Number.isInteger(n) || n < 0 || n > 100000) throw new AppError(400, `${label} must be a whole number of hours`);
+  return n;
+};
+
 export class TicketController {
 
   async createTicket(req: AuthRequest, res: Response, next: NextFunction) {
@@ -48,8 +58,8 @@ export class TicketController {
         productId,
         moduleType,
         reporterId: req.user?.id || '',
-        slaResponseHours,
-        slaResolutionHours,
+        slaResponseHours: optionalHours(slaResponseHours, 'SLA response hours') ?? undefined,
+        slaResolutionHours: optionalHours(slaResolutionHours, 'SLA resolution hours') ?? undefined,
       };
 
       if (contactId) {
@@ -139,7 +149,10 @@ export class TicketController {
       const record = await ticketService.getTicketById(req.params.id);
       assertOwnsViaAccount(req.user, 'tickets', 'update', record.account?.ownerId, [record.reporter?.id, record.assignee?.id, record.assigneeIds]);
 
-      const ticket = await ticketService.updateTicket(req.params.id, pick(req.body, TICKET_UPDATABLE));
+      const changes: Record<string, unknown> = pick(req.body, TICKET_UPDATABLE);
+      if ('slaResponseHours' in changes) changes.slaResponseHours = optionalHours(changes.slaResponseHours, 'SLA response hours');
+      if ('slaResolutionHours' in changes) changes.slaResolutionHours = optionalHours(changes.slaResolutionHours, 'SLA resolution hours');
+      const ticket = await ticketService.updateTicket(req.params.id, changes);
       logger.info(`Ticket updated: ${ticket.id} by ${req.user?.email}`);
       return res.json({ success: true, data: ticket });
     } catch (error) {

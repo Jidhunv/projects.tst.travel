@@ -53,6 +53,8 @@ function buildCatalog(): PermSpec[] {
     ...crud('targets', 'sales targets'),
     ...crud('kpis', 'staff KPI entries and projections'),
     ...crud('kpi_setup', 'KPI definitions'),
+    // Client issue log (issues inside tickets, with stage tracking)
+    ...crud('issue_log', 'client issues'),
     // Team scope (hierarchical visibility)
     ...teamScoped('accounts', 'accounts'),
   ];

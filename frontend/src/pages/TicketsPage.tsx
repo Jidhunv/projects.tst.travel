@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
+  Alert,
   Table,
   TableBody,
   TableCell,
@@ -25,10 +26,22 @@ import {
   InputAdornment,
 } from '@mui/material';
 import { Search as SearchIcon, ViewAgendaOutlined as ListIcon, ViewWeekOutlined as KanbanIcon } from '@mui/icons-material';
+import VoiceTextField from '@components/VoiceTextField';
+import SearchableSelect from '@components/SearchableSelect';
+import { useAccountOptions } from '@hooks/useAccountOptions';
 import Layout from '@components/Layout';
 import AssignOwner from '@components/AssignOwner';
 import { apiClient } from '../services/api';
 import useAuth from '../hooks/useAuth';
+
+// Common issue types raised by corporate and travel-agency clients. A ticket keeps whatever category it
+// already has even if it is not in this list (older tickets used free text).
+const TICKET_CATEGORIES = [
+  'Booking Engine', 'Search / Fares', 'Ticketing', 'GDS / API Integration', 'Payments & Invoicing', 'Billing',
+  'Reports', 'Login / Access', 'Performance', 'Data Import / Export', 'Bug', 'Feature Request',
+  'Technical Support', 'Training / How-to', 'Other',
+];
+const categoryOptions = (current: string) => (current && !TICKET_CATEGORIES.includes(current) ? [current, ...TICKET_CATEGORIES] : TICKET_CATEGORIES);
 
 export const TicketsPage: React.FC = () => {
   const { user } = useAuth();
@@ -41,6 +54,8 @@ export const TicketsPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState('');
   const [fromDateFilter, setFromDateFilter] = useState('');
   const [toDateFilter, setToDateFilter] = useState('');
+  const [saveError, setSaveError] = useState('');
+  const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
     ticketNumber: '',
     title: '',
@@ -52,6 +67,8 @@ export const TicketsPage: React.FC = () => {
     slaResponseHours: '',
     slaResolutionHours: '',
   });
+
+  const { accounts: clientOptions, loading: clientsLoading, error: clientsError, search: searchClients } = useAccountOptions(formData.accountId);
 
   useEffect(() => {
     fetchTickets();
@@ -94,21 +111,29 @@ export const TicketsPage: React.FC = () => {
         slaResolutionHours: '',
       });
     }
+    setSaveError('');
     setOpenDialog(true);
   };
 
   const handleSave = async () => {
+    setSaveError('');
+    if (!formData.accountId) { setSaveError('Select the client this ticket is for'); return; }
+    if (!formData.title.trim()) { setSaveError('Enter a title'); return; }
+    if (!formData.description.trim()) { setSaveError('Enter a description'); return; }
+    setSaving(true);
     try {
       if (selectedTicket) {
-        const response = await apiClient.patch(`/tickets/${selectedTicket.id}`, formData);
-        setTickets(tickets.map((t) => (t.id === selectedTicket.id ? response.data.data : t)));
+        await apiClient.patch(`/tickets/${selectedTicket.id}`, formData);
       } else {
-        const response = await apiClient.post('/tickets', formData);
-        setTickets([...tickets, response.data.data]);
+        await apiClient.post('/tickets', formData);
       }
       setOpenDialog(false);
-    } catch (error) {
+      await fetchTickets(); // reload so the client name and ticket number show correctly
+    } catch (error: any) {
       console.error('Error saving ticket:', error);
+      setSaveError(error?.response?.data?.error || error?.response?.data?.message || error?.message || 'Could not save the ticket');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -415,20 +440,34 @@ export const TicketsPage: React.FC = () => {
               sx={{ mb: 2 }}
               helperText={selectedTicket ? 'Auto-generated' : 'Will be auto-generated'}
             />
-            <TextField
-              fullWidth
+            {saveError && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setSaveError('')}>{saveError}</Alert>}
+            <SearchableSelect
+              label="Client (type to search)"
+              value={formData.accountId}
+              onChange={(id) => setFormData({ ...formData, accountId: id || '' })}
+              options={clientOptions}
+              onSearch={searchClients}
+              loading={clientsLoading}
+              error={clientsError}
+              helperText={clientsError ? 'Could not load clients' : 'The corporate or travel agency this issue is for'}
+              required
+            />
+            <VoiceTextField
+              context="ticket_title"
+              required
               label="Title"
               value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              onChange={(v) => setFormData({ ...formData, title: v })}
               sx={{ mb: 2 }}
             />
-            <TextField
-              fullWidth
+            <VoiceTextField
+              context="ticket"
+              required
               label="Description"
               multiline
               rows={3}
               value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              onChange={(v) => setFormData({ ...formData, description: v })}
               sx={{ mb: 2 }}
             />
             <TextField
@@ -460,11 +499,15 @@ export const TicketsPage: React.FC = () => {
             </TextField>
             <TextField
               fullWidth
+              select
               label="Category"
               value={formData.category}
               onChange={(e) => setFormData({ ...formData, category: e.target.value })}
               sx={{ mb: 2 }}
-            />
+            >
+              <MenuItem value="">Not set</MenuItem>
+              {categoryOptions(formData.category).map((c) => <MenuItem key={c} value={c}>{c}</MenuItem>)}
+            </TextField>
             <TextField
               fullWidth
               label="SLA Response Hours"
@@ -483,8 +526,8 @@ export const TicketsPage: React.FC = () => {
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
-            <Button onClick={handleSave} variant="contained">
-              Save
+            <Button onClick={handleSave} variant="contained" disabled={saving}>
+              {saving ? 'Saving…' : 'Save'}
             </Button>
           </DialogActions>
         </Dialog>

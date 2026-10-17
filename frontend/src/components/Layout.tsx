@@ -153,6 +153,7 @@ export default function Layout({ children }: LayoutProps) {
         { text: 'Projects', icon: <ProjectIcon />, path: '/projects', show: canViewModule('projects') },
         { text: 'Contracts', icon: <ContractIcon />, path: '/contracts', show: canViewModule('contracts') },
         { text: 'Tickets', icon: <TicketIcon />, path: '/tickets', show: canViewModule('tickets') },
+        { text: 'Issue Log', icon: <TicketIcon />, path: '/issue-log', show: canViewModule('issue_log') },
       ],
     },
     {
