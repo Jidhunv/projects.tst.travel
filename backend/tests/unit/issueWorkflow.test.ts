@@ -4,41 +4,38 @@ const t = (from: string, to: string, extra: Partial<Parameters<typeof checkTrans
   checkTransition({ from, to, hasAssignee: true, ...extra });
 
 describe('issue stage transitions', () => {
-  it('has the agreed stages in order, ending in Closed', () => {
-    expect(ISSUE_STAGES[0]).toBe('Logged');
-    expect(ISSUE_STAGES[ISSUE_STAGES.length - 1]).toBe('Closed');
-    expect(ISSUE_STAGES).toContain('Customer acceptance');
-    expect(ISSUE_STAGES.indexOf('Approved for deployment')).toBeLessThan(ISSUE_STAGES.indexOf('Deployed to production'));
+  it('has the agreed stages in order, ending in Deployed', () => {
+    expect([...ISSUE_STAGES]).toEqual(['Logged', 'Under development', 'Testing', 'User acceptance', 'Deployed']);
   });
 
   it('allows moving forward one stage at a time', () => {
-    expect(t('Logged', 'Actioning')).toBeNull();
-    expect(t('Under development', 'Under testing')).toBeNull();
-    expect(t('Deployed to production', 'Customer feedback')).toBeNull();
-    expect(t('Customer feedback', 'Closed')).toBeNull();
+    expect(t('Logged', 'Under development')).toBeNull();
+    expect(t('Under development', 'Testing')).toBeNull();
+    expect(t('Testing', 'User acceptance')).toBeNull();
+    expect(t('User acceptance', 'Deployed', { customerContact: 'Ali Hassan' })).toBeNull();
   });
 
   it('does not let a stage be skipped', () => {
-    expect(t('Logged', 'Under development')).toMatch(/Actioning/);
-    expect(t('Under testing', 'Deployed to production')).toMatch(/Customer acceptance/);
-    expect(t('Under testing', 'Closed')).not.toBeNull();
+    expect(t('Logged', 'Testing')).toMatch(/Under development/);
+    expect(t('Under development', 'User acceptance')).toMatch(/Testing/);
+    expect(t('Testing', 'Deployed', { customerContact: 'Ali' })).toMatch(/User acceptance/);
   });
 
   it('needs a note to go backwards', () => {
-    expect(t('Under testing', 'Under development')).toMatch(/going back/);
-    expect(t('Under testing', 'Under development', { note: 'Failed regression' })).toBeNull();
-    expect(t('Closed', 'Customer feedback', { note: 'Customer reported it again' })).toBeNull();
+    expect(t('Testing', 'Under development')).toMatch(/going back/);
+    expect(t('Testing', 'Under development', { note: 'Failed regression' })).toBeNull();
+    expect(t('Deployed', 'User acceptance', { note: 'Customer says it is back' })).toBeNull();
   });
 
-  it('needs an assignee before an issue is picked up', () => {
-    expect(t('Actioning', 'Picked up', { hasAssignee: false })).toMatch(/Assign a developer/);
-    expect(t('Actioning', 'Picked up', { hasAssignee: true })).toBeNull();
+  it('needs a developer assigned before development starts', () => {
+    expect(t('Logged', 'Under development', { hasAssignee: false })).toMatch(/Assign a developer/);
+    expect(t('Logged', 'Under development', { hasAssignee: true })).toBeNull();
   });
 
-  it('needs the customer contact to approve deployment', () => {
-    expect(t('Customer acceptance', 'Approved for deployment')).toMatch(/customer/i);
-    expect(t('Customer acceptance', 'Approved for deployment', { customerContact: '  ' })).not.toBeNull();
-    expect(t('Customer acceptance', 'Approved for deployment', { customerContact: 'Ali Hassan' })).toBeNull();
+  it('needs the customer contact to deploy', () => {
+    expect(t('User acceptance', 'Deployed')).toMatch(/customer/i);
+    expect(t('User acceptance', 'Deployed', { customerContact: '  ' })).not.toBeNull();
+    expect(t('User acceptance', 'Deployed', { customerContact: 'Ali Hassan' })).toBeNull();
   });
 
   it('holds and cancels need a reason; a cancelled issue is final', () => {
@@ -62,24 +59,23 @@ describe('issue stage transitions', () => {
 
 describe('ticket status follows its issues', () => {
   it('leaves a ticket with no issues alone', () => expect(ticketStatusFor([])).toBeNull());
-  it('closes only when every issue is Closed or Cancelled', () => {
-    expect(ticketStatusFor(['Closed', 'Closed'])).toBe('Closed');
-    expect(ticketStatusFor(['Closed', 'Cancelled'])).toBe('Closed');
-    expect(ticketStatusFor(['Closed', 'Under testing'])).toBe('In Progress');
-    expect(ticketStatusFor(['Closed', 'On hold'])).toBe('In Progress');
+  it('closes only when every issue is Deployed or Cancelled', () => {
+    expect(ticketStatusFor(['Deployed', 'Deployed'])).toBe('Closed');
+    expect(ticketStatusFor(['Deployed', 'Cancelled'])).toBe('Closed');
+    expect(ticketStatusFor(['Deployed', 'Testing'])).toBe('In Progress');
+    expect(ticketStatusFor(['Deployed', 'On hold'])).toBe('In Progress');
   });
   it('is Open while everything open is still just Logged', () => {
     expect(ticketStatusFor(['Logged', 'Logged'])).toBe('Open');
-    expect(ticketStatusFor(['Closed', 'Logged'])).toBe('Open');
+    expect(ticketStatusFor(['Deployed', 'Logged'])).toBe('Open');
   });
-  it('waits on the customer when only customer-stage issues remain', () => {
-    expect(ticketStatusFor(['Customer acceptance', 'Closed'])).toBe('Pending Customer');
-    expect(ticketStatusFor(['Customer feedback', 'Customer acceptance'])).toBe('Pending Customer');
-    expect(ticketStatusFor(['Customer feedback', 'Under development'])).toBe('In Progress');
+  it('waits on the customer when only customer-acceptance issues remain', () => {
+    expect(ticketStatusFor(['User acceptance', 'Deployed'])).toBe('Pending Customer');
+    expect(ticketStatusFor(['User acceptance', 'Testing'])).toBe('In Progress');
   });
-  it('reopens when a closed issue goes back', () => {
-    expect(ticketStatusFor(['Closed', 'Customer feedback'])).toBe('Pending Customer');
-    expect(isFinished('Closed')).toBe(true);
-    expect(isFinished('Customer feedback')).toBe(false);
+  it('reopens when a deployed issue goes back', () => {
+    expect(ticketStatusFor(['Deployed', 'User acceptance'])).toBe('Pending Customer');
+    expect(isFinished('Deployed')).toBe(true);
+    expect(isFinished('User acceptance')).toBe(false);
   });
 });

@@ -29,6 +29,10 @@ __decorate([
     __metadata("design:type", String)
 ], Role.prototype, "description", void 0);
 __decorate([
+    (0, typeorm_1.Column)('simple-array', { nullable: true }),
+    __metadata("design:type", Object)
+], Role.prototype, "departments", void 0);
+__decorate([
     (0, typeorm_1.OneToMany)(() => User_1.User, (user) => user.role),
     __metadata("design:type", Array)
 ], Role.prototype, "users", void 0);

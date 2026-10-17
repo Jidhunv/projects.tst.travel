@@ -7,6 +7,7 @@ const router = Router();
 router.use(verifyToken);
 
 router.get('/workflow', (req, res) => C.workflow(req, res));
+router.get('/assignees', (req, res, next) => C.assignees(req, res, next));
 router.get('/clients', (req, res, next) => C.clients(req, res, next));
 router.get('/sla-report', (req, res, next) => C.slaReport(req, res, next));
 router.get('/', (req, res, next) => C.list(req, res, next));

@@ -3,15 +3,10 @@
 
 export const ISSUE_STAGES = [
   'Logged',
-  'Actioning',
-  'Picked up',
   'Under development',
-  'Under testing',
-  'Customer acceptance',
-  'Approved for deployment',
-  'Deployed to production',
-  'Customer feedback',
-  'Closed',
+  'Testing',
+  'User acceptance',
+  'Deployed',
 ] as const;
 
 export const STAGE_ON_HOLD = 'On hold';
@@ -21,25 +16,21 @@ export type IssueStage = (typeof ISSUE_STAGES)[number] | typeof STAGE_ON_HOLD | 
 export const ALL_STAGES: string[] = [...ISSUE_STAGES, STAGE_ON_HOLD, STAGE_CANCELLED];
 
 // Stages in which the customer, not us, has the next move.
-export const CUSTOMER_STAGES: string[] = ['Customer acceptance', 'Customer feedback'];
+export const CUSTOMER_STAGES: string[] = ['User acceptance'];
 
-// An issue is finished once it is Closed or Cancelled.
-export const isFinished = (stage: string) => stage === 'Closed' || stage === STAGE_CANCELLED;
+// The last stage. An issue is finished (closed) once it is Deployed, or Cancelled.
+export const FINAL_STAGE = 'Deployed';
+export const isFinished = (stage: string) => stage === FINAL_STAGE || stage === STAGE_CANCELLED;
 
 export const stageIndex = (stage: string) => (ISSUE_STAGES as readonly string[]).indexOf(stage);
 
 // What each stage means, shown to everyone on the Issue Log page.
 export const STAGE_HELP: Record<string, string> = {
-  Logged: 'Recorded and waiting to be looked at',
-  Actioning: 'Being reviewed and planned',
-  'Picked up': 'A developer has taken it',
+  Logged: 'Recorded and waiting to be picked up',
   'Under development': 'The fix or change is being built',
-  'Under testing': 'Being tested internally',
-  'Customer acceptance': 'With the customer to test and accept',
-  'Approved for deployment': 'The customer has accepted and given permission to deploy',
-  'Deployed to production': 'Live in production',
-  'Customer feedback': 'Open for the customer to confirm it is resolved',
-  Closed: 'Resolved and confirmed',
+  Testing: 'Being tested internally',
+  'User acceptance': 'With the customer to test and accept',
+  Deployed: 'Accepted by the customer and live in production - the item is closed',
   [STAGE_ON_HOLD]: 'Paused (blocked or waiting)',
   [STAGE_CANCELLED]: 'Will not be done',
 };
@@ -57,7 +48,7 @@ export interface TransitionInput {
 //  - forward moves go one stage at a time, so nothing skips testing or customer approval;
 //  - moving backwards (rework, reopening) is allowed but needs a note;
 //  - pausing or cancelling needs a note;
-//  - "Picked up" needs an assignee; "Approved for deployment" needs the customer's name.
+//  - "Under development" needs an assignee; "Deployed" needs the name of the customer who accepted it and gave permission.
 export function checkTransition(t: TransitionInput): string | null {
   const { from, to } = t;
   const note = (t.note || '').trim();
@@ -80,8 +71,8 @@ export function checkTransition(t: TransitionInput): string | null {
   }
   if (from === STAGE_ON_HOLD && !note) return 'Say why the issue is resuming';
 
-  if (to === 'Picked up' && !t.hasAssignee) return 'Assign a developer before the issue is picked up';
-  if (to === 'Approved for deployment' && !(t.customerContact || '').trim()) {
+  if (to === 'Under development' && !t.hasAssignee) return 'Assign a developer before development starts';
+  if (to === FINAL_STAGE && !(t.customerContact || '').trim()) {
     return 'Enter the customer who accepted it and gave permission to deploy';
   }
   return null;

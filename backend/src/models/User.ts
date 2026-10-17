@@ -34,6 +34,10 @@ export class User {
   @Column({ nullable: true })
   phoneNumber: string;
 
+  // This person's own departments; empty means "use the role's".
+  @Column('simple-array', { nullable: true })
+  departments: string[] | null;
+
   @Column({ default: true })
   isActive: boolean;
 

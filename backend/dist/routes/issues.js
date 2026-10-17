@@ -10,6 +10,7 @@ const auth_1 = require("../middleware/auth");
 const router = (0, express_1.Router)();
 router.use(auth_1.verifyToken);
 router.get('/workflow', (req, res) => issue_controller_1.default.workflow(req, res));
+router.get('/assignees', (req, res, next) => issue_controller_1.default.assignees(req, res, next));
 router.get('/clients', (req, res, next) => issue_controller_1.default.clients(req, res, next));
 router.get('/sla-report', (req, res, next) => issue_controller_1.default.slaReport(req, res, next));
 router.get('/', (req, res, next) => issue_controller_1.default.list(req, res, next));

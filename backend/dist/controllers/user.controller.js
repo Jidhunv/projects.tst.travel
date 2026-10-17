@@ -44,6 +44,7 @@ const User_1 = require("../models/User");
 const errorHandler_1 = require("../middleware/errorHandler");
 const pick_1 = __importDefault(require("../utils/pick"));
 const logger_1 = __importDefault(require("../utils/logger"));
+const departments_1 = require("../utils/departments");
 const passwordValidator_1 = require("../utils/passwordValidator");
 // One response shape for a user, so every endpoint returns the same fields and
 // none of them can accidentally leak the password hash.
@@ -56,6 +57,8 @@ const toUserResponse = (user, teamIds = [], supervisedTeamIds = []) => ({
     isActive: user.isActive,
     role: user.role?.name,
     roleId: user.roleId,
+    departments: user.departments || [], // this person's own (may be empty)
+    roleDepartments: user.role?.departments || [], // inherited from the role when none are set
     teamIds, // teams this user is a MEMBER of
     supervisedTeamIds, // teams this user SUPERVISES
 });
@@ -63,6 +66,13 @@ class UserController {
     async createUser(req, res, next) {
         try {
             const { email, password, firstName, lastName, phoneNumber, roleId } = req.body;
+            let departments = [];
+            try {
+                departments = (0, departments_1.cleanDepartments)(req.body.departments);
+            }
+            catch (e) {
+                throw new errorHandler_1.AppError(400, e.message);
+            }
             if (!email || !password || !firstName || !lastName || !roleId) {
                 throw new errorHandler_1.AppError(400, 'email, password, firstName, lastName and roleId are required');
             }
@@ -80,6 +90,7 @@ class UserController {
                 lastName,
                 phoneNumber,
                 roleId,
+                departments,
             });
             // Fetch full user with role to return in response
             const fullUser = await user_service_1.default.getUserById(user.id);
@@ -165,6 +176,14 @@ class UserController {
             const allowed = ['firstName', 'lastName', 'phoneNumber', 'email', 'isActive',
                 'emailNotificationsEnabled', 'emailNotificationPreferences'];
             const updates = (0, pick_1.default)(req.body, allowed);
+            if ('departments' in req.body) {
+                try {
+                    updates.departments = (0, departments_1.cleanDepartments)(req.body.departments);
+                }
+                catch (e) {
+                    throw new errorHandler_1.AppError(400, e.message);
+                }
+            }
             // Only Admins may (re)assign roles — prevents privilege escalation by Managers.
             if ('roleId' in req.body) {
                 if (req.user?.role !== 'Admin') {

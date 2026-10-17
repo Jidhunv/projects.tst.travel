@@ -6,12 +6,14 @@ declare class RoleService {
     createRole(data: {
         name: string;
         description?: string;
+        departments?: string[];
     }): Promise<Role>;
     getRoles(): Promise<Role[]>;
     getRoleById(id: string): Promise<Role>;
     updateRole(id: string, data: {
         name?: string;
         description?: string;
+        departments?: string[];
     }): Promise<Role>;
     deleteRole(id: string): Promise<void>;
     assignPermissions(roleId: string, permissionIds: string[]): Promise<Role>;

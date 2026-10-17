@@ -30,6 +30,15 @@ export class IssueController {
     res.json({ success: true, data: { stages: [...ISSUE_STAGES], onHold: STAGE_ON_HOLD, cancelled: STAGE_CANCELLED, help: STAGE_HELP } });
   }
 
+  // Who an issue can be assigned to (Development staff). Open to anyone who can see the issue log,
+  // because /api/users is limited to administrators.
+  async assignees(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      need(req, 'read', 'view the issue log');
+      res.json({ success: true, data: await issueService.listAssignees() });
+    } catch (e) { next(e); }
+  }
+
   async clients(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const scope = need(req, 'read', 'view the issue log');

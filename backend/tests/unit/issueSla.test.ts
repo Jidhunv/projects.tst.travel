@@ -18,29 +18,29 @@ describe('slaHours (the clock stops while waiting on the customer or on hold)', 
   it('counts straight through when nothing pauses it', () => {
     expect(slaHours(T0, at(10), [tr('Logged', 0), tr('Under development', 2)])).toBe(10);
   });
-  it('leaves out time in Customer acceptance and On hold', () => {
-    const t = [tr('Logged', 0), tr('Under testing', 5), tr('Customer acceptance', 10), tr('Approved for deployment', 34), tr('On hold', 36), tr('Deployed to production', 40)];
+  it('leaves out time in User acceptance and On hold', () => {
+    const t = [tr('Logged', 0), tr('Testing', 5), tr('User acceptance', 10), tr('Testing', 34), tr('On hold', 36), tr('Deployed', 40)];
     // 40h elapsed - 24h with the customer - 4h on hold
     expect(slaHours(T0, at(40), t)).toBe(12);
   });
   it('stops counting a pause that is still running', () => {
-    expect(slaHours(T0, at(30), [tr('Logged', 0), tr('Customer acceptance', 10)])).toBe(10);
+    expect(slaHours(T0, at(30), [tr('Logged', 0), tr('User acceptance', 10)])).toBe(10);
   });
   it('is never negative', () => expect(slaHours(at(5), at(1), [])).toBe(0));
 });
 
 describe('evaluateIssue', () => {
   it('meets response and resolution inside target', () => {
-    const e = evaluateIssue({ ...base, stage: 'Closed', closedAt: at(70), transitions: [tr('Logged', 0), tr('Actioning', 3), tr('Deployed to production', 50), tr('Closed', 70)] }, at(100));
+    const e = evaluateIssue({ ...base, stage: 'Deployed', closedAt: at(50), transitions: [tr('Logged', 0), tr('Under development', 3), tr('Deployed', 50)] }, at(100));
     expect(e.responseState).toBe('met');
     expect(e.responseHours).toBe(3);
     expect(e.resolutionState).toBe('met'); // High: 4h / 72h
     expect(e.resolutionHours).toBe(50);
-    expect(e.daysToClose).toBe(2.9);
+    expect(e.daysToClose).toBe(2.1);
   });
 
   it('flags a late first response', () => {
-    const e = evaluateIssue({ ...base, stage: 'Actioning', transitions: [tr('Logged', 0), tr('Actioning', 9)] }, at(10));
+    const e = evaluateIssue({ ...base, stage: 'Under development', transitions: [tr('Logged', 0), tr('Under development', 9)] }, at(10));
     expect(e.responseState).toBe('breached'); // 9h > 4h
     expect(e.respondedAt).toEqual(at(9));
   });
@@ -52,21 +52,22 @@ describe('evaluateIssue', () => {
     expect(late.respondedAt).toBeNull();
   });
 
-  it('counts resolution to deployment, not to closing', () => {
-    const e = evaluateIssue({ ...base, stage: 'Customer feedback', transitions: [tr('Logged', 0), tr('Actioning', 1), tr('Deployed to production', 60), tr('Customer feedback', 61)] }, at(500));
+  it('resolves and closes at the moment it is deployed', () => {
+    const e = evaluateIssue({ ...base, stage: 'Deployed', closedAt: at(60), transitions: [tr('Logged', 0), tr('Under development', 1), tr('Deployed', 60)] }, at(500));
     expect(e.resolutionState).toBe('met');
-    expect(e.closedAt).toBeNull();
+    expect(e.resolvedAt).toEqual(at(60));
+    expect(e.closedAt).toEqual(at(60));
   });
 
   it('does not charge the customer\'s testing time to us', () => {
-    const t = [tr('Logged', 0), tr('Actioning', 1), tr('Customer acceptance', 40), tr('Approved for deployment', 140), tr('Deployed to production', 150)];
-    const e = evaluateIssue({ ...base, stage: 'Deployed to production', transitions: t }, at(200));
-    expect(e.resolutionHours).toBe(50); // 150h elapsed - 100h with the customer
+    const t = [tr('Logged', 0), tr('Under development', 1), tr('User acceptance', 40), tr('Deployed', 140)];
+    const e = evaluateIssue({ ...base, stage: 'Deployed', transitions: t }, at(200));
+    expect(e.resolutionHours).toBe(40); // 140h elapsed - 100h with the customer
     expect(e.resolutionState).toBe('met');
   });
 
   it('uses the ticket\'s own SLA hours when present', () => {
-    const e = evaluateIssue({ ...base, transitions: [tr('Logged', 0), tr('Actioning', 3)], ticketResponseHours: 2 }, at(5));
+    const e = evaluateIssue({ ...base, transitions: [tr('Logged', 0), tr('Under development', 3)], ticketResponseHours: 2 }, at(5));
     expect(e.responseState).toBe('breached');
   });
 

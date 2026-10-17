@@ -2,43 +2,34 @@
 // The stages an issue moves through, from being logged to being closed, and the
 // rules for moving between them. Pure - no database - so it is unit tested.
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.STAGE_HELP = exports.stageIndex = exports.isFinished = exports.CUSTOMER_STAGES = exports.ALL_STAGES = exports.STAGE_CANCELLED = exports.STAGE_ON_HOLD = exports.ISSUE_STAGES = void 0;
+exports.STAGE_HELP = exports.stageIndex = exports.isFinished = exports.FINAL_STAGE = exports.CUSTOMER_STAGES = exports.ALL_STAGES = exports.STAGE_CANCELLED = exports.STAGE_ON_HOLD = exports.ISSUE_STAGES = void 0;
 exports.checkTransition = checkTransition;
 exports.ticketStatusFor = ticketStatusFor;
 exports.ISSUE_STAGES = [
     'Logged',
-    'Actioning',
-    'Picked up',
     'Under development',
-    'Under testing',
-    'Customer acceptance',
-    'Approved for deployment',
-    'Deployed to production',
-    'Customer feedback',
-    'Closed',
+    'Testing',
+    'User acceptance',
+    'Deployed',
 ];
 exports.STAGE_ON_HOLD = 'On hold';
 exports.STAGE_CANCELLED = 'Cancelled';
 exports.ALL_STAGES = [...exports.ISSUE_STAGES, exports.STAGE_ON_HOLD, exports.STAGE_CANCELLED];
 // Stages in which the customer, not us, has the next move.
-exports.CUSTOMER_STAGES = ['Customer acceptance', 'Customer feedback'];
-// An issue is finished once it is Closed or Cancelled.
-const isFinished = (stage) => stage === 'Closed' || stage === exports.STAGE_CANCELLED;
+exports.CUSTOMER_STAGES = ['User acceptance'];
+// The last stage. An issue is finished (closed) once it is Deployed, or Cancelled.
+exports.FINAL_STAGE = 'Deployed';
+const isFinished = (stage) => stage === exports.FINAL_STAGE || stage === exports.STAGE_CANCELLED;
 exports.isFinished = isFinished;
 const stageIndex = (stage) => exports.ISSUE_STAGES.indexOf(stage);
 exports.stageIndex = stageIndex;
 // What each stage means, shown to everyone on the Issue Log page.
 exports.STAGE_HELP = {
-    Logged: 'Recorded and waiting to be looked at',
-    Actioning: 'Being reviewed and planned',
-    'Picked up': 'A developer has taken it',
+    Logged: 'Recorded and waiting to be picked up',
     'Under development': 'The fix or change is being built',
-    'Under testing': 'Being tested internally',
-    'Customer acceptance': 'With the customer to test and accept',
-    'Approved for deployment': 'The customer has accepted and given permission to deploy',
-    'Deployed to production': 'Live in production',
-    'Customer feedback': 'Open for the customer to confirm it is resolved',
-    Closed: 'Resolved and confirmed',
+    Testing: 'Being tested internally',
+    'User acceptance': 'With the customer to test and accept',
+    Deployed: 'Accepted by the customer and live in production - the item is closed',
     [exports.STAGE_ON_HOLD]: 'Paused (blocked or waiting)',
     [exports.STAGE_CANCELLED]: 'Will not be done',
 };
@@ -47,7 +38,7 @@ exports.STAGE_HELP = {
 //  - forward moves go one stage at a time, so nothing skips testing or customer approval;
 //  - moving backwards (rework, reopening) is allowed but needs a note;
 //  - pausing or cancelling needs a note;
-//  - "Picked up" needs an assignee; "Approved for deployment" needs the customer's name.
+//  - "Under development" needs an assignee; "Deployed" needs the name of the customer who accepted it and gave permission.
 function checkTransition(t) {
     const { from, to } = t;
     const note = (t.note || '').trim();
@@ -75,9 +66,9 @@ function checkTransition(t) {
     }
     if (from === exports.STAGE_ON_HOLD && !note)
         return 'Say why the issue is resuming';
-    if (to === 'Picked up' && !t.hasAssignee)
-        return 'Assign a developer before the issue is picked up';
-    if (to === 'Approved for deployment' && !(t.customerContact || '').trim()) {
+    if (to === 'Under development' && !t.hasAssignee)
+        return 'Assign a developer before development starts';
+    if (to === exports.FINAL_STAGE && !(t.customerContact || '').trim()) {
         return 'Enter the customer who accepted it and gave permission to deploy';
     }
     return null;

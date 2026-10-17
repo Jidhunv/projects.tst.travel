@@ -2,11 +2,11 @@
 //
 // Two clocks are measured from the moment an issue is logged:
 //   response   - until someone first acts on it (it leaves "Logged")
-//   resolution - until the fix is deployed to production
-// "Closed" is reported too (it also needs the customer's feedback) but is not the SLA point.
+//   resolution - until the item is Deployed (customer accepted, live)
+// Deployed is also when the item closes, so time-to-close equals the resolution time.
 //
 // The SLA clock does not run while the issue is waiting on the customer
-// ("Customer acceptance") or paused ("On hold"): that time is not ours to control.
+// ("User acceptance") or paused ("On hold"): that time is not ours to control.
 // Hours are calendar hours, not working hours.
 
 export const PRIORITIES = ['Critical', 'High', 'Medium', 'Low'] as const;
@@ -20,8 +20,8 @@ export const SLA_DEFAULTS: Record<string, { responseHours: number; resolutionHou
 };
 
 // Stages in which the SLA clock is stopped.
-export const SLA_PAUSE_STAGES = ['On hold', 'Customer acceptance'];
-export const RESOLVED_STAGE = 'Deployed to production';
+export const SLA_PAUSE_STAGES = ['On hold', 'User acceptance'];
+export const RESOLVED_STAGE = 'Deployed';
 
 const HOUR = 3_600_000;
 

@@ -16,6 +16,7 @@ export class UserService {
     lastName: string;
     phoneNumber?: string;
     roleId: string;
+    departments?: string[];
   }): Promise<User> {
     const existingUser = await this.userRepository.findOne({
       where: { email: data.email },

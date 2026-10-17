@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import {
   Alert,
+  Tab,
+  Tabs,
   Table,
   TableBody,
   TableCell,
@@ -27,24 +29,23 @@ import {
 } from '@mui/material';
 import { Search as SearchIcon, ViewAgendaOutlined as ListIcon, ViewWeekOutlined as KanbanIcon } from '@mui/icons-material';
 import VoiceTextField from '@components/VoiceTextField';
+import TicketIssuesPanel from '@components/TicketIssuesPanel';
 import SearchableSelect from '@components/SearchableSelect';
 import { useAccountOptions } from '@hooks/useAccountOptions';
 import Layout from '@components/Layout';
 import AssignOwner from '@components/AssignOwner';
-import { apiClient } from '../services/api';
+import { api, apiClient } from '../services/api';
 import useAuth from '../hooks/useAuth';
 
-// Common issue types raised by corporate and travel-agency clients. A ticket keeps whatever category it
-// already has even if it is not in this list (older tickets used free text).
-const TICKET_CATEGORIES = [
-  'Booking Engine', 'Search / Fares', 'Ticketing', 'GDS / API Integration', 'Payments & Invoicing', 'Billing',
-  'Reports', 'Login / Access', 'Performance', 'Data Import / Export', 'Bug', 'Feature Request',
-  'Technical Support', 'Training / How-to', 'Other',
-];
+// What kind of ticket it is. A ticket keeps whatever category it already has even if it is not in this
+// list (older tickets used free text).
+const TICKET_CATEGORIES = ['Bug', 'Enhancement', 'Training'];
 const categoryOptions = (current: string) => (current && !TICKET_CATEGORIES.includes(current) ? [current, ...TICKET_CATEGORIES] : TICKET_CATEGORIES);
 
 export const TicketsPage: React.FC = () => {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
+  const canSeeIssues = hasPermission('issue_log', 'read');
+  const [dialogTab, setDialogTab] = useState(0);
   const [tickets, setTickets] = useState<any[]>([]);
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<any>(null);
@@ -63,15 +64,19 @@ export const TicketsPage: React.FC = () => {
     priority: 'Medium',
     status: 'Open',
     category: '',
+    productId: '',
     accountId: '',
     slaResponseHours: '',
     slaResolutionHours: '',
   });
+  const [products, setProducts] = useState<any[]>([]);
+  const productName = (id?: string) => products.find((p) => p.id === id)?.name || '';
 
   const { accounts: clientOptions, loading: clientsLoading, error: clientsError, search: searchClients } = useAccountOptions(formData.accountId);
 
   useEffect(() => {
     fetchTickets();
+    api.getProducts(1, 500).then((r) => setProducts(r.data.data || [])).catch(() => setProducts([]));
   }, []);
 
   const fetchTickets = async () => {
@@ -93,6 +98,7 @@ export const TicketsPage: React.FC = () => {
         priority: ticket.priority,
         status: ticket.status,
         category: ticket.category || '',
+        productId: ticket.productId || '',
         accountId: ticket.account.id,
         slaResponseHours: ticket.slaResponseHours?.toString() || '',
         slaResolutionHours: ticket.slaResolutionHours?.toString() || '',
@@ -106,12 +112,14 @@ export const TicketsPage: React.FC = () => {
         priority: 'Medium',
         status: 'Open',
         category: '',
+        productId: '',
         accountId: '',
         slaResponseHours: '',
         slaResolutionHours: '',
       });
     }
     setSaveError('');
+    setDialogTab(0);
     setOpenDialog(true);
   };
 
@@ -123,9 +131,9 @@ export const TicketsPage: React.FC = () => {
     setSaving(true);
     try {
       if (selectedTicket) {
-        await apiClient.patch(`/tickets/${selectedTicket.id}`, formData);
+        await apiClient.patch(`/tickets/${selectedTicket.id}`, { ...formData, productId: formData.productId || null });
       } else {
-        await apiClient.post('/tickets', formData);
+        await apiClient.post('/tickets', { ...formData, productId: formData.productId || null });
       }
       setOpenDialog(false);
       await fetchTickets(); // reload so the client name and ticket number show correctly
@@ -135,6 +143,16 @@ export const TicketsPage: React.FC = () => {
     } finally {
       setSaving(false);
     }
+  };
+
+  const refreshAfterIssueChange = async () => {
+    await fetchTickets();
+    if (!selectedTicket) return;
+    try {
+      const r = await apiClient.get(`/tickets/${selectedTicket.id}`);
+      const t = r.data.data;
+      if (t) { setSelectedTicket(t); setFormData((f) => ({ ...f, status: t.status })); }
+    } catch (e) { console.error('Error refreshing the ticket:', e); }
   };
 
   const handleResolve = async (ticketId: string) => {
@@ -307,6 +325,7 @@ export const TicketsPage: React.FC = () => {
                 <TableRow>
                   <TableCell>Ticket #</TableCell>
                   <TableCell>Title</TableCell>
+                  <TableCell>Product</TableCell>
                   <TableCell>Priority</TableCell>
                   <TableCell>Status</TableCell>
                   <TableCell>Account</TableCell>
@@ -319,7 +338,8 @@ export const TicketsPage: React.FC = () => {
                 {filteredTickets.map((ticket) => (
                   <TableRow key={ticket.id}>
                     <TableCell sx={{ fontWeight: 'bold' }}>{ticket.ticketNumber}</TableCell>
-                    <TableCell>{ticket.title}</TableCell>
+                    <TableCell>{ticket.title}{ticket.category && <Typography variant="caption" color="text.secondary" display="block">{ticket.category}</Typography>}</TableCell>
+                    <TableCell>{productName(ticket.productId) || '-'}</TableCell>
                     <TableCell>
                       <Chip label={ticket.priority} color={getPriorityColor(ticket.priority)} size="small" />
                     </TableCell>
@@ -429,9 +449,20 @@ export const TicketsPage: React.FC = () => {
           </Box>
         )}
 
-        <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="sm" fullWidth>
+        <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="md" fullWidth>
           <DialogTitle>{selectedTicket ? 'Edit Ticket' : 'New Ticket'}</DialogTitle>
           <DialogContent sx={{ pt: 2 }}>
+            {canSeeIssues && (
+              <Tabs value={dialogTab} onChange={(_, v) => setDialogTab(v)} sx={{ mb: 2, borderBottom: 1, borderColor: 'divider' }}>
+                <Tab label="Details" />
+                <Tab label="Issues" disabled={!selectedTicket} />
+              </Tabs>
+            )}
+            {canSeeIssues && !selectedTicket && <Alert severity="info" sx={{ mb: 2 }}>Save the ticket first, then open it again to add its issues as a checklist.</Alert>}
+            {dialogTab === 1 && selectedTicket ? (
+              <TicketIssuesPanel ticketId={selectedTicket.id} ticketStatus={formData.status} onTicketChanged={refreshAfterIssueChange} />
+            ) : (
+              <>
             <TextField
               fullWidth
               label="Ticket Number"
@@ -510,6 +541,18 @@ export const TicketsPage: React.FC = () => {
             </TextField>
             <TextField
               fullWidth
+              select
+              label="Product"
+              value={formData.productId}
+              onChange={(e) => setFormData({ ...formData, productId: e.target.value })}
+              helperText={products.length === 0 ? 'No products yet - add them under Masters → Products' : 'Which product this issue is about'}
+              sx={{ mb: 2 }}
+            >
+              <MenuItem value="">Not set</MenuItem>
+              {products.map((pr) => <MenuItem key={pr.id} value={pr.id}>{pr.name}</MenuItem>)}
+            </TextField>
+            <TextField
+              fullWidth
               label="SLA Response Hours"
               type="number"
               value={formData.slaResponseHours}
@@ -523,12 +566,14 @@ export const TicketsPage: React.FC = () => {
               value={formData.slaResolutionHours}
               onChange={(e) => setFormData({ ...formData, slaResolutionHours: e.target.value })}
             />
+              </>
+            )}
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
-            <Button onClick={handleSave} variant="contained" disabled={saving}>
+            <Button onClick={() => setOpenDialog(false)}>{dialogTab === 1 ? 'Close' : 'Cancel'}</Button>
+            {dialogTab === 0 && <Button onClick={handleSave} variant="contained" disabled={saving}>
               {saving ? 'Saving…' : 'Save'}
-            </Button>
+            </Button>}
           </DialogActions>
         </Dialog>
       </Box>

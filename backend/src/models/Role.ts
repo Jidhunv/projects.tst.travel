@@ -22,6 +22,10 @@ export class Role {
   @Column()
   description: string;
 
+  // Functions this role belongs to (Sales, Operations, Development, Finance, Support).
+  @Column('simple-array', { nullable: true })
+  departments: string[] | null;
+
   @OneToMany(() => User, (user) => user.role)
   users: User[];
 

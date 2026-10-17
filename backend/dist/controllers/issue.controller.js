@@ -30,6 +30,17 @@ class IssueController {
     async workflow(_req, res) {
         res.json({ success: true, data: { stages: [...issueWorkflow_1.ISSUE_STAGES], onHold: issueWorkflow_1.STAGE_ON_HOLD, cancelled: issueWorkflow_1.STAGE_CANCELLED, help: issueWorkflow_1.STAGE_HELP } });
     }
+    // Who an issue can be assigned to (Development staff). Open to anyone who can see the issue log,
+    // because /api/users is limited to administrators.
+    async assignees(req, res, next) {
+        try {
+            need(req, 'read', 'view the issue log');
+            res.json({ success: true, data: await issue_service_1.default.listAssignees() });
+        }
+        catch (e) {
+            next(e);
+        }
+    }
     async clients(req, res, next) {
         try {
             const scope = need(req, 'read', 'view the issue log');

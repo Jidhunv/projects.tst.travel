@@ -12,6 +12,8 @@ export interface IssueFilters {
 }
 declare class IssueService {
     private issues;
+    listAssignees(): Promise<any>;
+    private assertDeveloper;
     syncTicket(ticketId: string, actorId?: string): Promise<{
         status: string | null;
         changed: boolean;

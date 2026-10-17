@@ -2,6 +2,7 @@ import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../middleware/auth';
 export declare class IssueController {
     workflow(_req: AuthRequest, res: Response): Promise<void>;
+    assignees(req: AuthRequest, res: Response, next: NextFunction): Promise<void>;
     clients(req: AuthRequest, res: Response, next: NextFunction): Promise<void>;
     list(req: AuthRequest, res: Response, next: NextFunction): Promise<void>;
     slaReport(req: AuthRequest, res: Response, next: NextFunction): Promise<void>;

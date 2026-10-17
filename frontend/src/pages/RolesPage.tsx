@@ -23,6 +23,7 @@ import {
 } from '@mui/material';
 import Layout from '@components/Layout';
 import { apiClient } from '../services/api';
+import DepartmentPicker from '@components/DepartmentPicker';
 
 export const RolesPage: React.FC = () => {
   const [roles, setRoles] = useState<any[]>([]);
@@ -34,6 +35,7 @@ export const RolesPage: React.FC = () => {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
+    departments: [] as string[],
   });
 
   useEffect(() => {
@@ -65,12 +67,14 @@ export const RolesPage: React.FC = () => {
       setFormData({
         name: role.name,
         description: role.description || '',
+        departments: role.departments || [],
       });
     } else {
       setSelectedRole(null);
       setFormData({
         name: '',
         description: '',
+        departments: [],
       });
     }
     setOpenDialog(true);
@@ -190,6 +194,7 @@ export const RolesPage: React.FC = () => {
                 <TableRow>
                   <TableCell>Role Name</TableCell>
                   <TableCell>Description</TableCell>
+                  <TableCell>Departments</TableCell>
                   <TableCell>Permissions</TableCell>
                   <TableCell>Actions</TableCell>
                 </TableRow>
@@ -199,6 +204,11 @@ export const RolesPage: React.FC = () => {
                   <TableRow key={role.id}>
                     <TableCell sx={{ fontWeight: 'bold' }}>{role.name}</TableCell>
                     <TableCell>{role.description || '-'}</TableCell>
+                    <TableCell>
+                      {(role.departments || []).length
+                        ? (role.departments as string[]).map((d) => <Chip key={d} label={d} size="small" color={d === 'Development' ? 'primary' : 'default'} sx={{ mr: 0.5 }} />)
+                        : '-'}
+                    </TableCell>
                     <TableCell>
                       <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
                         {role.permissions?.slice(0, 3).map((perm: any) => (
@@ -256,6 +266,12 @@ export const RolesPage: React.FC = () => {
               rows={3}
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              sx={{ mb: 2 }}
+            />
+            <DepartmentPicker
+              value={formData.departments}
+              onChange={(v) => setFormData({ ...formData, departments: v })}
+              helperText="Which function this role works in. Roles marked Development supply the people issues can be assigned to."
             />
           </DialogContent>
           <DialogActions>

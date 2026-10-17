@@ -7,6 +7,7 @@ import { AuthRequest } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
 import pick from '../utils/pick';
 import logger from '../utils/logger';
+import { cleanDepartments } from '../utils/departments';
 import { PasswordValidator } from '../utils/passwordValidator';
 
 
@@ -21,6 +22,8 @@ const toUserResponse = (user: User, teamIds: string[] = [], supervisedTeamIds: s
   isActive: user.isActive,
   role: user.role?.name,
   roleId: user.roleId,
+  departments: user.departments || [],            // this person's own (may be empty)
+  roleDepartments: user.role?.departments || [],  // inherited from the role when none are set
   teamIds,             // teams this user is a MEMBER of
   supervisedTeamIds,   // teams this user SUPERVISES
 });
@@ -29,6 +32,8 @@ export class UserController {
   async createUser(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { email, password, firstName, lastName, phoneNumber, roleId } = req.body;
+      let departments: string[] = [];
+      try { departments = cleanDepartments(req.body.departments); } catch (e: any) { throw new AppError(400, e.message); }
 
       if (!email || !password || !firstName || !lastName || !roleId) {
         throw new AppError(400, 'email, password, firstName, lastName and roleId are required');
@@ -49,6 +54,7 @@ export class UserController {
         lastName,
         phoneNumber,
         roleId,
+        departments,
       });
 
       // Fetch full user with role to return in response
@@ -139,6 +145,9 @@ export class UserController {
       const allowed = ['firstName', 'lastName', 'phoneNumber', 'email', 'isActive',
         'emailNotificationsEnabled', 'emailNotificationPreferences'];
       const updates: any = pick(req.body, allowed);
+      if ('departments' in req.body) {
+        try { updates.departments = cleanDepartments(req.body.departments); } catch (e: any) { throw new AppError(400, e.message); }
+      }
 
       // Only Admins may (re)assign roles — prevents privilege escalation by Managers.
       if ('roleId' in req.body) {

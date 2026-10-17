@@ -7,7 +7,7 @@ class RoleService {
   private roleRepository = AppDataSource.getRepository(Role);
   private permissionRepository = AppDataSource.getRepository(Permission);
 
-  async createRole(data: { name: string; description?: string }): Promise<Role> {
+  async createRole(data: { name: string; description?: string; departments?: string[] }): Promise<Role> {
     const existingRole = await this.roleRepository.findOne({
       where: { name: data.name },
     });
@@ -40,7 +40,7 @@ class RoleService {
     return role;
   }
 
-  async updateRole(id: string, data: { name?: string; description?: string }): Promise<Role> {
+  async updateRole(id: string, data: { name?: string; description?: string; departments?: string[] }): Promise<Role> {
     const role = await this.getRoleById(id);
 
     if (data.name && data.name !== role.name) {

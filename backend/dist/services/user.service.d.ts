@@ -8,6 +8,7 @@ export declare class UserService {
         lastName: string;
         phoneNumber?: string;
         roleId: string;
+        departments?: string[];
     }): Promise<User>;
     getUserById(id: string): Promise<User>;
     getUserByEmail(email: string): Promise<User>;

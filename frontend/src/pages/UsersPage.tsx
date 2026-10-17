@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import DepartmentPicker from '@components/DepartmentPicker';
 import {
   Table,
   TableBody,
@@ -38,6 +39,7 @@ export const UsersPage: React.FC = () => {
     lastName: '',
     phoneNumber: '',
     roleId: '',
+    departments: [] as string[],
     supervisedTeamIds: [] as string[],
     password: '',
   });
@@ -86,6 +88,7 @@ export const UsersPage: React.FC = () => {
         lastName: user.lastName,
         phoneNumber: user.phoneNumber || '',
         roleId: user.roleId || '',
+        departments: user.departments || [],
         supervisedTeamIds: user.supervisedTeamIds || [],
         password: '',
       });
@@ -97,6 +100,7 @@ export const UsersPage: React.FC = () => {
         lastName: '',
         phoneNumber: '',
         roleId: '',
+        departments: [],
         supervisedTeamIds: [],
         password: '',
       });
@@ -112,6 +116,7 @@ export const UsersPage: React.FC = () => {
           lastName: formData.lastName,
           phoneNumber: formData.phoneNumber,
           roleId: formData.roleId,
+          departments: formData.departments,
           supervisedTeamIds: formData.supervisedTeamIds,
         };
         // Only send the password when the admin actually set one, so we don't
@@ -131,6 +136,7 @@ export const UsersPage: React.FC = () => {
           lastName: formData.lastName,
           phoneNumber: formData.phoneNumber,
           roleId: formData.roleId,
+          departments: formData.departments,
           password: formData.password,
         };
         const response = await apiClient.post('/users', createData);
@@ -411,6 +417,14 @@ export const UsersPage: React.FC = () => {
                 </MenuItem>
               ))}
             </TextField>
+            <DepartmentPicker
+              value={formData.departments}
+              onChange={(v) => setFormData({ ...formData, departments: v })}
+              helperText={(() => {
+                const inherited = (roles.find((r) => r.id === formData.roleId)?.departments || []) as string[];
+                return formData.departments.length ? 'This person\'s own departments (they override the role\'s).' : inherited.length ? `Not set here, so the role's departments apply: ${inherited.join(', ')}.` : 'Optional. Tick Development to make this person assignable to issues.';
+              })()}
+            />
             <TextField
               fullWidth
               label="Supervises Teams"

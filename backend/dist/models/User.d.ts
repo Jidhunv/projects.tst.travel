@@ -10,6 +10,7 @@ export declare class User {
     firstName: string;
     lastName: string;
     phoneNumber: string;
+    departments: string[] | null;
     isActive: boolean;
     resetToken: string;
     resetTokenExpiry: Date;

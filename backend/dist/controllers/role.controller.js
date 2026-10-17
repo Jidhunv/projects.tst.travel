@@ -7,6 +7,15 @@ exports.RoleController = void 0;
 const role_service_1 = __importDefault(require("../services/role.service"));
 const errorHandler_1 = require("../middleware/errorHandler");
 const logger_1 = __importDefault(require("../utils/logger"));
+const departments_1 = require("../utils/departments");
+const departmentsFrom = (body) => {
+    try {
+        return (0, departments_1.cleanDepartments)(body?.departments);
+    }
+    catch (e) {
+        throw new errorHandler_1.AppError(400, e.message);
+    }
+};
 class RoleController {
     async createRole(req, res, next) {
         try {
@@ -14,7 +23,7 @@ class RoleController {
             if (!name) {
                 throw new errorHandler_1.AppError(400, 'Role name is required');
             }
-            const role = await role_service_1.default.createRole({ name, description });
+            const role = await role_service_1.default.createRole({ name, description, departments: departmentsFrom(req.body) });
             logger_1.default.info(`Role created: ${role.name} by ${req.user?.email}`);
             return res.status(201).json({ success: true, data: role });
         }
@@ -46,7 +55,10 @@ class RoleController {
             if (!name) {
                 throw new errorHandler_1.AppError(400, 'Role name is required');
             }
-            const role = await role_service_1.default.updateRole(req.params.id, { name, description });
+            const update = { name, description };
+            if ('departments' in req.body)
+                update.departments = departmentsFrom(req.body);
+            const role = await role_service_1.default.updateRole(req.params.id, update);
             logger_1.default.info(`Role updated: ${role.name} by ${req.user?.email}`);
             return res.json({ success: true, data: role });
         }

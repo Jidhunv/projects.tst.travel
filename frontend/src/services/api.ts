@@ -287,6 +287,7 @@ export const api = {
   getTextStatus: () => apiClient.get<ApiResponse<any>>('/text/status'),
 
   // Client issue log (issues inside tickets, with stage tracking)
+  getIssueAssignees: () => apiClient.get<ApiResponse<any[]>>('/issues/assignees'),
   getIssueWorkflow: () => apiClient.get<ApiResponse<any>>('/issues/workflow'),
   getIssueClients: (filters?: Record<string, any>) => apiClient.get<any>('/issues/clients', { params: filters }),
   getIssues: (filters?: Record<string, any>) => apiClient.get<PaginatedResponse<any>>('/issues', { params: filters }),

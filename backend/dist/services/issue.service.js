@@ -9,9 +9,20 @@ const issueWorkflow_1 = require("../utils/issueWorkflow");
 const issueSla_2 = require("../utils/issueSla");
 const PRIORITIES = [...issueSla_2.PRIORITIES];
 const num = (v) => Number(v || 0);
+// A person's departments are their own if set, otherwise their role's.
+const DEV_FILTER = `u."isActive" = TRUE AND 'Development' = ANY(string_to_array(COALESCE(NULLIF(u.departments, ''), NULLIF(r.departments, ''), ''), ','))`;
 class IssueService {
     constructor() {
         this.issues = () => database_1.AppDataSource.getRepository(TicketIssue_1.TicketIssue);
+    }
+    // The people an issue can be assigned to: staff in the Development department.
+    async listAssignees() {
+        return database_1.AppDataSource.query(`SELECT u.id, u."firstName", u."lastName" FROM users u JOIN roles r ON r.id = u."roleId" WHERE ${DEV_FILTER} ORDER BY u."firstName", u."lastName"`);
+    }
+    async assertDeveloper(userId) {
+        const ok = await database_1.AppDataSource.query(`SELECT 1 FROM users u JOIN roles r ON r.id = u."roleId" WHERE u.id = $1 AND ${DEV_FILTER}`, [userId]);
+        if (!ok.length)
+            throw new errorHandler_1.AppError(400, 'Issues can only be assigned to people in the Development department. Set a person\'s (or their role\'s) department to Development first.');
     }
     // Keeps the ticket's status in step with its issues. When the last open issue
     // finishes the ticket closes; if an issue is reopened or added, it reopens.
@@ -46,17 +57,21 @@ class IssueService {
         const [ticket] = await database_1.AppDataSource.query('SELECT id FROM tickets WHERE id = $1', [data.ticketId]);
         if (!ticket)
             throw new errorHandler_1.AppError(404, 'Ticket not found');
-        if (data.assigneeId && !(await database_1.AppDataSource.query('SELECT 1 FROM users WHERE id = $1', [data.assigneeId])).length)
-            throw new errorHandler_1.AppError(400, 'That assignee does not exist');
+        if (data.assigneeId)
+            await this.assertDeveloper(data.assigneeId);
+        // Timestamps are set here from one clock instead of the database default. The database may run in a
+        // different time zone from this server, and a "timestamp without time zone" column would then be read
+        // back hours off - which would corrupt response and resolution times.
+        const now = new Date();
         return database_1.AppDataSource.transaction(async (m) => {
             // Lock the ticket row so two people adding at once cannot take the same number.
             await m.query('SELECT id FROM tickets WHERE id = $1 FOR UPDATE', [data.ticketId]);
             const [{ n }] = await m.query('SELECT COALESCE(MAX("issueNumber"), 0) + 1 AS n FROM ticket_issues WHERE "ticketId" = $1', [data.ticketId]);
             const issue = await m.getRepository(TicketIssue_1.TicketIssue).save(m.getRepository(TicketIssue_1.TicketIssue).create({
                 ticketId: data.ticketId, issueNumber: num(n), title: data.title.trim(), description: data.description?.trim() || null,
-                priority, stage: 'Logged', assigneeId: data.assigneeId || null, createdById: actorId,
+                priority, stage: 'Logged', assigneeId: data.assigneeId || null, createdById: actorId, createdAt: now, updatedAt: now,
             }));
-            await m.getRepository(TicketIssueHistory_1.TicketIssueHistory).save(m.getRepository(TicketIssueHistory_1.TicketIssueHistory).create({ issueId: issue.id, fromStage: null, toStage: 'Logged', note: 'Issue logged', actorId }));
+            await m.getRepository(TicketIssueHistory_1.TicketIssueHistory).save(m.getRepository(TicketIssueHistory_1.TicketIssueHistory).create({ issueId: issue.id, fromStage: null, toStage: 'Logged', note: 'Issue logged', actorId, createdAt: now }));
             return issue;
         }).then(async (issue) => {
             const sync = await this.syncTicket(issue.ticketId, actorId);
@@ -81,11 +96,11 @@ class IssueService {
             patch.priority = data.priority;
         }
         if (data.assigneeId !== undefined) {
-            if (data.assigneeId && !(await database_1.AppDataSource.query('SELECT 1 FROM users WHERE id = $1', [data.assigneeId])).length)
-                throw new errorHandler_1.AppError(400, 'That assignee does not exist');
+            if (data.assigneeId)
+                await this.assertDeveloper(data.assigneeId);
             patch.assigneeId = data.assigneeId || null;
         }
-        await this.issues().update(id, patch);
+        await this.issues().update(id, { ...patch, updatedAt: new Date() });
         return this.issues().findOne({ where: { id } });
     }
     async moveStage(id, input, actorId) {
@@ -94,19 +109,19 @@ class IssueService {
             throw new errorHandler_1.AppError(404, 'Issue not found');
         let assigneeId = issue.assigneeId;
         if (input.assigneeId) {
-            if (!(await database_1.AppDataSource.query('SELECT 1 FROM users WHERE id = $1', [input.assigneeId])).length)
-                throw new errorHandler_1.AppError(400, 'That assignee does not exist');
+            await this.assertDeveloper(input.assigneeId);
             assigneeId = input.assigneeId;
         }
         const err = (0, issueWorkflow_1.checkTransition)({ from: issue.stage, to: input.toStage, note: input.note, customerContact: input.customerContact, hasAssignee: !!assigneeId });
         if (err)
             throw new errorHandler_1.AppError(400, err);
         const finished = (0, issueWorkflow_1.isFinished)(input.toStage);
+        const now = new Date();
         await database_1.AppDataSource.transaction(async (m) => {
-            await m.getRepository(TicketIssue_1.TicketIssue).update(id, { stage: input.toStage, assigneeId, closedAt: finished ? new Date() : null });
+            await m.getRepository(TicketIssue_1.TicketIssue).update(id, { stage: input.toStage, assigneeId, closedAt: finished ? now : null, updatedAt: now });
             await m.getRepository(TicketIssueHistory_1.TicketIssueHistory).save(m.getRepository(TicketIssueHistory_1.TicketIssueHistory).create({
                 issueId: id, fromStage: issue.stage, toStage: input.toStage, note: input.note?.trim() || null,
-                customerContact: input.customerContact?.trim() || null, actorId,
+                customerContact: input.customerContact?.trim() || null, actorId, createdAt: now,
             }));
         });
         const sync = await this.syncTicket(issue.ticketId, actorId);
@@ -141,9 +156,9 @@ class IssueService {
         if (f.stage && issueWorkflow_1.ALL_STAGES.includes(f.stage))
             conds.push(`i.stage = ${p(f.stage)}`);
         if (f.state === 'open')
-            conds.push(`i.stage NOT IN ('Closed','Cancelled')`);
+            conds.push(`i.stage NOT IN ('Deployed','Cancelled')`);
         if (f.state === 'closed')
-            conds.push(`i.stage IN ('Closed','Cancelled')`);
+            conds.push(`i.stage IN ('Deployed','Cancelled')`);
         if (f.assigneeId)
             conds.push(`i."assigneeId" = ${p(f.assigneeId)}`);
         if (f.search?.trim()) {
@@ -159,9 +174,11 @@ class IssueService {
                   LEFT JOIN users u ON u.id = i."assigneeId" ${w}`;
         const [{ n }] = await database_1.AppDataSource.query(`SELECT COUNT(*) n ${base}`, args);
         const rows = await database_1.AppDataSource.query(`SELECT i.id, i."ticketId", i."issueNumber", i.title, i.description, i.priority, i.stage, i."assigneeId", i."closedAt",
-              i."createdAt", i."updatedAt", t."ticketNumber", t.title AS "ticketTitle", t.status AS "ticketStatus",
+              i."createdAt", i."updatedAt",
+              (SELECT MIN(h."createdAt") FROM ticket_issue_history h WHERE h."issueId" = i.id AND h."toStage" = 'Deployed') AS "resolvedAt",
+              t."ticketNumber", t.title AS "ticketTitle", t.status AS "ticketStatus",
               t."accountId", a.name AS "accountName", u."firstName" || ' ' || u."lastName" AS "assigneeName"
-       ${base} ORDER BY (i.stage IN ('Closed','Cancelled')) ASC, t."createdAt" DESC, i."issueNumber" ASC
+       ${base} ORDER BY (i.stage IN ('Deployed','Cancelled')) ASC, t."createdAt" DESC, i."issueNumber" ASC
        LIMIT ${limit} OFFSET ${(page - 1) * limit}`, args);
         return { rows, total: num(n), page, limit };
     }
@@ -182,12 +199,12 @@ class IssueService {
               COUNT(DISTINCT t.id) AS tickets,
               COUNT(DISTINCT t.id) FILTER (WHERE t.status <> 'Closed') AS "openTickets",
               COUNT(i.id) AS total,
-              COUNT(i.id) FILTER (WHERE i.stage IN ('Closed','Cancelled')) AS closed,
-              COUNT(i.id) FILTER (WHERE i.stage NOT IN ('Closed','Cancelled') AND i.priority IN ('Critical','High')) AS "urgentOpen",
-              COUNT(i.id) FILTER (WHERE i.stage IN ('Customer acceptance','Customer feedback')) AS "waitingOnCustomer",
+              COUNT(i.id) FILTER (WHERE i.stage IN ('Deployed','Cancelled')) AS closed,
+              COUNT(i.id) FILTER (WHERE i.stage NOT IN ('Deployed','Cancelled') AND i.priority IN ('Critical','High')) AS "urgentOpen",
+              COUNT(i.id) FILTER (WHERE i.stage IN ('User acceptance')) AS "waitingOnCustomer",
               MAX(i."updatedAt") AS "lastUpdate"
        FROM ticket_issues i JOIN tickets t ON t.id = i."ticketId" JOIN accounts a ON a.id = t."accountId"
-       ${w} GROUP BY a.id, a.name ORDER BY (COUNT(i.id) FILTER (WHERE i.stage NOT IN ('Closed','Cancelled'))) DESC, a.name`, args);
+       ${w} GROUP BY a.id, a.name ORDER BY (COUNT(i.id) FILTER (WHERE i.stage NOT IN ('Deployed','Cancelled'))) DESC, a.name`, args);
         return rows.map((r) => {
             const total = num(r.total), closed = num(r.closed);
             return { ...r, tickets: num(r.tickets), openTickets: num(r.openTickets), total, closed, open: total - closed,
@@ -228,9 +245,9 @@ class IssueService {
         if (f.assigneeId)
             conds.push(`i."assigneeId" = ${p(f.assigneeId)}`);
         if (f.state === 'open')
-            conds.push(`i.stage NOT IN ('Closed','Cancelled')`);
+            conds.push(`i.stage NOT IN ('Deployed','Cancelled')`);
         if (f.state === 'closed')
-            conds.push(`i.stage IN ('Closed','Cancelled')`);
+            conds.push(`i.stage IN ('Deployed','Cancelled')`);
         if (f.scopeUserId) {
             const u = p(f.scopeUserId);
             conds.push(`(i."assigneeId" = ${u} OR i."createdById" = ${u})`);
@@ -257,7 +274,7 @@ class IssueService {
                 transitions: byIssue.get(i.id) || [{ toStage: 'Logged', at: loggedAt }],
                 ticketResponseHours: i.slaResponseHours, ticketResolutionHours: i.slaResolutionHours,
             }, now);
-            const finished = i.stage === 'Closed' || i.stage === 'Cancelled';
+            const finished = i.stage === 'Deployed' || i.stage === 'Cancelled';
             return {
                 id: i.id, issueNumber: i.issueNumber, title: i.title, priority: i.priority, stage: i.stage, ticketNumber: i.ticketNumber, ticketTitle: i.ticketTitle,
                 accountId: i.accountId, accountName: i.accountName, assigneeId: i.assigneeId, assigneeName: i.assigneeName,

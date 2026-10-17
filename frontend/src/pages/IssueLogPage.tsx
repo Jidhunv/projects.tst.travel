@@ -8,21 +8,9 @@ import { ArrowBack as BackIcon, Delete as DeleteIcon, Edit as EditIcon, History 
 import VoiceTextField from '@components/VoiceTextField';
 import Layout from '@components/Layout';
 import IssueSlaReport from '@components/IssueSlaReport';
+import { errMsg, fmt, openDays, stageColor, PRIORITY_COLOR, TICKET_COLOR, MoveDialog, StageSteps, Workflow } from '@components/IssueParts';
 import { api } from '@services/api';
 import useAuth from '@hooks/useAuth';
-
-const errMsg = (e: any, fb: string) => e?.response?.data?.error || e?.response?.data?.message || e?.message || fb;
-const openDays = (from: any, to: any) => {
-  const d = (new Date(to || Date.now()).getTime() - new Date(from).getTime()) / 86_400_000;
-  return d < 1 ? `${Math.max(0, Math.round(d * 24))} h` : `${Math.round(d * 10) / 10} d`;
-};
-const fmt = (v: any) => (v ? new Date(v).toLocaleString(undefined, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-');
-const PRIORITY_COLOR: Record<string, 'error' | 'warning' | 'info' | 'default'> = { Critical: 'error', High: 'warning', Medium: 'info', Low: 'default' };
-const TICKET_COLOR: Record<string, 'success' | 'warning' | 'info' | 'default'> = { Closed: 'success', 'In Progress': 'info', 'Pending Customer': 'warning', Open: 'default', Resolved: 'success' };
-
-interface Workflow { stages: string[]; onHold: string; cancelled: string; help: Record<string, string> }
-const stageColor = (s: string): 'success' | 'warning' | 'info' | 'default' | 'primary' | 'error' =>
-  s === 'Closed' ? 'success' : s === 'Cancelled' ? 'default' : s === 'On hold' ? 'error' : s.startsWith('Customer') || s === 'Approved for deployment' ? 'warning' : s === 'Logged' ? 'default' : 'primary';
 
 // Client issue log: every client's tickets broken into issues, each with its stage, so everyone sees what is open and what is done.
 export default function IssueLogPage() {
@@ -42,7 +30,7 @@ export default function IssueLogPage() {
   const [tab, setTab] = React.useState(0);
 
   React.useEffect(() => { api.getIssueWorkflow().then((r) => setWf(r.data.data)).catch((e) => setError(errMsg(e, 'Could not load the workflow'))); }, []);
-  React.useEffect(() => { api.getUsers(1, 500).then((r) => setStaff(r.data.data || [])).catch(() => setStaff([])); }, []);
+  React.useEffect(() => { api.getIssueAssignees().then((r) => setStaff(r.data.data || [])).catch(() => setStaff([])); }, []);
 
   const loadClients = React.useCallback(async () => {
     setLoading(true);
@@ -55,7 +43,8 @@ export default function IssueLogPage() {
   }, [search]);
   React.useEffect(() => { const t = setTimeout(loadClients, 250); return () => clearTimeout(t); }, [loadClients]);
 
-  const assignees = staff.length ? staff : user ? [{ id: user.id, firstName: user.firstName, lastName: user.lastName }] : [];
+  // Only Development staff can be assigned issues.
+  const assignees = staff;
 
   return (
     <Layout>
@@ -238,7 +227,7 @@ function ClientDetail({ client, wf, staff, canCreate, canUpdate, canDelete, setE
       {account && groups.length === 0 && !loading && <Alert severity="info">No issues match. {canCreate ? 'Use “Log issue” to add one.' : ''}</Alert>}
 
       {groups.map((g) => {
-        const done = g.items.filter((i: any) => i.stage === 'Closed' || i.stage === 'Cancelled').length;
+        const done = g.items.filter((i: any) => i.stage === 'Deployed' || i.stage === 'Cancelled').length;
         return (
           <Card key={g.ticketId} sx={{ mb: 2 }}>
             <CardContent>
@@ -274,7 +263,7 @@ function ClientDetail({ client, wf, staff, canCreate, canUpdate, canDelete, setE
                           <TableCell><Chip size="small" color={PRIORITY_COLOR[i.priority]} label={i.priority} /></TableCell>
                           <TableCell>
                             <Chip size="small" color={stageColor(i.stage)} label={i.stage} />
-                            {wf && idx >= 0 && <LinearProgress variant="determinate" value={((idx + 1) / wf.stages.length) * 100} color={stageColor(i.stage) === 'default' ? 'inherit' : (stageColor(i.stage) as any)} sx={{ height: 5, borderRadius: 1, mt: 0.5 }} />}
+                            <StageSteps stage={i.stage} />
                           </TableCell>
                           <TableCell>{i.assigneeName || <Typography variant="body2" color="text.secondary">Unassigned</Typography>}</TableCell>
                           <TableCell sx={{ whiteSpace: 'nowrap' }}>{fmt(i.createdAt)}</TableCell>
@@ -314,59 +303,6 @@ function ClientDetail({ client, wf, staff, canCreate, canUpdate, canDelete, setE
         </Dialog>
       )}
     </>
-  );
-}
-
-function MoveDialog({ issue, wf, staff, onClose, onDone }: { issue: any; wf: Workflow; staff: any[]; onClose: () => void; onDone: (m: string) => void }) {
-  const idx = wf.stages.indexOf(issue.stage);
-  // Offer the next stage first, then earlier ones (rework), then hold / cancel.
-  const next = idx >= 0 && idx < wf.stages.length - 1 ? [wf.stages[idx + 1]] : [];
-  const earlier = idx > 0 ? wf.stages.slice(0, idx) : [];
-  const options = issue.stage === wf.onHold ? wf.stages.slice(0, wf.stages.length - 1) : [...next, ...earlier];
-  const more = [issue.stage !== wf.onHold ? wf.onHold : null, wf.cancelled].filter(Boolean) as string[];
-  const [to, setTo] = React.useState(options[0] || '');
-  const [note, setNote] = React.useState('');
-  const [contact, setContact] = React.useState('');
-  const [assignee, setAssignee] = React.useState(issue.assigneeId || '');
-  const [busy, setBusy] = React.useState(false);
-  const [err, setErr] = React.useState('');
-
-  const needsNote = to === wf.onHold || to === wf.cancelled || issue.stage === wf.onHold || (idx >= 0 && wf.stages.indexOf(to) < idx);
-  const save = async () => {
-    setBusy(true);
-    setErr('');
-    try {
-      const r = await api.moveIssueStage(issue.id, { toStage: to, note, customerContact: contact || undefined, assigneeId: assignee || undefined });
-      onDone(`Moved to "${to}".${r.data.ticketChanged ? ` Ticket is now ${r.data.ticketStatus}.` : ''}`);
-    } catch (e) { setErr(errMsg(e, 'Could not move the issue')); } finally { setBusy(false); }
-  };
-  return (
-    <Dialog open onClose={() => !busy && onClose()} maxWidth="sm" fullWidth>
-      <DialogTitle>Update stage — #{issue.issueNumber} {issue.title}</DialogTitle>
-      <DialogContent>
-        {err && <Alert severity="error" sx={{ mb: 2 }}>{err}</Alert>}
-        <Stack spacing={2} sx={{ mt: 1 }}>
-          <Typography variant="body2">Now: <Chip size="small" color={stageColor(issue.stage)} label={issue.stage} /> {wf.help[issue.stage]}</Typography>
-          <TextField select label="Move to" value={to} onChange={(e) => setTo(e.target.value)} helperText={wf.help[to]}>
-            {options.map((s) => <MenuItem key={s} value={s}>{s}{s === next[0] ? ' (next)' : ' (go back)'}</MenuItem>)}
-            {more.map((s) => <MenuItem key={s} value={s}>{s}</MenuItem>)}
-          </TextField>
-          {to === 'Picked up' && (
-            <TextField select required label="Developer" value={assignee} onChange={(e) => setAssignee(e.target.value)}>
-              {staff.map((u) => <MenuItem key={u.id} value={u.id}>{u.firstName} {u.lastName}</MenuItem>)}
-            </TextField>
-          )}
-          {to === 'Approved for deployment' && (
-            <TextField required label="Customer who accepted and gave permission to deploy" value={contact} onChange={(e) => setContact(e.target.value)} placeholder="e.g. Ali Hassan, IT Manager" />
-          )}
-          <VoiceTextField context="ticket" label={needsNote ? 'Reason (required)' : 'Note (optional)'} multiline minRows={2} required={needsNote} value={note} onChange={setNote} />
-        </Stack>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose} disabled={busy}>Cancel</Button>
-        <Button variant="contained" onClick={save} disabled={busy || !to}>{busy ? 'Saving…' : 'Move'}</Button>
-      </DialogActions>
-    </Dialog>
   );
 }
 

@@ -4,7 +4,7 @@ export declare const SLA_DEFAULTS: Record<string, {
     resolutionHours: number;
 }>;
 export declare const SLA_PAUSE_STAGES: string[];
-export declare const RESOLVED_STAGE = "Deployed to production";
+export declare const RESOLVED_STAGE = "Deployed";
 export interface Transition {
     toStage: string;
     at: Date;

@@ -151,7 +151,7 @@ export default function IssueSlaReport({ staff }: { staff: any[] }) {
 
           <Alert severity="info" variant="outlined" sx={{ mt: 2 }}>
             How it is measured: both clocks start when the issue is logged. <strong>Response</strong> stops at the first action on it; <strong>resolution</strong> stops when it is deployed to production
-            (closing also needs the customer's feedback and is shown separately). The clock is paused while the issue is waiting on the customer (Customer acceptance) or On hold.
+            (closing also needs the customer's feedback and is shown separately). The clock is paused while the issue is waiting on the customer (User acceptance) or On hold.
             Targets come from the ticket's SLA hours when set, otherwise from the priority: {Object.entries(data.rules.defaults).map(([k, v]: any) => `${k} ${v.responseHours}h / ${v.resolutionHours}h`).join(' · ')}. Hours are calendar hours.
           </Alert>
         </Box>

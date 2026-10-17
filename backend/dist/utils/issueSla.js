@@ -3,11 +3,11 @@
 //
 // Two clocks are measured from the moment an issue is logged:
 //   response   - until someone first acts on it (it leaves "Logged")
-//   resolution - until the fix is deployed to production
-// "Closed" is reported too (it also needs the customer's feedback) but is not the SLA point.
+//   resolution - until the item is Deployed (customer accepted, live)
+// Deployed is also when the item closes, so time-to-close equals the resolution time.
 //
 // The SLA clock does not run while the issue is waiting on the customer
-// ("Customer acceptance") or paused ("On hold"): that time is not ours to control.
+// ("User acceptance") or paused ("On hold"): that time is not ours to control.
 // Hours are calendar hours, not working hours.
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.RESOLVED_STAGE = exports.SLA_PAUSE_STAGES = exports.SLA_DEFAULTS = exports.PRIORITIES = void 0;
@@ -24,8 +24,8 @@ exports.SLA_DEFAULTS = {
     Low: { responseHours: 24, resolutionHours: 240 },
 };
 // Stages in which the SLA clock is stopped.
-exports.SLA_PAUSE_STAGES = ['On hold', 'Customer acceptance'];
-exports.RESOLVED_STAGE = 'Deployed to production';
+exports.SLA_PAUSE_STAGES = ['On hold', 'User acceptance'];
+exports.RESOLVED_STAGE = 'Deployed';
 const HOUR = 3600000;
 function slaTargets(priority, ticketResponseHours, ticketResolutionHours) {
     const d = exports.SLA_DEFAULTS[priority] || exports.SLA_DEFAULTS.Medium;
