@@ -115,7 +115,7 @@ services:
     container_name: crm_frontend
 
     environment:
-      VITE_API_URL: ${VITE_API_URL:-http://localhost:3001}
+      VITE_API_URL: ${VITE_API_URL:-/api}
       NODE_ENV: ${NODE_ENV:-production}
 
     ports:

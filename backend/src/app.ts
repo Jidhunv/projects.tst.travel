@@ -23,6 +23,15 @@ const app: Express = express();
 const PORT = process.env.PORT || 3001;
 const isProduction = process.env.NODE_ENV === 'production';
 
+// In production, these must be set to the real site. Without them, email links and
+// CORS would fall back to localhost, so refuse to start instead.
+if (isProduction) {
+  const missing = ['FRONTEND_URL', 'ALLOWED_ORIGINS'].filter((name) => !process.env[name]);
+  if (missing.length) {
+    throw new Error(`Set ${missing.join(' and ')} before starting the backend in production`);
+  }
+}
+
 // Behind a proxy/load balancer, req.ip is the proxy unless we trust the
 // X-Forwarded-For chain -- which would make per-IP rate limiting useless.
 // Opt in explicitly: TRUST_PROXY=1 (hops) or a subnet, never blanket-true.
