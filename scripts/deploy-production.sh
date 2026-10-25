@@ -83,17 +83,26 @@ else
   if table_exists accounts; then OLD_STATE=1; else OLD_STATE=0; fi
 fi
 
+# Order matters:
+#   - Old table names: the fix script uses them, so it runs first, then the table rename.
+#   - Then the schema script (create if not exists) adds anything missing.
+#   - Then the stage, question and handover scripts, which run on every deploy. They
+#     use only the opportunities and questions tables and are safe to run again.
 if [ "$OLD_STATE" = "1" ]; then
-  echo "Old table names found: running the production data scripts, then the rename."
-  for f in PRODUCTION_FIX_2026-10-25_safe PRODUCTION_RENAME_QUALIFICATION_TO_CUSTOMER_ENGAGEMENT PRODUCTION_QUESTIONS_REPLACE_2026-10-25 PRODUCTION_HANDOVER_2026-10-25 RENAME_TABLES_PROSPECTS_LEADS_2026-10-25; do
-    run "\"\${PSQL[@]}\" -f backend/migrations/$f.sql"
-  done
+  echo "Old table names found: running the fix script, then the table rename."
+  run "\"\${PSQL[@]}\" -f backend/migrations/PRODUCTION_FIX_2026-10-25_safe.sql"
+  run "\"\${PSQL[@]}\" -f backend/migrations/RENAME_TABLES_PROSPECTS_LEADS_2026-10-25.sql"
 else
-  echo "New table names (or a new database): no rename needed."
+  echo "New table names (or a new database): no table rename needed."
 fi
 
 say "Schema (create if not exists)"
 run "\"\${PSQL[@]}\" -f backend/migrations/FULL_SCHEMA_2026-10_create_if_not_exists.sql"
+
+say "Production data scripts (safe to run again)"
+run "\"\${PSQL[@]}\" -f backend/migrations/PRODUCTION_RENAME_QUALIFICATION_TO_CUSTOMER_ENGAGEMENT.sql"
+run "\"\${PSQL[@]}\" -f backend/migrations/PRODUCTION_QUESTIONS_REPLACE_2026-10-25.sql"
+run "\"\${PSQL[@]}\" -f backend/migrations/PRODUCTION_HANDOVER_2026-10-25.sql"
 
 # 4. Check
 say "Checking required tables"
@@ -122,7 +131,7 @@ say "Health check"
 if [ "$DRY_RUN" = "1" ]; then
   echo "[dry-run] would check http://127.0.0.1:$PORT/api/health"
 else
-  for i in $(seq 1 30); do
+  for i in $(seq 1 90); do
     code="$(curl -s -m 3 -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT/api/health" || true)"
     [ "$code" = "200" ] && break
     sleep 2
