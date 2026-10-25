@@ -78,3 +78,6 @@ backup_*.sql
 
 # Jest coverage output
 backend/coverage/
+
+# Production deploy output
+backups/
