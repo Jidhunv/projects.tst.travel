@@ -15,7 +15,6 @@
 -- PostgreSQL database dump
 --
 
-\restrict J4dW4BpfuYmjceOcxl4JeTZjaJ1Og5b2iq06EmXPDFqzIqYYja9L9oyvAWZejq6
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -3307,6 +3306,5 @@ END $$;
 -- PostgreSQL database dump complete
 --
 
-\unrestrict J4dW4BpfuYmjceOcxl4JeTZjaJ1Og5b2iq06EmXPDFqzIqYYja9L9oyvAWZejq6
 
 

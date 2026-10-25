@@ -28,6 +28,8 @@ const statements = [];
 let buf = [];
 let inDollar = false;
 for (const line of lines) {
+  // psql-only lines (\restrict, \unrestrict) from pg_dump are dropped: pgAdmin cannot run them.
+  if (line.startsWith('\\')) continue;
   if (buf.length === 0 && (line.trim() === '' || line.startsWith('--'))) {
     statements.push({ text: line, passthrough: true });
     continue;
