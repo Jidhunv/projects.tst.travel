@@ -9,7 +9,26 @@ import bcrypt from 'bcryptjs';
 import logger from '../utils/logger';
 import { countriesData } from '../utils/countriesData';
 
+// The demo passwords must come from the environment. There are no built-in fallbacks.
+function requiredPassword(name: string): string {
+  const value = process.env[name];
+  if (!value || value.length < 12) {
+    throw new Error(`${name} must be set to at least 12 characters to run the seed`);
+  }
+  return value;
+}
+
 async function seed() {
+  // Demo accounts must never be created in production.
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('The seed refuses to run when NODE_ENV=production');
+  }
+  const DEFAULT_PASSWORDS = {
+    admin: requiredPassword('ADMIN_DEFAULT_PASSWORD'),
+    sales: requiredPassword('SALES_DEFAULT_PASSWORD'),
+    manager: requiredPassword('MANAGER_DEFAULT_PASSWORD'),
+  };
+
   await AppDataSource.initialize();
 
   try {
@@ -213,14 +232,7 @@ async function seed() {
 
     logger.info('Roles created');
 
-    // Create demo users with default passwords
-    // SECURITY: These are default demo accounts for development only
-    // In production, use secure random passwords and send via secure email
-    const DEFAULT_PASSWORDS = {
-      admin: process.env.ADMIN_DEFAULT_PASSWORD || 'ChangeMe@Admin2026!',
-      sales: process.env.SALES_DEFAULT_PASSWORD || 'ChangeMe@Sales2026!',
-      manager: process.env.MANAGER_DEFAULT_PASSWORD || 'ChangeMe@Manager2026!',
-    };
+    // Demo accounts for development only. Their passwords come from DEFAULT_PASSWORDS above.
 
     const adminUser = await userRepository.findOne({
       where: { email: 'admin@tst.travel' },

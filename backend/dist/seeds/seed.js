@@ -13,7 +13,24 @@ const Country_1 = require("../models/Country");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const logger_1 = __importDefault(require("../utils/logger"));
 const countriesData_1 = require("../utils/countriesData");
+// The demo passwords must come from the environment. There are no built-in fallbacks.
+function requiredPassword(name) {
+    const value = process.env[name];
+    if (!value || value.length < 12) {
+        throw new Error(`${name} must be set to at least 12 characters to run the seed`);
+    }
+    return value;
+}
 async function seed() {
+    // Demo accounts must never be created in production.
+    if (process.env.NODE_ENV === 'production') {
+        throw new Error('The seed refuses to run when NODE_ENV=production');
+    }
+    const DEFAULT_PASSWORDS = {
+        admin: requiredPassword('ADMIN_DEFAULT_PASSWORD'),
+        sales: requiredPassword('SALES_DEFAULT_PASSWORD'),
+        manager: requiredPassword('MANAGER_DEFAULT_PASSWORD'),
+    };
     await database_1.AppDataSource.initialize();
     try {
         const roleRepository = database_1.AppDataSource.getRepository(Role_1.Role);
@@ -191,14 +208,7 @@ async function seed() {
             await roleRepository.save(repRole);
         }
         logger_1.default.info('Roles created');
-        // Create demo users with default passwords
-        // SECURITY: These are default demo accounts for development only
-        // In production, use secure random passwords and send via secure email
-        const DEFAULT_PASSWORDS = {
-            admin: process.env.ADMIN_DEFAULT_PASSWORD || 'ChangeMe@Admin2026!',
-            sales: process.env.SALES_DEFAULT_PASSWORD || 'ChangeMe@Sales2026!',
-            manager: process.env.MANAGER_DEFAULT_PASSWORD || 'ChangeMe@Manager2026!',
-        };
+        // Demo accounts for development only. Their passwords come from DEFAULT_PASSWORDS above.
         const adminUser = await userRepository.findOne({
             where: { email: 'admin@tst.travel' },
         });

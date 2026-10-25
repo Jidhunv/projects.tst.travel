@@ -44,7 +44,7 @@ Then seed:
 cd backend && npm run seed
 ```
 
-The seed is idempotent (create-if-missing), so re-running it is safe and is how new permissions get added. It creates demo users whose default passwords come from `ADMIN_DEFAULT_PASSWORD` / `SALES_DEFAULT_PASSWORD` / `MANAGER_DEFAULT_PASSWORD`, falling back to `ChangeMe@<Role>2026!`. Because it only creates users that don't exist, **it will not reset a password that has since been changed**.
+The seed is idempotent (create-if-missing), so re-running it is safe and is how new permissions get added. It creates demo users whose default passwords come from `ADMIN_DEFAULT_PASSWORD` / `SALES_DEFAULT_PASSWORD` / `MANAGER_DEFAULT_PASSWORD`. There are no built-in fallbacks: the seed stops if any of them is missing or shorter than 12 characters, and it refuses to run when `NODE_ENV=production`. Because it only creates users that don't exist, **it will not reset a password that has since been changed**.
 
 ## Running
 

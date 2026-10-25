@@ -5,6 +5,13 @@ import logger from '../utils/logger';
 
 const TRACES_DIR = path.join(__dirname, '../../traces');
 
+// Trace ids are UUIDs. Anything else is refused before it is used to build a file path.
+const TRACE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const safeTraceId = (traceId: string): string => {
+  if (!TRACE_ID.test(traceId)) throw new Error('Invalid trace id');
+  return traceId;
+};
+
 // Ensure traces directory exists
 if (!fs.existsSync(TRACES_DIR)) {
   fs.mkdirSync(TRACES_DIR, { recursive: true });
@@ -21,7 +28,7 @@ export class TraceService {
 
       // Also generate DOT for visualization
       const dot = traceToGraphviz(trace);
-      const dotPath = path.join(TRACES_DIR, `${traceId}.dot`);
+      const dotPath = path.join(TRACES_DIR, `${safeTraceId(traceId)}.dot`);
       fs.writeFileSync(dotPath, dot);
 
       logger.debug(`Trace saved: ${filepath}`);
@@ -34,7 +41,7 @@ export class TraceService {
 
   // Get a saved trace
   getTrace(traceId: string): TraceTree | null {
-    const filepath = path.join(TRACES_DIR, `${traceId}.json`);
+    const filepath = path.join(TRACES_DIR, `${safeTraceId(traceId)}.json`);
     if (!fs.existsSync(filepath)) return null;
     const data = fs.readFileSync(filepath, 'utf-8');
     return JSON.parse(data);
@@ -53,7 +60,7 @@ export class TraceService {
 
   // Get DOT representation for visualization
   getTraceDot(traceId: string): string | null {
-    const dotPath = path.join(TRACES_DIR, `${traceId}.dot`);
+    const dotPath = path.join(TRACES_DIR, `${safeTraceId(traceId)}.dot`);
     if (!fs.existsSync(dotPath)) return null;
     return fs.readFileSync(dotPath, 'utf-8');
   }

@@ -154,12 +154,7 @@ function App() {
             clearPasswordChangeRequirement();
           }}
         />
-        <Router
-          future={{
-            v7_startTransition: true,
-            v7_relativeSplatPath: true,
-          }}
-        >
+        <Router>
           <Suspense fallback={<RouteLoadingFallback />}>
           <Routes>
           <Route path="/login" element={<LoginPage />} />

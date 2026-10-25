@@ -36,6 +36,15 @@ export const errorHandler = (
     });
   }
 
+  // Postgres rejects a value of the wrong type (for example a malformed UUID in the URL).
+  // That is a bad request, not a server fault.
+  if ((err as any).code === '22P02') {
+    return res.status(400).json({
+      success: false,
+      error: 'Invalid identifier or value',
+    });
+  }
+
   if ((err as any).type === 'entity.too.large') {
     return res.status(413).json({
       success: false,

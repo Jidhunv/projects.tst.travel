@@ -9,6 +9,13 @@ const path_1 = __importDefault(require("path"));
 const tracer_1 = require("../utils/tracer");
 const logger_1 = __importDefault(require("../utils/logger"));
 const TRACES_DIR = path_1.default.join(__dirname, '../../traces');
+// Trace ids are UUIDs. Anything else is refused before it is used to build a file path.
+const TRACE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const safeTraceId = (traceId) => {
+    if (!TRACE_ID.test(traceId))
+        throw new Error('Invalid trace id');
+    return traceId;
+};
 // Ensure traces directory exists
 if (!fs_1.default.existsSync(TRACES_DIR)) {
     fs_1.default.mkdirSync(TRACES_DIR, { recursive: true });
@@ -23,7 +30,7 @@ class TraceService {
             fs_1.default.writeFileSync(filepath, JSON.stringify(trace, null, 2));
             // Also generate DOT for visualization
             const dot = (0, tracer_1.traceToGraphviz)(trace);
-            const dotPath = path_1.default.join(TRACES_DIR, `${traceId}.dot`);
+            const dotPath = path_1.default.join(TRACES_DIR, `${safeTraceId(traceId)}.dot`);
             fs_1.default.writeFileSync(dotPath, dot);
             logger_1.default.debug(`Trace saved: ${filepath}`);
             return { traceId, filepath, dotPath };
@@ -35,7 +42,7 @@ class TraceService {
     }
     // Get a saved trace
     getTrace(traceId) {
-        const filepath = path_1.default.join(TRACES_DIR, `${traceId}.json`);
+        const filepath = path_1.default.join(TRACES_DIR, `${safeTraceId(traceId)}.json`);
         if (!fs_1.default.existsSync(filepath))
             return null;
         const data = fs_1.default.readFileSync(filepath, 'utf-8');
@@ -53,7 +60,7 @@ class TraceService {
     }
     // Get DOT representation for visualization
     getTraceDot(traceId) {
-        const dotPath = path_1.default.join(TRACES_DIR, `${traceId}.dot`);
+        const dotPath = path_1.default.join(TRACES_DIR, `${safeTraceId(traceId)}.dot`);
         if (!fs_1.default.existsSync(dotPath))
             return null;
         return fs_1.default.readFileSync(dotPath, 'utf-8');
