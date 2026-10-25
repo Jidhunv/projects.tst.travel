@@ -5,9 +5,14 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const opportunity_controller_1 = __importDefault(require("../controllers/opportunity.controller"));
+const questionnaire_controller_1 = __importDefault(require("../controllers/questionnaire.controller"));
 const auth_1 = require("../middleware/auth");
 const router = (0, express_1.Router)();
 router.use(auth_1.verifyToken);
+router.get('/:id/stage-history', (req, res, next) => opportunity_controller_1.default.stageHistory(req, res, next));
+router.get('/:id/questionnaire', (req, res, next) => questionnaire_controller_1.default.get(req, res, next));
+router.put('/:id/questionnaire/:key', (req, res, next) => questionnaire_controller_1.default.save(req, res, next));
+router.get('/:id/questionnaire/:key/history', (req, res, next) => questionnaire_controller_1.default.history(req, res, next));
 router.post('/', (req, res, next) => opportunity_controller_1.default.createOpportunity(req, res, next));
 router.get('/', (req, res, next) => opportunity_controller_1.default.getOpportunities(req, res, next));
 router.get('/:id', (req, res, next) => opportunity_controller_1.default.getOpportunity(req, res, next));

@@ -143,6 +143,6 @@ __decorate([
     __metadata("design:type", Date)
 ], Lead.prototype, "updatedAt", void 0);
 exports.Lead = Lead = __decorate([
-    (0, typeorm_1.Entity)('leads')
+    (0, typeorm_1.Entity)('prospects')
 ], Lead);
 //# sourceMappingURL=Lead.js.map

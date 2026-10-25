@@ -11,6 +11,15 @@ const errorHandler_1 = require("../middleware/errorHandler");
 const constants_1 = require("../utils/constants");
 const pick_1 = __importDefault(require("../utils/pick"));
 const logger_1 = __importDefault(require("../utils/logger"));
+const questionnaire_service_1 = __importDefault(require("../services/questionnaire.service"));
+const stageHistory_service_1 = __importDefault(require("../services/stageHistory.service"));
+const questionnaire_1 = require("../utils/questionnaire");
+// Who is moving the deal, and whether an administrator is overriding a gate with a reason.
+const gateCtx = (req) => ({
+    actorId: req.user.id,
+    isAdmin: req.user?.role === 'Admin',
+    overrideReason: typeof req.body?.overrideReason === 'string' ? req.body.overrideReason : undefined,
+});
 // ownerId/assigneeIds/accountId/convertedFromLeadId/closedAt and timestamps are
 // system-managed; pick() drops them so a raw body cannot reassign or re-parent
 // an opportunity or forge close/creation data.
@@ -35,6 +44,10 @@ class OpportunityController {
             const { name, amount, stage, forecastedCloseDate, accountId, primaryContactId, probability, productIds, productNames, country, city, region, tier, } = req.body;
             if (!name || !amount || !stage || !forecastedCloseDate || !accountId) {
                 throw new errorHandler_1.AppError(400, 'Name, amount, stage, close date, and account are required');
+            }
+            // A new deal starts in Demonstration; later stages are reached by answering each stage's questions.
+            if (stage !== 'Demonstration' && stage !== 'Customer engagement') {
+                throw new errorHandler_1.AppError(400, 'A new opportunity starts in Customer engagement or Demonstration. Answer its questions, then move it forward.');
             }
             const opp = await opportunity_service_1.default.createOpportunity({
                 name,
@@ -64,7 +77,7 @@ class OpportunityController {
     }
     async getOpportunities(req, res, next) {
         try {
-            const { page = 1, limit = 20, stage, status, ownerId, accountId, search, fromDate, toDate, amountFrom, amountTo, region, country, city, products } = req.query;
+            const { page = 1, limit = 20, stage, status, ownerId, accountId, search, fromDate, toDate, amountFrom, amountTo, region, country, city, products, sortBy, sortDir } = req.query;
             // Sales Reps see only their own opportunities; Admin/Manager see all.
             const scope = (0, auth_1.getOwnerScope)(req.user, 'opportunities');
             // If restricted user (scope = user.id), use that. If admin (scope = undefined), use ownerId filter if provided, else undefined.
@@ -132,9 +145,13 @@ class OpportunityController {
             if (!(0, auth_1.canPerformAction)(req.user, 'opportunities', 'update')) {
                 throw new errorHandler_1.AppError(403, 'You do not have permission to update opportunities');
             }
+            // A stage change through the edit form is gated like the dedicated stage endpoint.
+            const target = req.body.status === 'Won' ? questionnaire_1.WON : req.body.status === 'Lost' ? questionnaire_1.LOST : req.body.stage;
+            if (target && target !== opp.stage)
+                await questionnaire_service_1.default.assertGate(id, target, gateCtx(req));
             // Whitelist to prevent mass assignment (ownerId, assigneeIds, timestamps).
             const updates = (0, pick_1.default)(req.body, OPPORTUNITY_UPDATABLE);
-            const updatedOpp = await opportunity_service_1.default.updateOpportunity(id, updates);
+            const updatedOpp = await opportunity_service_1.default.updateOpportunity(id, updates, req.user.id);
             logger_1.default.info(`Opportunity updated: ${updatedOpp.id} by ${req.user.email}`);
             return res.json({
                 success: true,
@@ -171,6 +188,19 @@ class OpportunityController {
             next(error);
         }
     }
+    // The stage timeline of a deal: when it entered each stage, how long it stayed, and who moved it.
+    async stageHistory(req, res, next) {
+        try {
+            const opp = await opportunity_service_1.default.getOpportunityById(req.params.id);
+            if (!(0, auth_1.canAccessRecord)(req.user, 'opportunities', opp.ownerId, 'read', opp.assigneeIds)) {
+                throw new errorHandler_1.AppError(403, 'You can only view timelines for your own opportunities');
+            }
+            res.json({ success: true, data: await stageHistory_service_1.default.timeline(req.params.id) });
+        }
+        catch (error) {
+            next(error);
+        }
+    }
     async updateStage(req, res, next) {
         try {
             const { id } = req.params;
@@ -182,7 +212,9 @@ class OpportunityController {
             if (!(0, auth_1.canAccessRecord)(req.user, 'opportunities', opp.ownerId, 'update', opp.assigneeIds)) {
                 throw new errorHandler_1.AppError(403, 'You can only update your own opportunities');
             }
-            const updatedOpp = await opportunity_service_1.default.updateStage(id, stage);
+            if (stage !== opp.stage)
+                await questionnaire_service_1.default.assertGate(id, stage, gateCtx(req));
+            const updatedOpp = await opportunity_service_1.default.updateStage(id, stage, req.user.id);
             logger_1.default.info(`Opportunity stage updated to ${stage}: ${updatedOpp.id}`);
             return res.json({
                 success: true,
@@ -210,7 +242,10 @@ class OpportunityController {
             if (!(0, auth_1.canAccessRecord)(req.user, 'opportunities', opp.ownerId, 'update', opp.assigneeIds)) {
                 throw new errorHandler_1.AppError(403, 'You can only close your own opportunities');
             }
-            const closedOpp = await opportunity_service_1.default.closeOpportunity(id, outcome, rejectionReason);
+            const closeTarget = outcome === 'Won' ? questionnaire_1.WON : questionnaire_1.LOST;
+            if (closeTarget !== opp.stage)
+                await questionnaire_service_1.default.assertGate(id, closeTarget, gateCtx(req));
+            const closedOpp = await opportunity_service_1.default.closeOpportunity(id, outcome, rejectionReason, req.user.id);
             logger_1.default.info(`Opportunity closed as ${outcome}: ${closedOpp.id} by ${req.user.email}`);
             return res.json({
                 success: true,

@@ -1,69 +1,96 @@
 import React from 'react';
 import {
+  Alert,
   Box,
+  Button,
   Card,
   CardContent,
-  Grid,
-  Typography,
+  Chip,
   CircularProgress,
-  Alert,
+  Grid,
+  Paper,
   Table,
   TableBody,
   TableCell,
   TableHead,
+  TablePagination,
   TableRow,
-  Chip,
+  Typography,
 } from '@mui/material';
-import { Button, MenuItem, Paper, Stack, TablePagination, TextField } from '@mui/material';
 import Layout from '@components/Layout';
+import { SortableHeaderCell, sortRows, SortState } from '@components/SortControl';
+import ReportFilterBar, {
+  EMPTY_REPORT_FILTERS,
+  ReportFilterField,
+  ReportFilters,
+  reportParams,
+  useReportOptions,
+} from '@components/ReportFilterBar';
 import { api } from '@services/api';
 import { formatCurrency } from '@utils/format';
 import { exportToCsv } from '@utils/exportCsv';
 import useAuth from '@hooks/useAuth';
 import { usePagedReport } from '@hooks/usePagedReport';
 
-export default function ReportsPage() {
-  const { user } = useAuth();
-  const [mis, setMis] = React.useState<any>(null);
-  const [loading, setLoading] = React.useState(true);
+const PIPELINE_GETTERS: Record<string, (row: any) => unknown> = { stage: (s) => s.stage, count: (s) => s.count, totalValue: (s) => s.totalValue, weightedValue: (s) => s.weightedValue };
+const LOSS_GETTERS: Record<string, (row: any) => unknown> = { reason: (r) => r.reason, count: (r) => r.count, value: (r) => r.value };
+const PERF_GETTERS: Record<string, (row: any) => unknown> = { name: (o) => o.ownerName, open: (o) => o.openValue, won: (o) => o.wonValue, winRate: (o) => o.winRate };
+const SUMMARY_FIELDS: ReportFilterField[] = ['dates', 'salesperson', 'country', 'region'];
+const LIST_FIELDS: ReportFilterField[] = ['search', 'dates', 'salesperson', 'country', 'region'];
+
+// Loads the summary (MIS) figures for one card's filters. Each card asks for its own set.
+function useSummary(filters: ReportFilters) {
+  const [data, setData] = React.useState<any>(null);
   const [error, setError] = React.useState('');
-
-  // Combined report (Leads + Accounts + Opportunities) with shared filters.
-  const [cFilters, setCFilters] = React.useState({ search: '', region: '', country: '', fromDate: '', toDate: '', ownerId: '' });
-  const [owners, setOwners] = React.useState<any[]>([]);
-
-  // Shared filter params; non-admins are pinned to their own records, admins may pick an owner.
-  const params = React.useMemo(() => {
-    const p: Record<string, string> = {};
-    Object.entries(cFilters).forEach(([k, v]) => { if (v && k !== 'ownerId') p[k] = v; });
-    if (user?.role?.name !== 'Admin') {
-      if (user?.id) p.ownerId = user.id;
-    } else if (cFilters.ownerId) {
-      p.ownerId = cFilters.ownerId;
-    }
-    return p;
-  }, [cFilters, user?.id, user?.role]);
-  const filterKey = JSON.stringify(params);
-
-  const leadsR = usePagedReport<any>((pg, lim) => api.getLeads(pg, lim, params), filterKey);
-  const accountsR = usePagedReport<any>((pg, lim) => api.getAccounts(pg, lim, params), filterKey);
-  const oppsR = usePagedReport<any>((pg, lim) => api.getOpportunities(pg, lim, params), filterKey);
-  const timelineR = usePagedReport<any>((pg, lim) => api.getConversionTimeline({ ...params, page: pg, limit: lim }), filterKey);
-
+  const [loading, setLoading] = React.useState(true);
+  const key = JSON.stringify(reportParams(filters));
   React.useEffect(() => {
-    Promise.all([
-      api.getMIS(),
-      user?.role?.name === 'Admin' ? api.getUsers(1, 500) : Promise.resolve({ data: { data: [] } })
-    ])
-      .then(([misRes, usersRes]) => {
-        if (misRes.data.success) setMis(misRes.data.data);
-        if (usersRes?.data?.data) {
-          setOwners(usersRes.data.data);
-        }
-      })
-      .catch(() => setError('Failed to load report data'))
-      .finally(() => setLoading(false));
-  }, [user?.role]);
+    let active = true;
+    setLoading(true);
+    setError('');
+    api.getMIS(reportParams(filters))
+      .then((r) => { if (active) setData(r.data.data); })
+      .catch((e: any) => { if (active) setError(e.response?.data?.error || 'Could not load this report'); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+  return { data, error, loading };
+}
+
+export default function ReportsPage() {
+  const { hasPermission } = useAuth();
+  const { options, error: optionsError } = useReportOptions();
+
+  const [pipelineFilters, setPipelineFilters] = React.useState<ReportFilters>(EMPTY_REPORT_FILTERS);
+  const [salesFilters, setSalesFilters] = React.useState<ReportFilters>(EMPTY_REPORT_FILTERS);
+  const [lossFilters, setLossFilters] = React.useState<ReportFilters>(EMPTY_REPORT_FILTERS);
+  const [performanceFilters, setPerformanceFilters] = React.useState<ReportFilters>(EMPTY_REPORT_FILTERS);
+  const [prospectFilters, setProspectFilters] = React.useState<ReportFilters>(EMPTY_REPORT_FILTERS);
+  const [accountFilters, setAccountFilters] = React.useState<ReportFilters>(EMPTY_REPORT_FILTERS);
+  const [oppFilters, setOppFilters] = React.useState<ReportFilters>(EMPTY_REPORT_FILTERS);
+  const [timelineFilters, setTimelineFilters] = React.useState<ReportFilters>(EMPTY_REPORT_FILTERS);
+
+  const pipelineS = useSummary(pipelineFilters);
+  const salesS = useSummary(salesFilters);
+  const lossS = useSummary(lossFilters);
+  const performanceS = useSummary(performanceFilters);
+
+  const [prospectSort, setProspectSort] = React.useState<SortState>({ sortBy: 'createdAt', sortDir: 'desc' });
+  const [accountSort, setAccountSort] = React.useState<SortState>({ sortBy: 'createdAt', sortDir: 'desc' });
+  const [oppSort, setOppSort] = React.useState<SortState>({ sortBy: 'closeDate', sortDir: 'asc' });
+  const [timelineSort, setTimelineSort] = React.useState<SortState>({ sortBy: 'accountCreated', sortDir: 'desc' });
+  const [pipelineSort, setPipelineSort] = React.useState<SortState>({ sortBy: '', sortDir: 'asc' });
+  const [lossSort, setLossSort] = React.useState<SortState>({ sortBy: '', sortDir: 'asc' });
+  const [perfSort, setPerfSort] = React.useState<SortState>({ sortBy: '', sortDir: 'asc' });
+  const prospectParams = { ...reportParams(prospectFilters), sortBy: prospectSort.sortBy, sortDir: prospectSort.sortDir };
+  const accountParams = { ...reportParams(accountFilters), sortBy: accountSort.sortBy, sortDir: accountSort.sortDir };
+  const oppParams = { ...reportParams(oppFilters), sortBy: oppSort.sortBy, sortDir: oppSort.sortDir };
+  const timelineParams = { ...reportParams(timelineFilters), sortBy: timelineSort.sortBy, sortDir: timelineSort.sortDir };
+  const leadsR = usePagedReport<any>((pg, lim) => api.getLeads(pg, lim, prospectParams), JSON.stringify(prospectParams));
+  const accountsR = usePagedReport<any>((pg, lim) => api.getAccounts(pg, lim, accountParams), JSON.stringify(accountParams));
+  const oppsR = usePagedReport<any>((pg, lim) => api.getOpportunities(pg, lim, oppParams), JSON.stringify(oppParams));
+  const timelineR = usePagedReport<any>((pg, lim) => api.getConversionTimeline({ ...timelineParams, page: pg, limit: lim }), JSON.stringify(timelineParams));
 
   const exportLeads = async () => exportToCsv('leads-report', [
     { header: 'Name', value: (r: any) => `${r.firstName} ${r.lastName}` },
@@ -118,29 +145,14 @@ export default function ReportsPage() {
     { header: 'Opportunity Status', value: (r: any) => r.opportunityStatus || '' },
   ], await timelineR.fetchAllRows());
 
-  if (loading) {
-    return (
-      <Layout>
-        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 6 }}>
-          <CircularProgress />
-        </Box>
-      </Layout>
-    );
-  }
-
-  if (error || !mis) {
-    return (
-      <Layout>
-        <Alert severity="error">{error || 'No data available'}</Alert>
-      </Layout>
-    );
-  }
+  const cardError = (error: string) => error && <Alert severity="error" sx={{ mb: 1 }}>{error}</Alert>;
 
   return (
     <Layout>
-      <Typography variant="h4" sx={{ mb: 3 }}>
+      <Typography variant="h4" sx={{ mb: 1 }}>
         Reports &amp; MIS
       </Typography>
+      {optionsError && <Alert severity="warning" sx={{ mb: 2 }}>{optionsError}</Alert>}
 
       <Grid container spacing={2}>
         {/* Pipeline value by stage */}
@@ -150,36 +162,36 @@ export default function ReportsPage() {
               <Typography variant="h6" gutterBottom>
                 Pipeline Value by Stage
               </Typography>
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Stage</TableCell>
-                    <TableCell align="right">Deals</TableCell>
-                    <TableCell align="right">Value</TableCell>
-                    <TableCell align="right">Weighted</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {mis.pipeline.byStage.map((s: any) => (
-                    <TableRow key={s.stage}>
-                      <TableCell>{s.stage}</TableCell>
-                      <TableCell align="right">{s.count}</TableCell>
-                      <TableCell align="right">{formatCurrency(s.totalValue)}</TableCell>
-                      <TableCell align="right">{formatCurrency(s.weightedValue)}</TableCell>
+              <ReportFilterBar value={pipelineFilters} onChange={setPipelineFilters} options={options} fields={SUMMARY_FIELDS} />
+              {cardError(pipelineS.error)}
+              {pipelineS.loading && !pipelineS.data ? <CircularProgress size={24} /> : pipelineS.data && (
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <SortableHeaderCell label="Stage" sortKey="stage" sort={pipelineSort} onSort={setPipelineSort} />
+                      <SortableHeaderCell label="Deals" sortKey="count" align="right" sort={pipelineSort} onSort={setPipelineSort} />
+                      <SortableHeaderCell label="Value" sortKey="totalValue" align="right" sort={pipelineSort} onSort={setPipelineSort} />
+                      <SortableHeaderCell label="Weighted" sortKey="weightedValue" align="right" sort={pipelineSort} onSort={setPipelineSort} />
                     </TableRow>
-                  ))}
-                  <TableRow sx={{ '& td': { fontWeight: 700, borderTop: '2px solid #ddd' } }}>
-                    <TableCell>Total</TableCell>
-                    <TableCell align="right">{mis.pipeline.openCount}</TableCell>
-                    <TableCell align="right">
-                      {formatCurrency(mis.pipeline.totalOpenValue)}
-                    </TableCell>
-                    <TableCell align="right">
-                      {formatCurrency(mis.pipeline.totalWeightedValue)}
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
+                  </TableHead>
+                  <TableBody>
+                    {sortRows(pipelineS.data.pipeline.byStage, pipelineSort, PIPELINE_GETTERS).map((s: any) => (
+                      <TableRow key={s.stage}>
+                        <TableCell>{s.stage}</TableCell>
+                        <TableCell align="right">{s.count}</TableCell>
+                        <TableCell align="right">{formatCurrency(s.totalValue)}</TableCell>
+                        <TableCell align="right">{formatCurrency(s.weightedValue)}</TableCell>
+                      </TableRow>
+                    ))}
+                    <TableRow sx={{ '& td': { fontWeight: 700, borderTop: '2px solid #ddd' } }}>
+                      <TableCell>Total</TableCell>
+                      <TableCell align="right">{pipelineS.data.pipeline.openCount}</TableCell>
+                      <TableCell align="right">{formatCurrency(pipelineS.data.pipeline.totalOpenValue)}</TableCell>
+                      <TableCell align="right">{formatCurrency(pipelineS.data.pipeline.totalWeightedValue)}</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </Grid>
@@ -191,12 +203,16 @@ export default function ReportsPage() {
               <Typography variant="h6" gutterBottom>
                 Sales Summary
               </Typography>
-              <Grid container spacing={2}>
-                <SummaryCell label="Won Revenue" value={formatCurrency(mis.sales.wonValue)} sub={`${mis.sales.wonCount} deals`} color="#10b981" />
-                <SummaryCell label="Lost Value" value={formatCurrency(mis.sales.lostValue)} sub={`${mis.sales.lostCount} deals`} color="#ef4444" />
-                <SummaryCell label="Win Rate" value={`${mis.sales.winRate}%`} sub="Won / closed" color="#6366f1" />
-                <SummaryCell label="Avg Deal Size" value={formatCurrency(mis.sales.avgDealSize)} sub="Won deals" color="#0ea5e9" />
-              </Grid>
+              <ReportFilterBar value={salesFilters} onChange={setSalesFilters} options={options} fields={SUMMARY_FIELDS} />
+              {cardError(salesS.error)}
+              {salesS.loading && !salesS.data ? <CircularProgress size={24} /> : salesS.data && (
+                <Grid container spacing={2}>
+                  <SummaryCell label="Won Revenue" value={formatCurrency(salesS.data.sales.wonValue)} sub={`${salesS.data.sales.wonCount} deals`} color="#10b981" />
+                  <SummaryCell label="Lost Value" value={formatCurrency(salesS.data.sales.lostValue)} sub={`${salesS.data.sales.lostCount} deals`} color="#ef4444" />
+                  <SummaryCell label="Win Rate" value={`${salesS.data.sales.winRate}%`} sub="Won / closed" color="#6366f1" />
+                  <SummaryCell label="Avg Deal Size" value={formatCurrency(salesS.data.sales.avgDealSize)} sub="Won deals" color="#0ea5e9" />
+                </Grid>
+              )}
             </CardContent>
           </Card>
         </Grid>
@@ -208,55 +224,61 @@ export default function ReportsPage() {
               <Typography variant="h6" gutterBottom>
                 Loss Reasons
               </Typography>
-              {mis.lossReasons.length === 0 ? (
-                <Typography color="textSecondary" variant="body2">
-                  No lost deals yet.
-                </Typography>
-              ) : (
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Reason</TableCell>
-                      <TableCell align="right">Deals</TableCell>
-                      <TableCell align="right">Value Lost</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {mis.lossReasons.map((r: any) => (
-                      <TableRow key={r.reason}>
-                        <TableCell>
-                          <Chip label={r.reason} size="small" />
-                        </TableCell>
-                        <TableCell align="right">{r.count}</TableCell>
-                        <TableCell align="right">{formatCurrency(r.value)}</TableCell>
+              <ReportFilterBar value={lossFilters} onChange={setLossFilters} options={options} fields={SUMMARY_FIELDS} />
+              {cardError(lossS.error)}
+              {lossS.loading && !lossS.data ? <CircularProgress size={24} /> : lossS.data && (
+                lossS.data.lossReasons.length === 0 ? (
+                  <Typography color="textSecondary" variant="body2">
+                    No lost deals for these filters.
+                  </Typography>
+                ) : (
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <SortableHeaderCell label="Reason" sortKey="reason" sort={lossSort} onSort={setLossSort} />
+                        <SortableHeaderCell label="Deals" sortKey="count" align="right" sort={lossSort} onSort={setLossSort} />
+                        <SortableHeaderCell label="Value Lost" sortKey="value" align="right" sort={lossSort} onSort={setLossSort} />
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHead>
+                    <TableBody>
+                      {sortRows(lossS.data.lossReasons, lossSort, LOSS_GETTERS).map((r: any) => (
+                        <TableRow key={r.reason}>
+                          <TableCell>
+                            <Chip label={r.reason} size="small" />
+                          </TableCell>
+                          <TableCell align="right">{r.count}</TableCell>
+                          <TableCell align="right">{formatCurrency(r.value)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )
               )}
             </CardContent>
           </Card>
         </Grid>
 
-        {/* Sales by owner (managers/admin only) */}
-        {mis.salesByOwner && (
+        {/* Performance by salesperson (only when the viewer can see everyone) */}
+        {performanceS.data?.salesByOwner && (
           <Grid item xs={12} md={6}>
             <Card>
               <CardContent>
                 <Typography variant="h6" gutterBottom>
                   Performance by Salesperson
                 </Typography>
+                <ReportFilterBar value={performanceFilters} onChange={setPerformanceFilters} options={options} fields={SUMMARY_FIELDS} />
+                {cardError(performanceS.error)}
                 <Table size="small">
                   <TableHead>
                     <TableRow>
-                      <TableCell>Salesperson</TableCell>
-                      <TableCell align="right">Open</TableCell>
-                      <TableCell align="right">Won</TableCell>
-                      <TableCell align="right">Win %</TableCell>
+                      <SortableHeaderCell label="Salesperson" sortKey="name" sort={perfSort} onSort={setPerfSort} />
+                      <SortableHeaderCell label="Open" sortKey="open" align="right" sort={perfSort} onSort={setPerfSort} />
+                      <SortableHeaderCell label="Won" sortKey="won" align="right" sort={perfSort} onSort={setPerfSort} />
+                      <SortableHeaderCell label="Win %" sortKey="winRate" align="right" sort={perfSort} onSort={setPerfSort} />
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {mis.salesByOwner.map((o: any) => (
+                    {sortRows(performanceS.data.salesByOwner, perfSort, PERF_GETTERS).map((o: any) => (
                       <TableRow key={o.ownerId}>
                         <TableCell>{o.ownerName}</TableCell>
                         <TableCell align="right">{formatCurrency(o.openValue)}</TableCell>
@@ -272,54 +294,32 @@ export default function ReportsPage() {
         )}
       </Grid>
 
-      {/* ---- Combined Report: Leads + Accounts + Opportunities ---- */}
-      <Typography variant="h5" sx={{ mt: 4, mb: 2 }}>Combined Report</Typography>
-      <Paper sx={{ p: 2, mb: 2 }}>
-        <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
-          <TextField size="small" label="Search" value={cFilters.search} onChange={(e) => setCFilters({ ...cFilters, search: e.target.value })} />
-          {user?.role?.name === 'Admin' && (
-            <TextField
-              size="small"
-              select
-              label="Owner"
-              sx={{ minWidth: 180 }}
-              value={cFilters.ownerId}
-              onChange={(e) => setCFilters({ ...cFilters, ownerId: e.target.value })}
-            >
-              <MenuItem value="">All Owners</MenuItem>
-              {owners.map((owner) => (
-                <MenuItem key={owner.id} value={owner.id}>
-                  {owner.firstName} {owner.lastName}
-                </MenuItem>
-              ))}
-            </TextField>
-          )}
-          <TextField size="small" label="Region" value={cFilters.region} onChange={(e) => setCFilters({ ...cFilters, region: e.target.value })} />
-          <TextField size="small" label="Country" value={cFilters.country} onChange={(e) => setCFilters({ ...cFilters, country: e.target.value })} />
-          <TextField size="small" type="date" label="From" InputLabelProps={{ shrink: true }} value={cFilters.fromDate} onChange={(e) => setCFilters({ ...cFilters, fromDate: e.target.value })} />
-          <TextField size="small" type="date" label="To" InputLabelProps={{ shrink: true }} value={cFilters.toDate} onChange={(e) => setCFilters({ ...cFilters, toDate: e.target.value })} />
-          <Button onClick={() => setCFilters({ search: '', region: '', country: '', fromDate: '', toDate: '', ownerId: '' })}>Clear</Button>
-        </Stack>
-      </Paper>
-
-      <ReportBlock title="Leads" paged={leadsR} onExport={exportLeads}
+      <ReportBlock title="Prospects" paged={leadsR} onExport={exportLeads} canExport={hasPermission('report_exports', 'leads')}
+        filterBar={<ReportFilterBar value={prospectFilters} onChange={setProspectFilters} options={options} fields={LIST_FIELDS} />}
         head={['Name', 'Company', 'Business Volume', 'Region', 'Country', 'Status', 'Owner']}
+        headKeys={['name', 'company', undefined, 'region', 'country', 'status', undefined]} sort={prospectSort} onSort={setProspectSort}
         rows={leadsR.rows.map((r) => [`${r.firstName} ${r.lastName}`, r.account?.name || r.company || '-', r.businessVolume ?? '-', r.region || '-', r.country || '-', r.status, r.owner ? `${r.owner.firstName} ${r.owner.lastName}` : '-'])} />
 
-      <ReportBlock title="Accounts" paged={accountsR} onExport={exportAccounts}
+      <ReportBlock title="Accounts" paged={accountsR} onExport={exportAccounts} canExport={hasPermission('report_exports', 'accounts')}
+        filterBar={<ReportFilterBar value={accountFilters} onChange={setAccountFilters} options={options} fields={LIST_FIELDS} />}
         head={['Name', 'Contact Person', 'City', 'Region', 'Country', 'Type', 'Owner']}
+        headKeys={['name', undefined, undefined, 'region', 'country', 'type', 'owner']} sort={accountSort} onSort={setAccountSort}
         rows={accountsR.rows.map((r) => [r.name, r.contactPerson || '-', r.city || '-', r.region || '-', r.country || '-', r.type, r.owner ? `${r.owner.firstName} ${r.owner.lastName}` : '-'])} />
 
-      <ReportBlock title="Opportunities" paged={oppsR} onExport={exportOpps}
+      <ReportBlock title="Opportunities" paged={oppsR} onExport={exportOpps} canExport={hasPermission('report_exports', 'opportunities')}
+        filterBar={<ReportFilterBar value={oppFilters} onChange={setOppFilters} options={options} fields={LIST_FIELDS} />}
         head={['Name', 'Company', 'Amount', 'Stage', 'Status', 'Region', 'Owner']}
+        headKeys={['name', undefined, 'amount', 'stage', 'status', 'region', undefined]} sort={oppSort} onSort={setOppSort}
         rows={oppsR.rows.map((r) => [r.name, r.account?.name || r.company || '-', formatCurrency(r.amount), r.stage, r.status, r.region || '-', r.owner ? `${r.owner.firstName} ${r.owner.lastName}` : '-'])} />
 
-      <Typography variant="h5" sx={{ mt: 4, mb: 2 }}>Conversion Timeline</Typography>
+      <Typography variant="h5" sx={{ mt: 4, mb: 1 }}>Prospect Conversion Timeline</Typography>
       <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
-        Account created &rarr; Lead added &rarr; Lead converted to Opportunity, with a timestamp at each stage.
+        Account created &rarr; Prospect added &rarr; Prospect converted to Opportunity, with a timestamp at each stage.
       </Typography>
-      <ReportBlock title="Timeline" paged={timelineR} onExport={exportTimeline}
-        head={['Account', 'Account Created', 'Lead', 'Lead Created', 'Lead Converted', 'Opportunity', 'Converted to Opportunity', 'Stage']}
+      <ReportBlock title="Timeline" paged={timelineR} onExport={exportTimeline} canExport={hasPermission('report_exports', 'conversion_timeline')}
+        filterBar={<ReportFilterBar value={timelineFilters} onChange={setTimelineFilters} options={options} fields={LIST_FIELDS} />}
+        head={['Account', 'Account Created', 'Prospect', 'Prospect Created', 'Prospect Converted', 'Opportunity', 'Converted to Opportunity', 'Stage']}
+        headKeys={['account', 'accountCreated', 'prospect', 'prospectCreated', 'prospectConverted', 'opportunity', 'opportunityCreated', 'stage']} sort={timelineSort} onSort={setTimelineSort}
         rows={timelineR.rows.map((r: any) => [
           r.accountName,
           fmtDateTime(r.accountCreatedAt),
@@ -334,12 +334,17 @@ export default function ReportsPage() {
   );
 }
 
-function ReportBlock({ title, head, rows, onExport, paged }: {
+function ReportBlock({ title, head, rows, onExport, canExport, paged, filterBar, headKeys, sort, onSort }: {
   title: string;
   head: string[];
   rows: any[][];
   onExport: () => Promise<void>;
+  canExport: boolean;
   paged: { total: number; page: number; limit: number; loading: boolean; error: string; setPage: (p: number) => void; setLimit: (l: number) => void };
+  filterBar: React.ReactNode;
+  headKeys?: (string | undefined)[];
+  sort?: SortState;
+  onSort?: (next: SortState) => void;
 }) {
   const [exporting, setExporting] = React.useState(false);
   const [exportError, setExportError] = React.useState('');
@@ -353,16 +358,21 @@ function ReportBlock({ title, head, rows, onExport, paged }: {
       <CardContent>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
           <Typography variant="h6">{title} ({paged.total})</Typography>
-          <Button size="small" variant="outlined" onClick={runExport} disabled={exporting || paged.total === 0}>
-            {exporting ? 'Exporting…' : 'Export CSV'}
-          </Button>
+          {canExport && (
+            <Button size="small" variant="outlined" onClick={runExport} disabled={exporting || paged.total === 0}>
+              {exporting ? 'Exporting...' : 'Export CSV'}
+            </Button>
+          )}
         </Box>
+        <Paper variant="outlined" sx={{ p: 1.5, mb: 2 }}>
+          {filterBar}
+        </Paper>
         {paged.error && <Alert severity="error" sx={{ mb: 1 }}>{paged.error}</Alert>}
         {exportError && <Alert severity="error" sx={{ mb: 1 }}>{exportError}</Alert>}
         <Box sx={{ overflowX: 'auto', opacity: paged.loading ? 0.5 : 1 }}>
           <Table size="small">
             <TableHead>
-              <TableRow>{head.map((h) => <TableCell key={h}>{h}</TableCell>)}</TableRow>
+              <TableRow>{head.map((h, i) => <SortableHeaderCell key={h} label={h} sortKey={headKeys?.[i]} sort={sort} onSort={onSort} />)}</TableRow>
             </TableHead>
             <TableBody>
               {rows.map((row, i) => (
@@ -371,7 +381,7 @@ function ReportBlock({ title, head, rows, onExport, paged }: {
               {rows.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={head.length} align="center">
-                    {paged.loading ? 'Loading…' : paged.error ? 'Could not load records' : 'No records match these filters'}
+                    {paged.loading ? 'Loadingâ€¦' : paged.error ? 'Could not load records' : 'No records match these filters'}
                   </TableCell>
                 </TableRow>
               )}

@@ -29,23 +29,30 @@ import {
 } from '@mui/material';
 import { Search as SearchIcon, ViewAgendaOutlined as ListIcon, ViewWeekOutlined as KanbanIcon } from '@mui/icons-material';
 import StaffFilter from '@components/StaffFilter';
+import { SortableHeaderCell, SortState } from '@components/SortControl';
 import Layout from '@components/Layout';
 import AssignOwner from '@components/AssignOwner';
 import BuyingCommitteeViewDialog from '@components/BuyingCommitteeViewDialog';
+import AccountSalesVisitsDialog from '@components/AccountSalesVisitsDialog';
+import NoCommitteeChip from '@components/NoCommitteeChip';
 import ConfirmDialog from '@components/ConfirmDialog';
 import SearchableSelect from '@components/SearchableSelect';
 import { useAccountOptions } from '@hooks/useAccountOptions';
 import useAuth from '@hooks/useAuth';
+import OpportunityQuestionnaire from '@components/OpportunityQuestionnaire';
+import OpportunityTimeline from '@components/OpportunityTimeline';
 import { apiClient } from '../services/api';
 import { Opportunity } from '../types';
 import { formatCurrency } from '@utils/format';
 
-const stageColor: Record<string, 'info' | 'primary' | 'success' | 'error' | 'warning'> = {
-  Qualification: 'info',
-  Demonstration: 'info',
+// One theme color per stage, so each stage reads differently at a glance.
+const stageColor: Record<string, 'info' | 'primary' | 'secondary' | 'success' | 'error' | 'warning'> = {
+  'Customer engagement': 'info',
+  Demonstration: 'secondary',
   Proposal: 'primary',
   Negotiation: 'warning',
   'Closed-Won': 'success',
+  Handover: 'info',
   'Closed-Lost': 'error',
 };
 
@@ -72,6 +79,7 @@ export default function OpportunitiesPage() {
   const [countryFilter, setCountryFilter] = useState('');
   const [regionFilter, setRegionFilter] = useState('');
   const [cityFilter, setCityFilter] = useState('');
+  const [oppSort, setOppSort] = useState<SortState>({ sortBy: 'closeDate', sortDir: 'asc' });
   const [productsFilter, setProductsFilter] = useState<string[]>([]);
 
   // Dialogs
@@ -112,6 +120,8 @@ export default function OpportunitiesPage() {
       if (countryFilter) params.country = countryFilter;
       if (regionFilter) params.region = regionFilter;
       if (cityFilter) params.city = cityFilter;
+      params.sortBy = oppSort.sortBy;
+      params.sortDir = oppSort.sortDir;
       if (productsFilter.length > 0) params.products = productsFilter.join(',');
 
       const response = await apiClient.get('/opportunities', { params });
@@ -120,7 +130,7 @@ export default function OpportunitiesPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, search, stageFilter, ownerFilter, amountFromFilter, amountToFilter, dateFromFilter, dateToFilter, countryFilter, regionFilter, cityFilter, productsFilter]);
+  }, [page, pageSize, search, stageFilter, ownerFilter, amountFromFilter, amountToFilter, dateFromFilter, dateToFilter, countryFilter, regionFilter, cityFilter, productsFilter, oppSort]);
 
   useEffect(() => {
     setPage(1);
@@ -262,7 +272,7 @@ export default function OpportunitiesPage() {
     setForm({
       name: '',
       amount: '',
-      stage: 'Qualification',
+      stage: 'Demonstration',
       probability: '',
       forecastedCloseDate: '',
       description: '',
@@ -333,11 +343,13 @@ export default function OpportunitiesPage() {
                   size="small"
                 >
                   <MenuItem value="">All Stages</MenuItem>
-                  <MenuItem value="Qualification">Qualification</MenuItem>
+                  <MenuItem value="Customer engagement">Customer engagement</MenuItem>
                   <MenuItem value="Demonstration">Demonstration</MenuItem>
                   <MenuItem value="Proposal">Proposal</MenuItem>
                   <MenuItem value="Negotiation">Negotiation</MenuItem>
                   <MenuItem value="Closed-Won">Closed-Won</MenuItem>
+              <MenuItem value="Handover">Handover</MenuItem>
+                  <MenuItem value="Handover">Handover</MenuItem>
                   <MenuItem value="Closed-Lost">Closed-Lost</MenuItem>
                 </TextField>
               </Grid>
@@ -442,15 +454,15 @@ export default function OpportunitiesPage() {
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell>Opportunity Name</TableCell>
+                  <SortableHeaderCell label="Opportunity Name" sortKey="name" sort={oppSort} onSort={setOppSort} />
                   <TableCell>Owner</TableCell>
-                  <TableCell>Country</TableCell>
+                  <SortableHeaderCell label="Country" sortKey="country" sort={oppSort} onSort={setOppSort} />
                   <TableCell>Tier</TableCell>
-                  <TableCell align="right">Amount</TableCell>
-                  <TableCell>Stage</TableCell>
-                  <TableCell>Expected Close</TableCell>
+                  <SortableHeaderCell label="Amount" sortKey="amount" align="right" sort={oppSort} onSort={setOppSort} />
+                  <SortableHeaderCell label="Stage" sortKey="stage" sort={oppSort} onSort={setOppSort} />
+                  <SortableHeaderCell label="Expected Close" sortKey="closeDate" sort={oppSort} onSort={setOppSort} />
                   <TableCell>Products</TableCell>
-                  <TableCell>Probability</TableCell>
+                  <SortableHeaderCell label="Probability" sortKey="probability" sort={oppSort} onSort={setOppSort} />
                   <TableCell>Actions</TableCell>
                 </TableRow>
               </TableHead>
@@ -473,7 +485,7 @@ export default function OpportunitiesPage() {
         {/* Kanban View */}
         {viewMode === 'kanban' && (
           <Box sx={{ display: 'flex', gap: 2, overflowX: 'auto', pb: 2 }}>
-            {['Qualification', 'Demonstration', 'Proposal', 'Negotiation', 'Closed-Won', 'Closed-Lost'].map((stage) => {
+            {['Customer engagement', 'Demonstration', 'Proposal', 'Negotiation', 'Closed-Won', 'Handover', 'Closed-Lost'].map((stage) => {
               const stageOpps = opportunities.filter((opp) => opp.stage === stage);
               const isClosed = stage.startsWith('Closed-');
 
@@ -595,11 +607,12 @@ export default function OpportunitiesPage() {
               onChange={(e) => setForm({ ...form, stage: e.target.value })}
               sx={{ mb: 2 }}
             >
-              <MenuItem value="Qualification">Qualification</MenuItem>
+              <MenuItem value="Customer engagement">Customer engagement</MenuItem>
               <MenuItem value="Demonstration">Demonstration</MenuItem>
               <MenuItem value="Proposal">Proposal</MenuItem>
               <MenuItem value="Negotiation">Negotiation</MenuItem>
               <MenuItem value="Closed-Won">Closed-Won</MenuItem>
+              <MenuItem value="Handover">Handover</MenuItem>
               <MenuItem value="Closed-Lost">Closed-Lost</MenuItem>
             </TextField>
             <TextField
@@ -744,12 +757,18 @@ const OpportunityTableRow = React.memo(
     onAssigned: () => void;
   }) => {
     const [showCommittee, setShowCommittee] = React.useState(false);
+    const [showQuestions, setShowQuestions] = React.useState(false);
+    const [showTimeline, setShowTimeline] = React.useState(false);
+    const [showVisits, setShowVisits] = React.useState(false);
     return (
     <TableRow>
       <TableCell sx={{ fontWeight: 'bold' }}>
-        <Tooltip title={opp.description || 'No description'} arrow>
-          <span>{opp.name}</span>
-        </Tooltip>
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+          <Tooltip title={opp.description || 'No description'} arrow>
+            <span>{opp.name}</span>
+          </Tooltip>
+          <NoCommitteeChip buyingCommitteeCount={opp.buyingCommitteeCount} hasBuyingCommittee={opp.hasBuyingCommittee} />
+        </Box>
       </TableCell>
       <TableCell>
         {(opp as any).owner ? `${(opp as any).owner.firstName} ${(opp as any).owner.lastName}` : '-'}
@@ -778,6 +797,15 @@ const OpportunityTableRow = React.memo(
         <Button size="small" variant="text" onClick={() => setShowCommittee(true)}>
           Buying Committee
         </Button>
+        <Button size="small" variant="text" onClick={() => setShowQuestions(true)}>
+          Questionnaire
+        </Button>
+        <Button size="small" variant="text" onClick={() => setShowTimeline(true)}>
+          Timeline
+        </Button>
+        <Button size="small" variant="text" onClick={() => setShowVisits(true)}>
+          Sales Visits
+        </Button>
         <AssignOwner
           module="opportunities"
           recordId={opp.id}
@@ -791,9 +819,26 @@ const OpportunityTableRow = React.memo(
           </Button>
         )}
       </TableCell>
+      {showTimeline && (
+        <OpportunityTimeline opportunityId={opp.id} opportunityName={opp.name} onClose={() => setShowTimeline(false)} />
+      )}
+      {showQuestions && (
+        <OpportunityQuestionnaire
+          opportunityId={opp.id}
+          accountId={(opp as any).accountId || null}
+          opportunityName={opp.name}
+          onClose={() => setShowQuestions(false)}
+        />
+      )}
       <BuyingCommitteeViewDialog
         open={showCommittee}
         onClose={() => setShowCommittee(false)}
+        accountId={(opp as any).accountId || null}
+        accountName={(opp as any).account?.name || (opp as any).company}
+      />
+      <AccountSalesVisitsDialog
+        open={showVisits}
+        onClose={() => setShowVisits(false)}
         accountId={(opp as any).accountId || null}
         accountName={(opp as any).account?.name || (opp as any).company}
       />

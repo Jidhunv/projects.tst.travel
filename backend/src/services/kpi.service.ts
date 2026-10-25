@@ -1,5 +1,6 @@
 import { AppDataSource } from '../config/database';
 import { periodsInRange, workdaysInRange, monthsInRange, reportingCompliance } from './targets.engine';
+import { kpiMet } from '../utils/kpiReport';
 
 const num = (v: unknown) => Number(v || 0);
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -58,7 +59,7 @@ class KpiService {
   // `onlyUserId` restricts the result to one person.
   async summary(from: string, to: string, onlyUserId?: string) {
     const rows = await AppDataSource.query(
-      `SELECT d.id, d.name, d.type, d.unit, d.frequency, d."targetValue", d."userId", d."startDate",
+      `SELECT d.id, d.name, d.type, d.unit, d.frequency, d."targetValue", d.weightage, d."userId", d."startDate",
               u."firstName" || ' ' || u."lastName" AS "userName",
               COALESCE(SUM(e."numberValue"), 0) AS total, COUNT(e.id) AS entries,
               COUNT(DISTINCT e."entryDate") AS "daysReported", MAX(e."entryDate") AS "lastEntry"
@@ -86,6 +87,8 @@ class KpiService {
         total, entries: num(r.entries), daysReported: num(r.daysReported), lastEntry: dayStr(r.lastEntry),
         periods, target,
         pctOfTarget: target && target > 0 ? Math.round((total / target) * 1000) / 10 : null,
+        weightage: r.weightage === null ? null : num(r.weightage),
+        met: kpiMet({ type: r.type, total, entries: num(r.entries), target, weightage: null, pctOfTarget: null, met: null }),
       };
     });
   }
@@ -145,12 +148,12 @@ class KpiService {
       AppDataSource.query(`SELECT d.* FROM kpi_definitions d WHERE d."isActive" = TRUE AND NOT EXISTS (SELECT 1 FROM kpi_master mm WHERE mm.id = d."masterId" AND mm."isActive" = FALSE) AND d."userId" = ANY($1::uuid[]) ORDER BY d.name`, [ids]),
       AppDataSource.query(
         `SELECT e."kpiId", e."userId", e."entryDate", e."numberValue", e."textValue", a.name AS "accountName"
-         FROM kpi_entries e LEFT JOIN accounts a ON a.id = e."accountId"
+         FROM kpi_entries e LEFT JOIN leads a ON a.id = e."accountId"
          WHERE e."entryDate" >= $1 AND e."entryDate" <= $2 AND e."userId" = ANY($3::uuid[]) ORDER BY e."entryDate", e."createdAt"`,
         [from, to, ids]),
       AppDataSource.query(`SELECT "ownerId" id, COALESCE(SUM(amount),0) v, COUNT(*) n FROM opportunities WHERE "createdAt" >= $1 AND "createdAt" < $2 AND "ownerId" = ANY($3::uuid[]) GROUP BY 1`, [fromD, toD, ids]),
       AppDataSource.query(`SELECT "ownerId" id, COALESCE(SUM(amount),0) v, COUNT(*) n FROM opportunities WHERE status='Won' AND "closedAt" >= $1 AND "closedAt" < $2 AND "ownerId" = ANY($3::uuid[]) GROUP BY 1`, [fromD, toD, ids]),
-      AppDataSource.query(`SELECT "ownerId" id, COUNT(*) n FROM leads WHERE "createdAt" >= $1 AND "createdAt" < $2 AND "ownerId" = ANY($3::uuid[]) GROUP BY 1`, [fromD, toD, ids]),
+      AppDataSource.query(`SELECT "ownerId" id, COUNT(*) n FROM prospects WHERE "createdAt" >= $1 AND "createdAt" < $2 AND "ownerId" = ANY($3::uuid[]) GROUP BY 1`, [fromD, toD, ids]),
       AppDataSource.query(`SELECT "createdById" id, COUNT(*) n FROM sales_visits WHERE "visitDate" >= $1 AND "visitDate" < $2 AND "createdById" = ANY($3::uuid[]) GROUP BY 1`, [fromD, toD, ids]),
       this.projectionsVsActual(months, ids),
     ]);

@@ -8,6 +8,18 @@ import logger from '../utils/logger';
 // All monetary values are returned as plain numbers (dollars).
 // The frontend formats them as currency.
 
+// Filters shared by every report. ownerIds null = every salesperson the viewer may see.
+// from/to are YYYY-MM-DD and inclusive; each report applies them to its own date column.
+export interface ReportScope {
+  ownerIds: string[] | null;
+  from?: string;
+  to?: string;
+  country?: string;
+  region?: string;
+}
+
+const NO_SCOPE: ReportScope = { ownerIds: null };
+
 interface StageBucket {
   stage: string;
   count: number;
@@ -38,21 +50,57 @@ interface ConversionTimelineRow {
   opportunityStatus: string | null;
 }
 
+// Timeline sort keys from the screen, mapped to the row field they sort by.
+const TIMELINE_SORT: Record<string, keyof ConversionTimelineRow> = {
+  account: 'accountName',
+  accountCreated: 'accountCreatedAt',
+  prospect: 'leadName',
+  prospectCreated: 'leadCreatedAt',
+  prospectConverted: 'leadConvertedAt',
+  opportunity: 'opportunityName',
+  opportunityCreated: 'opportunityCreatedAt',
+  stage: 'opportunityStage',
+};
+
+// Empty values sort last. Dates compare by time, text by locale order.
+function compareValues(a: unknown, b: unknown): number {
+  const empty = (v: unknown) => v === null || v === undefined || v === '';
+  if (empty(a) || empty(b)) return empty(a) === empty(b) ? 0 : empty(a) ? 1 : -1;
+  const x = a instanceof Date ? a.getTime() : a;
+  const y = b instanceof Date ? b.getTime() : b;
+  if (typeof x === 'number' && typeof y === 'number') return x - y;
+  return String(x).localeCompare(String(y));
+}
+
+function sortTimeline(rows: ConversionTimelineRow[], sortBy?: string, sortDir?: string): ConversionTimelineRow[] {
+  const key = sortBy ? TIMELINE_SORT[sortBy] : undefined;
+  if (!key) return rows;
+  const dir = sortDir === 'desc' ? -1 : 1;
+  return [...rows].sort((a, b) => compareValues(a[key], b[key]) * dir);
+}
+
 export class ReportService {
   private oppRepository = AppDataSource.getRepository(Opportunity);
   private leadRepository = AppDataSource.getRepository(Lead);
   private accountRepository = AppDataSource.getRepository(Account);
 
-  // Apply Sales Rep ownership scope when an ownerId is provided.
-  private scopeOwner<T extends { andWhere: Function }>(query: T, ownerId?: string): T {
-    if (ownerId) {
-      query.andWhere('opp.ownerId = :ownerId', { ownerId });
+  // Applies the owner, country, region and date filters to a query on `alias`.
+  // `dateColumn` is the column the from/to dates apply to; pass '' to ignore dates.
+  private applyScope<T extends { andWhere: Function }>(query: T, alias: string, scope: ReportScope, dateColumn: string): T {
+    if (scope.ownerIds) query.andWhere(`${alias}."ownerId" = ANY(:ownerIds)`, { ownerIds: scope.ownerIds });
+    if (scope.country) query.andWhere(`TRIM(${alias}.country) = :country`, { country: scope.country });
+    if (scope.region) query.andWhere(`TRIM(${alias}.region) = :region`, { region: scope.region });
+    if (dateColumn && scope.from) {
+      query.andWhere(`${alias}."${dateColumn}" >= :from`, { from: new Date(`${scope.from}T00:00:00.000Z`) });
+    }
+    if (dateColumn && scope.to) {
+      query.andWhere(`${alias}."${dateColumn}" <= :to`, { to: new Date(`${scope.to}T23:59:59.999Z`) });
     }
     return query;
   }
 
   // --- Pipeline value report: open opportunities grouped by stage, in dollars ---
-  async getPipelineReport(ownerId?: string): Promise<{
+  async getPipelineReport(scope: ReportScope = NO_SCOPE): Promise<{
     byStage: StageBucket[];
     totalOpenValue: number;
     totalWeightedValue: number;
@@ -67,7 +115,7 @@ export class ReportService {
       .where('opp.status = :status', { status: 'Open' })
       .groupBy('opp.stage');
 
-    this.scopeOwner(query, ownerId);
+    this.applyScope(query, 'opp', scope, 'createdAt');
 
     const rows = await query.getRawMany();
     const rowMap = new Map(rows.map((r) => [r.stage, r]));
@@ -93,11 +141,7 @@ export class ReportService {
   }
 
   // --- Sales report: closed deals (won/lost) with dollar figures ---
-  async getSalesReport(
-    ownerId?: string,
-    from?: Date,
-    to?: Date
-  ): Promise<{
+  async getSalesReport(scope: ReportScope = NO_SCOPE): Promise<{
     wonCount: number;
     wonValue: number;
     lostCount: number;
@@ -106,13 +150,7 @@ export class ReportService {
     avgDealSize: number;
     lossReasons: { reason: string; count: number; value: number }[];
   }> {
-    const base = () => {
-      const q = this.oppRepository.createQueryBuilder('opp');
-      if (from) q.andWhere('opp.closedAt >= :from', { from });
-      if (to) q.andWhere('opp.closedAt <= :to', { to });
-      this.scopeOwner(q, ownerId);
-      return q;
-    };
+    const base = () => this.applyScope(this.oppRepository.createQueryBuilder('opp'), 'opp', scope, 'closedAt');
 
     const won = await base()
       .select('COUNT(opp.id)', 'count')
@@ -157,7 +195,7 @@ export class ReportService {
   }
 
   // --- Sales performance by owner (for managers to compare reps) ---
-  async getSalesByOwner(): Promise<
+  async getSalesByOwner(scope: ReportScope = NO_SCOPE): Promise<
     {
       ownerId: string;
       ownerName: string;
@@ -167,8 +205,7 @@ export class ReportService {
       winRate: number;
     }[]
   > {
-    const rows = await this.oppRepository
-      .createQueryBuilder('opp')
+    const rows = await this.applyScope(this.oppRepository.createQueryBuilder('opp'), 'opp', scope, 'createdAt')
       .leftJoin('opp.owner', 'owner')
       .select('opp.ownerId', 'ownerId')
       .addSelect("owner.firstName || ' ' || owner.lastName", 'ownerName')
@@ -213,17 +250,17 @@ export class ReportService {
   }
 
   // --- Consolidated MIS dashboard ---
-  async getMIS(ownerId?: string): Promise<any> {
+  async getMIS(scope: ReportScope = NO_SCOPE): Promise<any> {
     try {
       const now = new Date();
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
       const quarter = Math.floor(now.getMonth() / 3);
       const startOfQuarter = new Date(now.getFullYear(), quarter * 3, 1);
 
-      const pipeline = await this.getPipelineReport(ownerId);
-      const salesAllTime = await this.getSalesReport(ownerId);
-      const wonThisMonth = await this.wonInPeriod(startOfMonth, ownerId);
-      const wonThisQuarter = await this.wonInPeriod(startOfQuarter, ownerId);
+      const pipeline = await this.getPipelineReport(scope);
+      const salesAllTime = await this.getSalesReport(scope);
+      const wonThisMonth = await this.wonInPeriod(startOfMonth, scope);
+      const wonThisQuarter = await this.wonInPeriod(startOfQuarter, scope);
 
     // Leads by status
     const leadQuery = this.leadRepository
@@ -231,7 +268,7 @@ export class ReportService {
       .select('lead.status', 'status')
       .addSelect('COUNT(lead.id)', 'count')
       .groupBy('lead.status');
-    if (ownerId) leadQuery.where('lead.ownerId = :ownerId', { ownerId });
+    this.applyScope(leadQuery, 'lead', scope, 'createdAt');
     const leadRows = await leadQuery.getRawMany();
     const leadsByStatus = leadRows.map((r) => ({
       status: r.status,
@@ -267,9 +304,9 @@ export class ReportService {
       lossReasons: salesAllTime.lossReasons,
     };
 
-      // Manager/Admin view (no ownerId scope) also gets per-rep performance.
-      if (!ownerId) {
-        result.salesByOwner = await this.getSalesByOwner();
+      // Viewers who can see everyone also get per-rep performance.
+      if (!scope.ownerIds) {
+        result.salesByOwner = await this.getSalesByOwner(scope);
       }
 
       return result;
@@ -306,10 +343,10 @@ export class ReportService {
   // --- Conversion timeline: Account created -> Lead added -> Lead converted
   // to Opportunity, one row per chain, with a timestamp at each stage.
   async getConversionTimeline(
-    ownerId?: string,
-    opts: { page?: number; limit?: number; fromDate?: string; toDate?: string; search?: string; all?: boolean } = {}
+    scope: ReportScope = NO_SCOPE,
+    opts: { page?: number; limit?: number; fromDate?: string; toDate?: string; search?: string; all?: boolean; sortBy?: string; sortDir?: string } = {}
   ): Promise<{ rows: ConversionTimelineRow[]; meta: { page: number; limit: number; total: number; totalPages: number } }> {
-    const all = await this.buildConversionTimeline(ownerId, opts);
+    const all = sortTimeline(await this.buildConversionTimeline(scope, opts), opts.sortBy, opts.sortDir);
     const limit = opts.all ? Math.max(all.length, 1) : Math.min(Math.max(opts.limit || 25, 1), 200);
     const totalPages = Math.max(1, Math.ceil(all.length / limit));
     const page = Math.min(Math.max(opts.page || 1, 1), totalPages);
@@ -320,19 +357,21 @@ export class ReportService {
   }
 
   private async buildConversionTimeline(
-    ownerId?: string,
+    scope: ReportScope,
     opts: { fromDate?: string; toDate?: string; search?: string } = {}
   ): Promise<ConversionTimelineRow[]> {
     const accountQuery = this.accountRepository
       .createQueryBuilder('account')
       .leftJoinAndSelect('account.owner', 'owner')
       .orderBy('account.createdAt', 'DESC');
-    if (ownerId) {
-      accountQuery.andWhere('(account.ownerId = :ownerId OR account.assigneeIds LIKE :ownerIdLike)', {
-        ownerId,
-        ownerIdLike: `%${ownerId}%`,
+    // Owner or assignee matches any of the salesperson ids in scope.
+    if (scope.ownerIds) {
+      accountQuery.andWhere('(account."ownerId" = ANY(:ownerIds) OR account."assigneeIds" LIKE ANY(:ownerLikes))', {
+        ownerIds: scope.ownerIds,
+        ownerLikes: scope.ownerIds.map((id) => `%${id}%`),
       });
     }
+    this.applyScope(accountQuery, 'account', { ownerIds: null, country: scope.country, region: scope.region }, '');
     // Date range applies to when the account was added (UTC day boundaries).
     if (opts.fromDate) {
       accountQuery.andWhere('account.createdAt >= :tf', { tf: new Date(`${opts.fromDate}T00:00:00.000Z`) });
@@ -478,9 +517,10 @@ export class ReportService {
     return rows;
   }
 
+  // Wins since `from`. The report's own from/to dates do not apply here: this card has a fixed period.
   private async wonInPeriod(
     from: Date,
-    ownerId?: string
+    scope: ReportScope
   ): Promise<{ count: number; value: number }> {
     const q = this.oppRepository
       .createQueryBuilder('opp')
@@ -488,7 +528,7 @@ export class ReportService {
       .addSelect('COALESCE(SUM(opp.amount), 0)', 'value')
       .where('opp.status = :status', { status: 'Won' })
       .andWhere('opp.closedAt >= :from', { from });
-    this.scopeOwner(q, ownerId);
+    this.applyScope(q, 'opp', { ...scope, from: undefined, to: undefined }, '');
     const r = await q.getRawOne();
     return { count: parseInt(r.count, 10), value: parseFloat(r.value) };
   }

@@ -9,6 +9,7 @@ export declare class KpiDefinition {
     startDate: string;
     frequency: string;
     targetValue: number | null;
+    weightage: number | null;
     isActive: boolean;
     createdById: string | null;
     createdAt: Date;

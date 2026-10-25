@@ -7,10 +7,11 @@ import {
 import { Delete as DeleteIcon, Edit as EditIcon } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import Layout from '@components/Layout';
 import { api } from '@services/api';
 import { formatCurrency, formatCurrencyCompact } from '@utils/format';
 import useAuth from '@hooks/useAuth';
+import Layout from '@components/Layout';
+import { useReportOptions } from '@components/ReportFilterBar';
 
 const errMsg = (e: any, fallback: string) => e?.response?.data?.error || e?.response?.data?.message || e?.message || fallback;
 const PACE: Record<string, { label: string; color: 'success' | 'warning' | 'error' | 'info' | 'default' }> = {
@@ -33,6 +34,7 @@ export default function PerformancePage() {
   const [overview, setOverview] = React.useState<any>(null);
   const [targets, setTargets] = React.useState<any[]>([]);
   const [owners, setOwners] = React.useState<any[]>([]);
+  const { options: reportOptions } = useReportOptions();
   const [ownerId, setOwnerId] = React.useState('');
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState('');
@@ -102,10 +104,10 @@ export default function PerformancePage() {
           </Typography>
         </Box>
         <Stack direction="row" spacing={1}>
-          {owners.length > 0 && (
+          {reportOptions.canViewOthers && (
             <TextField size="small" select label="Owner" sx={{ minWidth: 180 }} value={ownerId} onChange={(e) => setOwnerId(e.target.value)}>
-              <MenuItem value="">Whole team</MenuItem>
-              {owners.map((o) => <MenuItem key={o.id} value={o.id}>{o.firstName} {o.lastName}</MenuItem>)}
+              <MenuItem value="">Everyone I can see</MenuItem>
+              {reportOptions.people.map((o) => <MenuItem key={o.id} value={o.id}>{o.name}</MenuItem>)}
             </TextField>
           )}
           {canCreateTarget && <Button variant="contained" onClick={() => { setDialogError(''); setDialog({ form: blankTarget }); }}>Set target</Button>}

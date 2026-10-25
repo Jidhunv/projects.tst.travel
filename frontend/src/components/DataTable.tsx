@@ -15,6 +15,7 @@ import {
   Typography,
 } from '@mui/material';
 import { Add as AddIcon } from '@mui/icons-material';
+import { SortableHeaderCell, SortState } from '@components/SortControl';
 
 interface Column {
   id: string;
@@ -24,6 +25,8 @@ interface Column {
   format?: (value: any) => string;
   // Custom cell renderer that receives the whole row (for buttons, chips, etc.)
   render?: (row: any) => React.ReactNode;
+  // Set for a column that sorts when its heading is clicked (the key the server sorts by).
+  sortKey?: string;
 }
 
 interface DataTableProps {
@@ -36,9 +39,14 @@ interface DataTableProps {
   onPageChange: (page: number) => void;
   onPageSizeChange: (pageSize: number) => void;
   onRowClick?: (row: any) => void;
+  // Optional row styling, for example to highlight a complete record.
+  getRowSx?: (row: any) => Record<string, unknown> | undefined;
   onAddClick?: () => void;
   onSearchChange?: (search: string) => void;
   title: string;
+  // Current sort. Columns with a sortKey sort the list when their heading is clicked.
+  sort?: SortState;
+  onSortChange?: (next: SortState) => void;
 }
 
 export default function DataTable({
@@ -51,9 +59,12 @@ export default function DataTable({
   onPageChange,
   onPageSizeChange,
   onRowClick,
+  getRowSx,
   onAddClick,
   onSearchChange,
   title,
+  sort,
+  onSortChange,
 }: DataTableProps) {
   const [search, setSearch] = React.useState('');
 
@@ -119,14 +130,15 @@ export default function DataTable({
               <TableHead>
                 <TableRow sx={{ bgcolor: 'action.hover' }}>
                   {columns.map((column) => (
-                    <TableCell
+                    <SortableHeaderCell
                       key={column.id}
+                      label={column.label}
+                      sortKey={column.sortKey}
+                      sort={sort}
+                      onSort={onSortChange}
                       align={column.align || 'left'}
-                      style={{ minWidth: column.minWidth }}
-                      sx={{ fontWeight: 600 }}
-                    >
-                      {column.label}
-                    </TableCell>
+                      minWidth={column.minWidth}
+                    />
                   ))}
                 </TableRow>
               </TableHead>
@@ -145,6 +157,7 @@ export default function DataTable({
                       sx={{
                         cursor: onRowClick ? 'pointer' : 'default',
                         '&:hover': onRowClick ? { bgcolor: '#f9f9f9' } : {},
+                        ...(getRowSx?.(row) ?? {}),
                       }}
                     >
                       {columns.map((column) => (

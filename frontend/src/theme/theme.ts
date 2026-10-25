@@ -1,47 +1,49 @@
 import { createTheme } from '@mui/material/styles';
 
+// Light theme: white and light grey surfaces with dark slate text. No blue or
+// gradient accents; text fields have light green borders.
 export const lightTheme = createTheme({
   palette: {
     mode: 'light',
     primary: {
-      main: '#6366f1',
-      light: '#818cf8',
-      dark: '#4f46e5',
-      contrastText: '#fff',
+      main: '#334155',
+      light: '#64748b',
+      dark: '#1e293b',
+      contrastText: '#ffffff',
     },
     secondary: {
-      main: '#ec4899',
-      light: '#f472b6',
-      dark: '#db2777',
-      contrastText: '#fff',
+      main: '#475569',
+      light: '#94a3b8',
+      dark: '#334155',
+      contrastText: '#ffffff',
     },
     success: {
-      main: '#10b981',
-      light: '#6ee7b7',
-      dark: '#059669',
+      main: '#16a34a',
+      light: '#86efac',
+      dark: '#15803d',
     },
     warning: {
-      main: '#f59e0b',
-      light: '#fbbf24',
-      dark: '#d97706',
+      main: '#d97706',
+      light: '#fcd34d',
+      dark: '#b45309',
     },
     error: {
-      main: '#ef4444',
+      main: '#dc2626',
       light: '#fca5a5',
-      dark: '#dc2626',
+      dark: '#b91c1c',
     },
     info: {
-      main: '#0ea5e9',
-      light: '#38bdf8',
-      dark: '#0284c7',
+      main: '#0369a1',
+      light: '#7dd3fc',
+      dark: '#075985',
     },
     background: {
-      default: '#f0f9ff',
+      default: '#f8fafc',
       paper: '#ffffff',
     },
     text: {
-      primary: '#1e293b',
-      secondary: '#64748b',
+      primary: '#0f172a',
+      secondary: '#334155',
     },
   },
   typography: {
@@ -71,22 +73,22 @@ export const lightTheme = createTheme({
     h5: {
       fontSize: '1.25rem',
       fontWeight: 600,
-      color: '#1e293b',
+      color: '#0f172a',
     },
     h6: {
       fontSize: '1rem',
       fontWeight: 600,
-      color: '#1e293b',
+      color: '#0f172a',
     },
     body1: {
       fontSize: '1rem',
       lineHeight: 1.6,
-      color: '#334155',
+      color: '#0f172a',
     },
     body2: {
       fontSize: '0.875rem',
       lineHeight: 1.5,
-      color: '#64748b',
+      color: '#334155',
     },
   },
   shape: {
@@ -104,38 +106,33 @@ export const lightTheme = createTheme({
           transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         },
         containedPrimary: {
-          background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
-          boxShadow: '0 10px 25px rgba(99, 102, 241, 0.4)',
+          background: '#334155',
+          boxShadow: '0 4px 12px rgba(15, 23, 42, 0.15)',
           '&:hover': {
-            background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
-            boxShadow: '0 15px 35px rgba(99, 102, 241, 0.5)',
-            transform: 'translateY(-2px)',
+            background: '#1e293b',
+            boxShadow: '0 6px 16px rgba(15, 23, 42, 0.2)',
           },
         },
         containedSecondary: {
-          background: 'linear-gradient(135deg, #ec4899 0%, #f43f5e 100%)',
-          boxShadow: '0 10px 25px rgba(236, 72, 153, 0.4)',
+          background: '#475569',
+          boxShadow: '0 4px 12px rgba(15, 23, 42, 0.15)',
           '&:hover': {
-            background: 'linear-gradient(135deg, #db2777 0%, #e11d48 100%)',
-            boxShadow: '0 15px 35px rgba(236, 72, 153, 0.5)',
-            transform: 'translateY(-2px)',
+            background: '#334155',
           },
         },
         containedSuccess: {
-          background: 'linear-gradient(135deg, #10b981 0%, #14b8a6 100%)',
-          boxShadow: '0 10px 25px rgba(16, 185, 129, 0.4)',
+          background: '#16a34a',
+          boxShadow: '0 4px 12px rgba(22, 163, 74, 0.2)',
           '&:hover': {
-            background: 'linear-gradient(135deg, #059669 0%, #0d9488 100%)',
-            boxShadow: '0 15px 35px rgba(16, 185, 129, 0.5)',
-            transform: 'translateY(-2px)',
+            background: '#15803d',
           },
         },
         outlinedPrimary: {
-          borderColor: '#6366f1',
-          color: '#6366f1',
+          borderColor: '#334155',
+          color: '#334155',
           '&:hover': {
-            backgroundColor: 'rgba(99, 102, 241, 0.1)',
-            borderColor: '#4f46e5',
+            backgroundColor: 'rgba(51, 65, 85, 0.08)',
+            borderColor: '#1e293b',
           },
         },
       },
@@ -144,14 +141,13 @@ export const lightTheme = createTheme({
       styleOverrides: {
         root: {
           borderRadius: 16,
-          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.08)',
-          border: '1px solid rgba(99, 102, 241, 0.1)',
+          boxShadow: '0 1px 3px rgba(15, 23, 42, 0.08)',
+          border: '1px solid #e2e8f0',
           transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          background: 'linear-gradient(135deg, #ffffff 0%, #f0f9ff 100%)',
+          background: '#ffffff',
           '&:hover': {
-            boxShadow: '0 12px 32px rgba(99, 102, 241, 0.15)',
-            borderColor: 'rgba(99, 102, 241, 0.3)',
-            transform: 'translateY(-4px)',
+            boxShadow: '0 6px 16px rgba(15, 23, 42, 0.1)',
+            borderColor: '#cbd5e1',
           },
         },
       },
@@ -164,24 +160,24 @@ export const lightTheme = createTheme({
           fontSize: '0.85rem',
         },
         colorPrimary: {
-          background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
-          color: '#fff',
+          background: '#334155',
+          color: '#ffffff',
         },
         colorSecondary: {
-          background: 'linear-gradient(135deg, #ec4899 0%, #f43f5e 100%)',
-          color: '#fff',
+          background: '#475569',
+          color: '#ffffff',
         },
         colorSuccess: {
-          background: 'linear-gradient(135deg, #10b981 0%, #14b8a6 100%)',
-          color: '#fff',
+          background: '#16a34a',
+          color: '#ffffff',
         },
         colorWarning: {
-          background: 'linear-gradient(135deg, #f59e0b 0%, #f97316 100%)',
-          color: '#fff',
+          background: '#d97706',
+          color: '#ffffff',
         },
         colorError: {
-          background: 'linear-gradient(135deg, #ef4444 0%, #f43f5e 100%)',
-          color: '#fff',
+          background: '#dc2626',
+          color: '#ffffff',
         },
       },
     },
@@ -190,18 +186,22 @@ export const lightTheme = createTheme({
         root: {
           '& .MuiOutlinedInput-root': {
             borderRadius: 12,
-            background: 'rgba(255, 255, 255, 0.8)',
+            background: '#ffffff',
+            color: '#0f172a',
             transition: 'all 0.3s',
             '& fieldset': {
-              borderColor: 'rgba(99, 102, 241, 0.3)',
+              borderColor: '#86efac',
             },
             '&:hover fieldset': {
-              borderColor: '#6366f1',
+              borderColor: '#4ade80',
             },
             '&.Mui-focused fieldset': {
-              borderColor: '#6366f1',
+              borderColor: '#22c55e',
               borderWidth: 2,
             },
+          },
+          '& .MuiInputLabel-root': {
+            color: '#334155',
           },
         },
       },
@@ -209,8 +209,10 @@ export const lightTheme = createTheme({
     MuiAppBar: {
       styleOverrides: {
         root: {
-          background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
-          boxShadow: '0 8px 24px rgba(99, 102, 241, 0.3)',
+          background: '#ffffff',
+          color: '#0f172a',
+          boxShadow: '0 1px 3px rgba(15, 23, 42, 0.1)',
+          borderBottom: '1px solid #e2e8f0',
         },
       },
     },
@@ -228,12 +230,12 @@ export const lightTheme = createTheme({
           margin: '4px 8px',
           transition: 'all 0.3s',
           '&:hover': {
-            background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%)',
+            background: 'rgba(51, 65, 85, 0.08)',
           },
           '&.Mui-selected': {
-            background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(139, 92, 246, 0.15) 100%)',
+            background: 'rgba(51, 65, 85, 0.12)',
             '&:hover': {
-              background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.25) 0%, rgba(139, 92, 246, 0.25) 100%)',
+              background: 'rgba(51, 65, 85, 0.16)',
             },
           },
         },
@@ -242,13 +244,13 @@ export const lightTheme = createTheme({
     MuiTableCell: {
       styleOverrides: {
         head: {
-          background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
-          color: '#ffffff',
+          background: '#f1f5f9',
+          color: '#0f172a',
           fontWeight: 700,
         },
         body: {
           '&:hover': {
-            backgroundColor: 'rgba(99, 102, 241, 0.05)',
+            backgroundColor: '#f8fafc',
           },
         },
       },

@@ -10,21 +10,61 @@ const Lead_1 = require("../models/Lead");
 const Account_1 = require("../models/Account");
 const constants_1 = require("../utils/constants");
 const logger_1 = __importDefault(require("../utils/logger"));
+const NO_SCOPE = { ownerIds: null };
+// Timeline sort keys from the screen, mapped to the row field they sort by.
+const TIMELINE_SORT = {
+    account: 'accountName',
+    accountCreated: 'accountCreatedAt',
+    prospect: 'leadName',
+    prospectCreated: 'leadCreatedAt',
+    prospectConverted: 'leadConvertedAt',
+    opportunity: 'opportunityName',
+    opportunityCreated: 'opportunityCreatedAt',
+    stage: 'opportunityStage',
+};
+// Empty values sort last. Dates compare by time, text by locale order.
+function compareValues(a, b) {
+    const empty = (v) => v === null || v === undefined || v === '';
+    if (empty(a) || empty(b))
+        return empty(a) === empty(b) ? 0 : empty(a) ? 1 : -1;
+    const x = a instanceof Date ? a.getTime() : a;
+    const y = b instanceof Date ? b.getTime() : b;
+    if (typeof x === 'number' && typeof y === 'number')
+        return x - y;
+    return String(x).localeCompare(String(y));
+}
+function sortTimeline(rows, sortBy, sortDir) {
+    const key = sortBy ? TIMELINE_SORT[sortBy] : undefined;
+    if (!key)
+        return rows;
+    const dir = sortDir === 'desc' ? -1 : 1;
+    return [...rows].sort((a, b) => compareValues(a[key], b[key]) * dir);
+}
 class ReportService {
     constructor() {
         this.oppRepository = database_1.AppDataSource.getRepository(Opportunity_1.Opportunity);
         this.leadRepository = database_1.AppDataSource.getRepository(Lead_1.Lead);
         this.accountRepository = database_1.AppDataSource.getRepository(Account_1.Account);
     }
-    // Apply Sales Rep ownership scope when an ownerId is provided.
-    scopeOwner(query, ownerId) {
-        if (ownerId) {
-            query.andWhere('opp.ownerId = :ownerId', { ownerId });
+    // Applies the owner, country, region and date filters to a query on `alias`.
+    // `dateColumn` is the column the from/to dates apply to; pass '' to ignore dates.
+    applyScope(query, alias, scope, dateColumn) {
+        if (scope.ownerIds)
+            query.andWhere(`${alias}."ownerId" = ANY(:ownerIds)`, { ownerIds: scope.ownerIds });
+        if (scope.country)
+            query.andWhere(`TRIM(${alias}.country) = :country`, { country: scope.country });
+        if (scope.region)
+            query.andWhere(`TRIM(${alias}.region) = :region`, { region: scope.region });
+        if (dateColumn && scope.from) {
+            query.andWhere(`${alias}."${dateColumn}" >= :from`, { from: new Date(`${scope.from}T00:00:00.000Z`) });
+        }
+        if (dateColumn && scope.to) {
+            query.andWhere(`${alias}."${dateColumn}" <= :to`, { to: new Date(`${scope.to}T23:59:59.999Z`) });
         }
         return query;
     }
     // --- Pipeline value report: open opportunities grouped by stage, in dollars ---
-    async getPipelineReport(ownerId) {
+    async getPipelineReport(scope = NO_SCOPE) {
         const query = this.oppRepository
             .createQueryBuilder('opp')
             .select('opp.stage', 'stage')
@@ -33,7 +73,7 @@ class ReportService {
             .addSelect('COALESCE(SUM(opp.amount * opp.probability / 100), 0)', 'weightedValue')
             .where('opp.status = :status', { status: 'Open' })
             .groupBy('opp.stage');
-        this.scopeOwner(query, ownerId);
+        this.applyScope(query, 'opp', scope, 'createdAt');
         const rows = await query.getRawMany();
         const rowMap = new Map(rows.map((r) => [r.stage, r]));
         // Return all open stages in canonical order, zero-filled where empty.
@@ -55,16 +95,8 @@ class ReportService {
         };
     }
     // --- Sales report: closed deals (won/lost) with dollar figures ---
-    async getSalesReport(ownerId, from, to) {
-        const base = () => {
-            const q = this.oppRepository.createQueryBuilder('opp');
-            if (from)
-                q.andWhere('opp.closedAt >= :from', { from });
-            if (to)
-                q.andWhere('opp.closedAt <= :to', { to });
-            this.scopeOwner(q, ownerId);
-            return q;
-        };
+    async getSalesReport(scope = NO_SCOPE) {
+        const base = () => this.applyScope(this.oppRepository.createQueryBuilder('opp'), 'opp', scope, 'closedAt');
         const won = await base()
             .select('COUNT(opp.id)', 'count')
             .addSelect('COALESCE(SUM(opp.amount), 0)', 'value')
@@ -103,9 +135,8 @@ class ReportService {
         };
     }
     // --- Sales performance by owner (for managers to compare reps) ---
-    async getSalesByOwner() {
-        const rows = await this.oppRepository
-            .createQueryBuilder('opp')
+    async getSalesByOwner(scope = NO_SCOPE) {
+        const rows = await this.applyScope(this.oppRepository.createQueryBuilder('opp'), 'opp', scope, 'createdAt')
             .leftJoin('opp.owner', 'owner')
             .select('opp.ownerId', 'ownerId')
             .addSelect("owner.firstName || ' ' || owner.lastName", 'ownerName')
@@ -133,24 +164,23 @@ class ReportService {
         });
     }
     // --- Consolidated MIS dashboard ---
-    async getMIS(ownerId) {
+    async getMIS(scope = NO_SCOPE) {
         try {
             const now = new Date();
             const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
             const quarter = Math.floor(now.getMonth() / 3);
             const startOfQuarter = new Date(now.getFullYear(), quarter * 3, 1);
-            const pipeline = await this.getPipelineReport(ownerId);
-            const salesAllTime = await this.getSalesReport(ownerId);
-            const wonThisMonth = await this.wonInPeriod(startOfMonth, ownerId);
-            const wonThisQuarter = await this.wonInPeriod(startOfQuarter, ownerId);
+            const pipeline = await this.getPipelineReport(scope);
+            const salesAllTime = await this.getSalesReport(scope);
+            const wonThisMonth = await this.wonInPeriod(startOfMonth, scope);
+            const wonThisQuarter = await this.wonInPeriod(startOfQuarter, scope);
             // Leads by status
             const leadQuery = this.leadRepository
                 .createQueryBuilder('lead')
                 .select('lead.status', 'status')
                 .addSelect('COUNT(lead.id)', 'count')
                 .groupBy('lead.status');
-            if (ownerId)
-                leadQuery.where('lead.ownerId = :ownerId', { ownerId });
+            this.applyScope(leadQuery, 'lead', scope, 'createdAt');
             const leadRows = await leadQuery.getRawMany();
             const leadsByStatus = leadRows.map((r) => ({
                 status: r.status,
@@ -182,9 +212,9 @@ class ReportService {
                 },
                 lossReasons: salesAllTime.lossReasons,
             };
-            // Manager/Admin view (no ownerId scope) also gets per-rep performance.
-            if (!ownerId) {
-                result.salesByOwner = await this.getSalesByOwner();
+            // Viewers who can see everyone also get per-rep performance.
+            if (!scope.ownerIds) {
+                result.salesByOwner = await this.getSalesByOwner(scope);
             }
             return result;
         }
@@ -219,8 +249,8 @@ class ReportService {
     }
     // --- Conversion timeline: Account created -> Lead added -> Lead converted
     // to Opportunity, one row per chain, with a timestamp at each stage.
-    async getConversionTimeline(ownerId, opts = {}) {
-        const all = await this.buildConversionTimeline(ownerId, opts);
+    async getConversionTimeline(scope = NO_SCOPE, opts = {}) {
+        const all = sortTimeline(await this.buildConversionTimeline(scope, opts), opts.sortBy, opts.sortDir);
         const limit = opts.all ? Math.max(all.length, 1) : Math.min(Math.max(opts.limit || 25, 1), 200);
         const totalPages = Math.max(1, Math.ceil(all.length / limit));
         const page = Math.min(Math.max(opts.page || 1, 1), totalPages);
@@ -229,17 +259,19 @@ class ReportService {
             meta: { page, limit, total: all.length, totalPages },
         };
     }
-    async buildConversionTimeline(ownerId, opts = {}) {
+    async buildConversionTimeline(scope, opts = {}) {
         const accountQuery = this.accountRepository
             .createQueryBuilder('account')
             .leftJoinAndSelect('account.owner', 'owner')
             .orderBy('account.createdAt', 'DESC');
-        if (ownerId) {
-            accountQuery.andWhere('(account.ownerId = :ownerId OR account.assigneeIds LIKE :ownerIdLike)', {
-                ownerId,
-                ownerIdLike: `%${ownerId}%`,
+        // Owner or assignee matches any of the salesperson ids in scope.
+        if (scope.ownerIds) {
+            accountQuery.andWhere('(account."ownerId" = ANY(:ownerIds) OR account."assigneeIds" LIKE ANY(:ownerLikes))', {
+                ownerIds: scope.ownerIds,
+                ownerLikes: scope.ownerIds.map((id) => `%${id}%`),
             });
         }
+        this.applyScope(accountQuery, 'account', { ownerIds: null, country: scope.country, region: scope.region }, '');
         // Date range applies to when the account was added (UTC day boundaries).
         if (opts.fromDate) {
             accountQuery.andWhere('account.createdAt >= :tf', { tf: new Date(`${opts.fromDate}T00:00:00.000Z`) });
@@ -376,14 +408,15 @@ class ReportService {
         }
         return rows;
     }
-    async wonInPeriod(from, ownerId) {
+    // Wins since `from`. The report's own from/to dates do not apply here: this card has a fixed period.
+    async wonInPeriod(from, scope) {
         const q = this.oppRepository
             .createQueryBuilder('opp')
             .select('COUNT(opp.id)', 'count')
             .addSelect('COALESCE(SUM(opp.amount), 0)', 'value')
             .where('opp.status = :status', { status: 'Won' })
             .andWhere('opp.closedAt >= :from', { from });
-        this.scopeOwner(q, ownerId);
+        this.applyScope(q, 'opp', { ...scope, from: undefined, to: undefined }, '');
         const r = await q.getRawOne();
         return { count: parseInt(r.count, 10), value: parseFloat(r.value) };
     }

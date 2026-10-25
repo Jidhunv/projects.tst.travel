@@ -5,6 +5,7 @@ import {
 } from '@mui/material';
 import { api } from '@services/api';
 import { exportToCsv } from '@utils/exportCsv';
+import useAuth from '@hooks/useAuth';
 
 const errMsg = (e: any, fb: string) => e?.response?.data?.error || e?.response?.data?.message || e?.message || fb;
 const iso = (d: Date) => d.toISOString().slice(0, 10);
@@ -18,6 +19,7 @@ const PRIORITY_COLOR: Record<string, 'error' | 'warning' | 'info' | 'default'> =
 
 // Response and resolution times for client issues, judged against SLA targets.
 export default function IssueSlaReport({ staff }: { staff: any[] }) {
+  const { hasPermission } = useAuth();
   const [from, setFrom] = React.useState(() => iso(new Date(Date.now() - 29 * 86_400_000)));
   const [to, setTo] = React.useState(() => iso(new Date()));
   const [priority, setPriority] = React.useState('');
@@ -81,7 +83,9 @@ export default function IssueSlaReport({ staff }: { staff: any[] }) {
                 <MenuItem value="">Anyone</MenuItem>{staff.map((u) => <MenuItem key={u.id} value={u.id}>{u.firstName} {u.lastName}</MenuItem>)}
               </TextField>
             )}
-            <Button variant="outlined" onClick={exportAll} disabled={!data || data.meta.total === 0}>Export CSV</Button>
+            {hasPermission('report_exports', 'issue_sla') && (
+              <Button variant="outlined" onClick={exportAll} disabled={!data || data.meta.total === 0}>Export CSV</Button>
+            )}
           </Stack>
         </CardContent>
       </Card>

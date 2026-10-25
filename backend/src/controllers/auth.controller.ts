@@ -8,6 +8,7 @@ import logger from '../utils/logger';
 import { logSecurityEvent, requestContext } from '../utils/securityLogger';
 import tokenBlacklist from '../services/token-blacklist.service';
 import jwt from 'jsonwebtoken';
+import loginActivityService from '../services/loginActivity.service';
 
 export class AuthController {
   async login(req: Request, res: Response, next: NextFunction) {
@@ -24,10 +25,19 @@ export class AuthController {
       } catch (authError) {
         // Distinguish a lockout (HTTP 423) from an ordinary failed attempt.
         const isLockout = authError instanceof AppError && authError.statusCode === 423;
+        const reason = authError instanceof AppError ? authError.message : 'authentication failed';
         logSecurityEvent(isLockout ? 'ACCOUNT_LOCKED' : 'LOGIN_FAILURE', {
           ...requestContext(req),
           email,
-          reason: authError instanceof AppError ? authError.message : 'authentication failed',
+          reason,
+        });
+        await loginActivityService.record({
+          emailTried: email,
+          event: isLockout ? 'ACCOUNT_LOCKED' : 'LOGIN_FAILURE',
+          success: false,
+          reason,
+          ipAddress: req.ip,
+          userAgent: req.get('user-agent'),
         });
         throw authError;
       }
@@ -46,6 +56,14 @@ export class AuthController {
         email: user.email,
         userId: user.id,
         role: user.role?.name,
+      });
+      await loginActivityService.record({
+        userId: user.id,
+        emailTried: user.email,
+        event: 'LOGIN_SUCCESS',
+        success: true,
+        ipAddress: req.ip,
+        userAgent: req.get('user-agent'),
       });
 
       // Set token in HTTPOnly cookie to prevent XSS attacks
@@ -94,6 +112,14 @@ export class AuthController {
         ...requestContext(req),
         userId: req.user?.id,
         email: req.user?.email,
+      });
+      await loginActivityService.record({
+        userId: req.user?.id ?? null,
+        emailTried: req.user?.email ?? null,
+        event: 'LOGOUT',
+        success: true,
+        ipAddress: req.ip,
+        userAgent: req.get('user-agent'),
       });
       return res.json({
         success: true,

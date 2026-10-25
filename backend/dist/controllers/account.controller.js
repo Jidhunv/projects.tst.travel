@@ -12,6 +12,12 @@ const errorHandler_1 = require("../middleware/errorHandler");
 const inputValidator_1 = __importDefault(require("../utils/inputValidator"));
 const pick_1 = __importDefault(require("../utils/pick"));
 const logger_1 = __importDefault(require("../utils/logger"));
+const accountProfile_1 = require("../utils/accountProfile");
+const prospecting_1 = require("../utils/prospecting");
+const prospectQualification_1 = require("../utils/prospectQualification");
+const prospectOptions_service_1 = require("../services/prospectOptions.service");
+const database_1 = require("../config/database");
+const CompanyType_1 = require("../models/CompanyType");
 // Access check for a single account that understands "team" (group) scope: a
 // team-scoped user may act on accounts owned by a group co-member, plus their
 // own. Returns silently if allowed, throws 403 otherwise. "all" allows anything.
@@ -53,7 +59,7 @@ class AccountController {
             if (!(0, auth_1.canPerformAction)(req.user, 'accounts', 'create')) {
                 throw new errorHandler_1.AppError(403, 'You do not have permission to create accounts');
             }
-            const { name, industry, size, website, phoneNumber, alternatePhoneNumber, email, remark, type, contactPerson, city, region, country } = req.body;
+            const { name, industry, size, website, phoneNumber, alternatePhoneNumber, email, remark, type, contactPerson, city, region, country, tier } = req.body;
             // Validate required fields
             const nameValidation = inputValidator_1.default.validateString(name, 'Account name', 1, 100);
             if (!nameValidation.valid) {
@@ -80,6 +86,7 @@ class AccountController {
             }
             const account = await account_service_1.default.createAccount({
                 name,
+                tier,
                 industry,
                 size,
                 website,
@@ -115,7 +122,7 @@ class AccountController {
     }
     async getAccounts(req, res, next) {
         try {
-            const { page = 1, limit = 20, status, type, ownerId, search, city, region, country, fromDate, toDate } = req.query;
+            const { page = 1, limit = 20, status, type, ownerId, search, city, region, country, fromDate, toDate, sortBy, sortDir } = req.query;
             // Visibility by read scope:
             //   all  -> everything (optionally filtered by an ownerId query param)
             //   team -> own + owned by a co-member + assigned to my team + assigned to me
@@ -164,11 +171,14 @@ class AccountController {
                 supervisedAccountIds: supAccts,
                 memberAccountIds: memAccts,
                 search: search,
+                sortBy: sortBy,
+                sortDir: sortDir,
                 city: city,
                 region: region,
                 country: country,
                 fromDate: fromDate,
                 toDate: toDate,
+                prospectReady: req.query.prospectReady === 'true',
             });
             return res.json({
                 success: true,
@@ -218,10 +228,27 @@ class AccountController {
                 'contactPerson', 'city', 'region', 'country',
                 'billingStreet', 'billingCity', 'billingState', 'billingZip', 'billingCountry',
                 'shippingStreet', 'shippingCity', 'shippingState', 'shippingZip', 'shippingCountry',
-                'onboardingStatus', 'onboardingDate', 'onboardingCompletedDate', 'onboardingNotes',
-                'contractSignedDate', 'goLiveDate', 'accountManager', 'billingContact', 'technicalContact', 'tags',
+                'onboardingStatus', 'onboardingDate', 'onboardingNotes',
+                'accountManager', 'billingContact', 'technicalContact', 'tags',
             ];
             const updates = (0, pick_1.default)(req.body, allowed);
+            // Prospecting answers are validated and cleaned before they are stored.
+            if ('prospectingAnswers' in req.body) {
+                try {
+                    updates.prospectingAnswers = (0, prospecting_1.normaliseProspecting)(req.body.prospectingAnswers, await (0, prospectOptions_service_1.activeProspectOptions)());
+                }
+                catch (e) {
+                    throw new errorHandler_1.AppError(400, e.message);
+                }
+            }
+            // Onboarding profile (company type, B2B/retail, business, employees, branches).
+            // Validated and cleaned by normaliseProfile; a company type must exist in the master.
+            Object.assign(updates, (0, accountProfile_1.normaliseProfile)(req.body));
+            if (updates.companyTypeId) {
+                const exists = await database_1.AppDataSource.getRepository(CompanyType_1.CompanyType).findOne({ where: { id: updates.companyTypeId } });
+                if (!exists)
+                    throw new errorHandler_1.AppError(400, 'Selected company type does not exist');
+            }
             // Validate the same fields create does. An empty string clears the value.
             if (updates.email) {
                 const emailCheck = inputValidator_1.default.validateEmail(updates.email);
@@ -250,15 +277,34 @@ class AccountController {
             // account may set these.
             if (Array.isArray(req.body.assigneeIds))
                 updates.assigneeIds = req.body.assigneeIds;
-            const account = await account_service_1.default.updateAccount(id, updates);
+            if ('leadQualification' in req.body) {
+                try {
+                    updates.leadQualification = (0, prospectQualification_1.normaliseLeadQualification)(req.body.leadQualification);
+                }
+                catch (e) {
+                    throw new errorHandler_1.AppError(400, e.message);
+                }
+            }
+            if ('prospectingAnswers' in req.body)
+                updates.prospectingUpdatedAt = new Date();
+            let account = await account_service_1.default.updateAccount(id, updates);
+            // The first time the answers are complete, the moment is kept (UTC) so it can be reported later.
+            if ('prospectingAnswers' in req.body) {
+                const done = (0, prospecting_1.prospectingProgress)(account, account.prospectingAnswers, await (0, prospectOptions_service_1.activeProspectOptions)());
+                if (done.complete && !account.prospectedAt) {
+                    account = await account_service_1.default.updateAccount(id, { prospectedAt: new Date() });
+                }
+            }
             if (Array.isArray(req.body.assignedTeamIds)) {
                 await account_service_1.default.setAccountTeams(id, req.body.assignedTeamIds);
             }
             const assignedTeamIds = await account_service_1.default.getAccountTeamIds(id);
             logger_1.default.info(`Account updated: ${account.id} by ${req.user.email}`);
+            // The response says whether the account is now a prospect, so the dialog can report what is still missing.
+            const prospecting = (0, prospecting_1.prospectingProgress)(account, account.prospectingAnswers, await (0, prospectOptions_service_1.activeProspectOptions)());
             return res.json({
                 success: true,
-                data: { ...account, assignedTeamIds },
+                data: { ...account, assignedTeamIds, prospecting },
             });
         }
         catch (error) {
@@ -268,7 +314,10 @@ class AccountController {
     // Assign an account to one or more users (Admin/Manager only).
     async assignAccount(req, res, next) {
         try {
-            if (!(0, auth_1.canReassign)(req.user, 'accounts')) {
+            // The account's owner can always hand it to someone else; anyone else needs the reassign privilege.
+            const current = await account_service_1.default.getAccountById(req.params.id);
+            const isOwner = current.ownerId === req.user.id;
+            if (!isOwner && !(0, auth_1.canReassign)(req.user, 'accounts')) {
                 throw new errorHandler_1.AppError(403, 'You do not have permission to reassign accounts');
             }
             const ids = Array.isArray(req.body.ownerIds)
@@ -425,7 +474,7 @@ class AccountController {
             await this.assertCanAccessAccount(req, accountId, 'update');
             const { stakeholders } = req.body;
             if (!Array.isArray(stakeholders)) {
-                throw new errorHandler_1.AppError(400, 'stakeholders must be an array of { role, name, designationId }');
+                throw new errorHandler_1.AppError(400, 'stakeholders must be an array of { role, name, email, phone, designationId }');
             }
             const saved = await account_service_1.default.upsertStakeholders(accountId, stakeholders);
             logger_1.default.info(`Stakeholders saved for account ${accountId} by ${req.user.email}`);

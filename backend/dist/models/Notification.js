@@ -22,7 +22,7 @@ __decorate([
 __decorate([
     (0, typeorm_1.Column)({
         type: 'enum',
-        enum: ['ContractExpiry', 'InvoiceDue', 'UATApproval', 'PaymentReminder', 'ProjectMilestone', 'TicketUpdate'],
+        enum: ['ContractExpiry', 'InvoiceDue', 'UATApproval', 'PaymentReminder', 'ProjectMilestone', 'TicketUpdate', 'SecurityAlert'],
     }),
     __metadata("design:type", String)
 ], Notification.prototype, "type", void 0);

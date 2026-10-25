@@ -1,0 +1,1084 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { Link as RouterLink } from 'react-router-dom';
+import {
+  Box,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  MenuItem,
+  Chip,
+  Card,
+  CardContent,
+  Typography,
+  Grid,
+  OutlinedInput,
+  InputAdornment,
+  ToggleButton,
+  ToggleButtonGroup,
+  Alert,
+} from '@mui/material';
+import { Search as SearchIcon, ViewAgendaOutlined as ListIcon, ViewWeekOutlined as KanbanIcon } from '@mui/icons-material';
+import StaffFilter from '@components/StaffFilter';
+import { SortableHeaderCell, SortState } from '@components/SortControl';
+import Layout from '@components/Layout';
+import AssignOwner from '@components/AssignOwner';
+import BuyingCommitteeViewDialog from '@components/BuyingCommitteeViewDialog';
+import ConfirmDialog from '@components/ConfirmDialog';
+import SearchableSelect from '@components/SearchableSelect';
+import { useAccountOptions } from '@hooks/useAccountOptions';
+import BuyingCommitteeEditor, {
+  CommitteeForm,
+  committeeError,
+  committeeFormFromRows,
+  committeePayload,
+  emptyCommitteeForm,
+} from '@components/BuyingCommitteeEditor';
+import NoCommitteeChip from '@components/NoCommitteeChip';
+import ProspectQualificationForm, { LeadQualificationAnswers, leadQualificationMissing } from '@components/ProspectQualificationForm';
+import useAuth from '@hooks/useAuth';
+import { debounce } from '@utils/debounce';
+import { apiClient, api } from '../services/api';
+import { Lead, Account } from '../types';
+import { formatCurrency } from '@utils/format';
+
+const statusColor: Record<string, 'info' | 'primary' | 'success' | 'error' | 'warning'> = {
+  Open: 'info',
+  Qualified: 'success',
+  Prospect: 'primary',
+  Disqualified: 'error',
+};
+
+const statusDisplay: Record<string, string> = {
+  Open: 'Open',
+  Qualified: 'Qualified',
+  Prospect: 'Prospect',
+  Converted: 'Converted',
+  Disqualified: 'Disqualified',
+};
+
+export default function ProspectsPage() {
+  const { hasPermission } = useAuth();
+  const canDelete = hasPermission('leads', 'delete');
+
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [loading, setLoading] = useState(false);
+  const [products, setProducts] = useState<any[]>([]);
+  const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list');
+  const [confirmDelete, setConfirmDelete] = useState<{ open: boolean; leadId: string | null }>({ open: false, leadId: null });
+
+  // Filters
+  const [search, setSearch] = useState(''); // Actual search value (used for API)
+  const [searchLocal, setSearchLocal] = useState(''); // Local state for instant UI feedback
+  const [statusFilter, setStatusFilter] = useState('');
+  const [sourceFilter, setSourceFilter] = useState('');
+  const [ownerFilter, setOwnerFilter] = useState('');
+  const [dateFromFilter, setDateFromFilter] = useState('');
+  const [dateToFilter, setDateToFilter] = useState('');
+
+  // Debounce search input - 300ms delay to reduce API calls
+  const debouncedSearch = useMemo(
+    () => debounce((val: string) => setSearch(val), 300),
+    []
+  );
+
+  // Memoize kanban columns to prevent recalculation on every render
+  const kanbanColumns = useMemo(() => [
+    { key: 'Open', statuses: ['Open'], label: 'Open' },
+    { key: 'Qualified', statuses: ['Qualified'], label: 'Qualified' },
+    { key: 'Prospect', statuses: ['Prospect', 'Converted'], label: 'Prospect' },
+    { key: 'Disqualified', statuses: ['Disqualified'], label: 'Disqualified' }
+  ], []);
+
+  // Dialogs
+  const [openCreate, setOpenCreate] = useState(false);
+  const [openEdit, setOpenEdit] = useState<Lead | null>(null);
+
+  const [suppliers, setSuppliers] = useState<any[]>([]);
+  const [regionFilter, setRegionFilter] = useState('');
+  const [countryFilter, setCountryFilter] = useState('');
+  const [leadSort, setLeadSort] = useState<SortState>({ sortBy: 'createdAt', sortDir: 'desc' });
+  const [accountContacts, setAccountContacts] = useState<any[]>([]);
+  // Buying committee captured on conversion into a lead. It never blocks creation:
+  // a lead without a named member is highlighted in the lists instead.
+  const [committeeForm, setCommitteeForm] = useState<CommitteeForm>(emptyCommitteeForm());
+  // Lead qualification answers for the selected account; all ten are needed before a lead is saved.
+  const [lqAnswers, setLqAnswers] = useState<LeadQualificationAnswers>({});
+  const lqMissing = leadQualificationMissing(lqAnswers);
+  const committeeMapped = Object.values(committeeForm).some((m) => m.name.trim() !== '');
+
+  const [form, setForm] = useState({
+    accountId: '',
+    firstName: '',
+    lastName: '',
+    email: '',
+    company: '',
+    phoneNumber: '',
+    value: '',
+    expectedCloseDate: '',
+    productIds: [] as string[],
+    remark: '',
+    source: '',
+    status: '',
+    businessVolume: '',
+    supplierList: [] as string[],
+    region: '',
+    country: '',
+  });
+
+  const fetchLeads = React.useCallback(async () => {
+    setLoading(true);
+    try {
+      const params: any = { page, limit: pageSize };
+      if (search) params.search = search;
+      if (statusFilter) params.status = statusFilter;
+      if (sourceFilter) params.source = sourceFilter;
+      if (ownerFilter) params.ownerId = ownerFilter;
+      if (dateFromFilter) params.fromDate = dateFromFilter;
+      if (dateToFilter) params.toDate = dateToFilter;
+      if (regionFilter) params.region = regionFilter;
+      if (countryFilter) params.country = countryFilter;
+      params.sortBy = leadSort.sortBy;
+      params.sortDir = leadSort.sortDir;
+
+      const response = await apiClient.get('/leads', { params });
+      setLeads(response.data.data || []);
+      setTotal(response.data.meta?.total || 0);
+    } finally {
+      setLoading(false);
+    }
+  }, [page, pageSize, search, statusFilter, sourceFilter, ownerFilter, dateFromFilter, dateToFilter, regionFilter, countryFilter, leadSort]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter, sourceFilter, ownerFilter, dateFromFilter, dateToFilter, regionFilter, countryFilter]);
+
+  useEffect(() => {
+    fetchLeads();
+  }, [fetchLeads]);
+
+  // Accounts drive the required "Select Account" step, so a failed load must be
+  // visible and retryable rather than leaving an unexplained empty dropdown.
+  const { accounts: accountOptions, loading: accountsLoading, error: accountsError, reload: loadAccounts, search: searchAccounts } = useAccountOptions(form.accountId, { prospectReady: true });
+  const accounts = accountOptions as Account[];
+
+  useEffect(() => {
+    // Load data once on mount (in parallel for speed). allSettled, not all: these
+    // dropdowns are independent, and one endpoint the current role cannot read
+    // must not discard the others' results.
+    Promise.allSettled([
+      apiClient.get('/products'),
+      apiClient.get('/suppliers'),
+      loadAccounts(),
+    ]).then(([p, s]) => {
+      if (p.status === 'fulfilled') setProducts(p.value.data?.data ?? []);
+      else console.error('Error loading products:', p.reason);
+
+      if (s.status === 'fulfilled') setSuppliers(s.value.data?.data ?? []);
+      else console.error('Error loading suppliers:', s.reason);
+    });
+  }, [loadAccounts]);
+
+  const handleCreate = async () => {
+    try {
+      if (!form.accountId) {
+        alert('Please select an account first');
+        return;
+      }
+      const committeeProblem = committeeError(committeeForm);
+      if (committeeProblem) {
+        alert(committeeProblem);
+        return;
+      }
+      const productNames = form.productIds.map((id) => products.find((p) => p.id === id)?.name).filter(Boolean);
+      const selectedAccount = accounts.find((a) => a.id === form.accountId);
+      await apiClient.post('/leads', {
+        accountId: form.accountId,
+        firstName: form.firstName,
+        lastName: form.lastName,
+        email: form.email,
+        company: selectedAccount?.name || form.company,
+        phoneNumber: form.phoneNumber,
+        value: form.value ? Number(form.value) : 0,
+        expectedCloseDate: form.expectedCloseDate || undefined,
+        source: form.source || undefined,
+        productIds: form.productIds,
+        productNames: productNames,
+        remark: form.remark,
+        businessVolume: form.businessVolume ? Number(form.businessVolume) : undefined,
+        supplierList: form.supplierList,
+        region: form.region || undefined,
+        country: form.country || undefined,
+        buyingCommittee: committeePayload(committeeForm),
+      });
+      setOpenCreate(false);
+      setCommitteeForm(emptyCommitteeForm());
+      setLqAnswers({});
+      setForm({
+        accountId: '',
+        firstName: '',
+        lastName: '',
+        email: '',
+        company: '',
+        phoneNumber: '',
+        value: '',
+        expectedCloseDate: '',
+        productIds: [],
+        remark: '',
+        source: '',
+        status: '',
+        businessVolume: '',
+        supplierList: [],
+        region: '',
+        country: '',
+      });
+      fetchLeads();
+    } catch (error: any) {
+      console.error('Error creating prospect:', error);
+      alert(error.response?.data?.error || 'Failed to create prospect');
+    }
+  };
+
+  const handleUpdate = async () => {
+    if (!openEdit) return;
+    try {
+      const productNames = form.productIds.map((id) => products.find((p) => p.id === id)?.name).filter(Boolean);
+
+      // Qualifying is a plain status change.
+      if (form.status === 'Qualified' && openEdit.status !== 'Qualified') {
+        await api.updateLeadStatus(openEdit.id, 'Qualified');
+      }
+      // Moving to prospect needs the qualification questionnaire (nine mandatory questions) complete.
+      // The server still requires a Qualified step first, so it is passed through here.
+      if (form.status === 'Prospect' && openEdit.status !== 'Prospect') {
+        if (lqMissing.length) {
+          alert(`Complete the qualification questionnaire before moving to prospect: ${lqMissing.length} mandatory question(s) still open.`);
+          return;
+        }
+        await api.updateAccount(form.accountId, { leadQualification: lqAnswers });
+        if (openEdit.status !== 'Qualified') {
+          await api.updateLeadStatus(openEdit.id, 'Qualified');
+        }
+        await api.updateLeadStatus(openEdit.id, 'Prospect');
+      }
+
+      // Otherwise, update lead normally
+      await apiClient.patch(`/leads/${openEdit.id}`, {
+        firstName: form.firstName,
+        lastName: form.lastName,
+        email: form.email,
+        company: form.company,
+        phoneNumber: form.phoneNumber,
+        value: form.value ? Number(form.value) : 0,
+        expectedCloseDate: form.expectedCloseDate || undefined,
+        source: form.source || undefined,
+        status: form.status || undefined,
+        productIds: form.productIds,
+        productNames: productNames,
+        remark: form.remark,
+        businessVolume: form.businessVolume ? Number(form.businessVolume) : undefined,
+        supplierList: form.supplierList,
+        region: form.region || undefined,
+        country: form.country || undefined,
+      });
+      setOpenEdit(null);
+      fetchLeads();
+    } catch (error) {
+      console.error('Error updating prospect:', error);
+    }
+  };
+
+  const handleDelete = (leadId: string) => {
+    setConfirmDelete({ open: true, leadId });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!confirmDelete.leadId) return;
+    try {
+      await apiClient.delete(`/leads/${confirmDelete.leadId}`);
+      setConfirmDelete({ open: false, leadId: null });
+      fetchLeads();
+    } catch (error: any) {
+      console.error('Error deleting prospect:', error);
+      setConfirmDelete({ open: false, leadId: null });
+    }
+  };
+
+  const handleOpenEdit = (lead: Lead) => {
+    setOpenEdit(lead);
+    api.getAccount((lead as any).accountId).then((res) => setLqAnswers((res.data.data?.leadQualification || {}) as LeadQualificationAnswers)).catch(() => setLqAnswers({}));
+    setForm({
+      accountId: (lead as any).accountId || '',
+      firstName: lead.firstName,
+      lastName: lead.lastName,
+      email: lead.email,
+      company: lead.company || '',
+      phoneNumber: lead.phoneNumber || '',
+      value: lead.value.toString(),
+      expectedCloseDate: lead.expectedCloseDate ? lead.expectedCloseDate.toString().split('T')[0] : '',
+      source: lead.source || '',
+      status: lead.status || '',
+      productIds: (lead as any).productIds && (lead as any).productIds.length > 0
+        ? (lead as any).productIds
+        : lead.productId ? [lead.productId] : [],
+      remark: lead.remark || '',
+      businessVolume: (lead as any).businessVolume != null ? String((lead as any).businessVolume) : '',
+      supplierList: (lead as any).supplierList || [],
+      region: (lead as any).region || '',
+      country: (lead as any).country || '',
+    });
+  };
+
+  return (
+    <Layout>
+      <Box sx={{ p: 3 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+          <Typography variant="h4">
+            Prospects Management
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+            <Button variant="contained" onClick={() => { setCommitteeForm(emptyCommitteeForm()); setOpenCreate(true); }}>
+              Add Prospect
+            </Button>
+            <ToggleButtonGroup
+              value={viewMode}
+              exclusive
+              onChange={(_, newMode) => {
+                if (newMode !== null) setViewMode(newMode);
+              }}
+              size="small"
+            >
+              <ToggleButton value="list" aria-label="list view">
+                <ListIcon sx={{ mr: 0.5 }} />
+                List
+              </ToggleButton>
+              <ToggleButton value="kanban" aria-label="kanban view">
+                <KanbanIcon sx={{ mr: 0.5 }} />
+                Kanban
+              </ToggleButton>
+            </ToggleButtonGroup>
+          </Box>
+        </Box>
+
+        {/* Filters */}
+        <Card sx={{ mb: 3 }}>
+          <CardContent>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6} md={3}>
+                <OutlinedInput
+                  fullWidth
+                  placeholder="Search by name, email, company..."
+                  value={searchLocal}
+                  onChange={(e) => {
+                    setSearchLocal(e.target.value); // Instant UI feedback
+                    debouncedSearch(e.target.value); // Debounced API call
+                  }}
+                  startAdornment={
+                    <InputAdornment position="start">
+                      <SearchIcon />
+                    </InputAdornment>
+                  }
+                  size="small"
+                />
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <TextField
+                  fullWidth
+                  select
+                  label="Status"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  size="small"
+                >
+                  <MenuItem value="">All Status</MenuItem>
+                  <MenuItem value="Open">Open</MenuItem>
+                  <MenuItem value="Qualified">Qualified</MenuItem>
+                  <MenuItem value="Disqualified">Disqualified</MenuItem>
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <TextField
+                  fullWidth
+                  select
+                  label="Source"
+                  value={sourceFilter}
+                  onChange={(e) => setSourceFilter(e.target.value)}
+                  size="small"
+                >
+                  <MenuItem value="">All Sources</MenuItem>
+                  <MenuItem value="inbound">Inbound</MenuItem>
+                  <MenuItem value="referral">Referral</MenuItem>
+                  <MenuItem value="cold outreach">Cold Outreach</MenuItem>
+                  <MenuItem value="website">Website</MenuItem>
+                  <MenuItem value="event">Event</MenuItem>
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <StaffFilter value={ownerFilter} onChange={setOwnerFilter} label="Staff (owner)" />
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <TextField
+                  fullWidth
+                  label="From Date"
+                  type="date"
+                  value={dateFromFilter}
+                  onChange={(e) => setDateFromFilter(e.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                  size="small"
+                />
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <TextField
+                  fullWidth
+                  label="To Date"
+                  type="date"
+                  value={dateToFilter}
+                  onChange={(e) => setDateToFilter(e.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                  size="small"
+                />
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <TextField
+                  fullWidth
+                  label="Region"
+                  value={regionFilter}
+                  onChange={(e) => setRegionFilter(e.target.value)}
+                  size="small"
+                />
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <TextField
+                  fullWidth
+                  label="Country"
+                  value={countryFilter}
+                  onChange={(e) => setCountryFilter(e.target.value)}
+                  size="small"
+                />
+              </Grid>
+            </Grid>
+          </CardContent>
+        </Card>
+
+        {/* List View */}
+        {viewMode === 'list' && (
+          <TableContainer component={Paper}>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <SortableHeaderCell label="Name" sortKey="name" sort={leadSort} onSort={setLeadSort} />
+                  <TableCell>Owner</TableCell>
+                  <TableCell>Email</TableCell>
+                  <SortableHeaderCell label="Company" sortKey="company" sort={leadSort} onSort={setLeadSort} />
+                  <SortableHeaderCell label="Country" sortKey="country" sort={leadSort} onSort={setLeadSort} />
+                  <SortableHeaderCell label="Tier" sortKey="tier" sort={leadSort} onSort={setLeadSort} />
+                  <SortableHeaderCell label="Value" sortKey="value" sort={leadSort} onSort={setLeadSort} />
+                  <SortableHeaderCell label="Status" sortKey="status" sort={leadSort} onSort={setLeadSort} />
+                  <TableCell>Product</TableCell>
+                  <SortableHeaderCell label="Created" sortKey="createdAt" sort={leadSort} onSort={setLeadSort} />
+                  <TableCell>Actions</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {leads.map((lead) => (
+                  <LeadTableRow
+                    key={lead.id}
+                    lead={lead}
+                    onEdit={handleOpenEdit}
+                    onDelete={handleDelete}
+                    canDelete={canDelete}
+                    onAssigned={fetchLeads}
+                  />
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
+
+        {/* Kanban View */}
+        {viewMode === 'kanban' && (
+          <Box sx={{ display: 'flex', gap: 2, overflowX: 'auto', pb: 2 }}>
+            {kanbanColumns.map((column) => {
+              const statusLeads = leads.filter((lead) => column.statuses.includes(lead.status));
+              return (
+                <Box
+                  key={column.key}
+                  sx={{
+                    flex: '0 0 320px',
+                    bgcolor: 'action.hover',
+                    borderRadius: 2,
+                    p: 2,
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                    <Chip
+                      label={column.label}
+                      color={statusColor[column.key] || 'default'}
+                      size="small"
+                    />
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      {statusLeads.length}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    {statusLeads.map((lead) => (
+                      <Card
+                        key={lead.id}
+                        sx={{
+                          cursor: 'pointer',
+                          '&:hover': { boxShadow: 3 },
+                        }}
+                        onClick={() => handleOpenEdit(lead)}
+                      >
+                        <CardContent sx={{ pb: 1 }}>
+                          <Typography sx={{ fontWeight: 600, mb: 1 }} noWrap>
+                            {lead.firstName} {lead.lastName}
+                          </Typography>
+                          <NoCommitteeChip buyingCommitteeCount={lead.buyingCommitteeCount} hasBuyingCommittee={lead.hasBuyingCommittee} />
+                          <Typography variant="body2" color="textSecondary" noWrap>
+                            {lead.email}
+                          </Typography>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
+                            <Typography variant="body2" color="textSecondary">
+                              Value
+                            </Typography>
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                              {formatCurrency(lead.value)}
+                            </Typography>
+                          </Box>
+                          {((lead as any).productNames && (lead as any).productNames.length > 0 || lead.productName) && (
+                            <Box sx={{ mt: 1, pt: 1, borderTop: '1px solid #eee' }}>
+                              <Typography variant="caption" color="textSecondary">
+                                {(lead as any).productNames && (lead as any).productNames.length > 0
+                                  ? (lead as any).productNames.join(', ')
+                                  : lead.productName}
+                              </Typography>
+                            </Box>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </Box>
+                </Box>
+              );
+            })}
+          </Box>
+        )}
+
+        {/* Create/Edit Dialog */}
+        <Dialog open={openCreate || !!openEdit} onClose={() => { setOpenCreate(false); setOpenEdit(null); }} maxWidth="sm" fullWidth>
+          <DialogTitle>{openEdit ? 'Edit Prospect' : 'Add New Prospect'}</DialogTitle>
+          <DialogContent sx={{ pt: 2 }}>
+            <Box sx={{ mb: 3, p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
+              <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                Step 1: Select Account
+              </Typography>
+              <SearchableSelect
+                label="Select Account (Type to search)"
+                value={form.accountId}
+                onSearch={searchAccounts}
+                onChange={async (newAccountId) => {
+                  const selectedAcct = accounts.find((a) => a.id === newAccountId);
+                  let updatedForm: any = {
+                    ...form,
+                    accountId: newAccountId || '',
+                    company: selectedAcct?.name || form.company,
+                    region: form.region || selectedAcct?.region || '',
+                    country: form.country || selectedAcct?.country || '',
+                    firstName: '',
+                    lastName: '',
+                    email: '',
+                    phoneNumber: '',
+                  };
+
+                  // Load contacts for this account
+                  if (newAccountId) {
+                    // Pre-fill the committee with what is already known about this account.
+                    api.getAccount(newAccountId)
+                      .then((res) => setLqAnswers((res.data.data?.leadQualification || {}) as LeadQualificationAnswers))
+                      .catch((err) => { console.error('Error loading lead qualification:', err); setLqAnswers({}); });
+                    api.getAccountStakeholders(newAccountId)
+                      .then((res) => setCommitteeForm(committeeFormFromRows(res.data.data || [])))
+                      .catch((err) => {
+                        console.error('Error loading buying committee:', err);
+                        setCommitteeForm(emptyCommitteeForm());
+                      });
+
+                    try {
+                      const response = await api.getAccountContacts(newAccountId);
+                      const contacts = response.data.data || [];
+                      setAccountContacts(contacts);
+
+                      // Auto-populate with first contact if available
+                      if (contacts.length > 0) {
+                        const firstContact = contacts[0];
+                        updatedForm = {
+                          ...updatedForm,
+                          firstName: firstContact.firstName || '',
+                          lastName: firstContact.lastName || '',
+                          email: firstContact.email || '',
+                          phoneNumber: firstContact.phoneNumber || '',
+                        };
+                      } else if (selectedAcct?.contactPerson) {
+                        // The account has no structured contacts, only a single
+                        // "contact person" string. Split it into first/last name
+                        // (first word -> firstName, remainder -> lastName) so the
+                        // lead's required name fields are still populated, and fall
+                        // back to the account's own email/phone.
+                        const parts = selectedAcct.contactPerson.trim().split(/\s+/);
+                        updatedForm = {
+                          ...updatedForm,
+                          firstName: parts[0] || '',
+                          lastName: parts.slice(1).join(' ') || '',
+                          email: selectedAcct.email || '',
+                          phoneNumber: selectedAcct.phoneNumber || '',
+                        };
+                      }
+                    } catch (error) {
+                      console.error('Error loading contacts:', error);
+                    }
+                  } else {
+                    setAccountContacts([]);
+                    setCommitteeForm(emptyCommitteeForm());
+                  }
+
+                  setForm(updatedForm);
+                }}
+                options={accounts}
+                disabled={!!openEdit}
+                required
+                error={accountsError}
+                loading={accountsLoading}
+                helperText={
+                  accountsError
+                    ? 'Could not load accounts. Use Retry below.'
+                    : accounts.length === 0
+                      ? 'No accounts are ready for a prospect yet. Complete the Prospecting questionnaire on an account first.'
+                      : ' '
+                }
+              />
+              {accountsError && (
+                <Button size="small" variant="text" onClick={loadAccounts} sx={{ mt: 1 }}>
+                  Retry
+                </Button>
+              )}
+              {!accountsError && !accountsLoading && accounts.length === 0 && (
+                <Alert severity="info" sx={{ mt: 1 }} action={<Button color="inherit" size="small" component={RouterLink} to="/leads">Go to Leads</Button>}>
+                  Fill in the Prospecting questionnaire for an account. Once it is complete, the account appears here.
+                </Alert>
+              )}
+              {!openEdit && form.accountId && !committeeMapped && (
+                <Alert severity="warning" sx={{ mt: 2 }}>
+                  This account has no buying committee yet. Add it in Step 3 below, or create the prospect now:
+                  it will be highlighted until a member is named.
+                </Alert>
+              )}
+              {!openEdit && form.accountId && (
+                <Button
+                  size="small"
+                  variant="text"
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    alert('Create new account from Accounts page first');
+                  }}
+                  sx={{ mt: 1 }}
+                >
+                  Don't see your account? Create it first.
+                </Button>
+              )}
+            </Box>
+
+            {form.accountId && (
+              <>
+                <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>
+                  Step 2: Prospect Details
+                </Typography>
+                <TextField
+                  fullWidth
+                  label="Contact Person"
+                  value={[form.firstName, form.lastName].filter(Boolean).join(' ')}
+                  onChange={(e) => {
+                    // Match the account model, which stores a single contact
+                    // person. Split into first/last for the lead record
+                    // (first word -> firstName, remainder -> lastName).
+                    const parts = e.target.value.replace(/\s+/g, ' ').trimStart().split(' ');
+                    setForm({
+                      ...form,
+                      firstName: parts[0] || '',
+                      lastName: parts.slice(1).join(' ') || '',
+                    });
+                  }}
+                  disabled={accountContacts.length > 0}
+                  sx={{ mb: 2 }}
+                  helperText={accountContacts.length > 0 ? 'Auto-populated from account contact' : "From the account's contact person — edit if needed"}
+                />
+                <TextField
+                  fullWidth
+                  label="Email"
+                  type="email"
+                  value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  disabled={accountContacts.length > 0}
+                  sx={{ mb: 2 }}
+                  helperText={accountContacts.length > 0 ? 'Auto-populated from account contact' : "From the account — edit if needed"}
+                />
+                <TextField
+                  fullWidth
+                  label="Company"
+                  value={form.company}
+                  disabled
+                  sx={{ mb: 2 }}
+                />
+                {accountContacts.length > 0 && (
+                  <TextField
+                    fullWidth
+                    select
+                    label="Switch Contact (Optional)"
+                    value={form.firstName && form.lastName ? accountContacts.find((c) => c.firstName === form.firstName && c.lastName === form.lastName)?.id || '' : ''}
+                    onChange={(e) => {
+                      const contact = accountContacts.find((c) => c.id === e.target.value);
+                      if (contact) {
+                        setForm({
+                          ...form,
+                          firstName: contact.firstName || '',
+                          lastName: contact.lastName || '',
+                          phoneNumber: contact.phoneNumber || '',
+                          email: contact.email || '',
+                        });
+                      } else if (e.target.value === '') {
+                        setForm({
+                          ...form,
+                          firstName: '',
+                          lastName: '',
+                          phoneNumber: '',
+                          email: '',
+                        });
+                      }
+                    }}
+                    sx={{ mb: 2 }}
+                    helperText={`Select different contact from this account (${accountContacts.length} available)`}
+                  >
+                    <MenuItem value="">-- Clear Selection --</MenuItem>
+                    {accountContacts.map((c) => (
+                      <MenuItem key={c.id} value={c.id}>
+                        {c.firstName} {c.lastName} {c.jobTitle ? `(${c.jobTitle})` : ''}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                )}
+                <TextField
+                  fullWidth
+                  label="Phone"
+                  value={form.phoneNumber}
+                  onChange={(e) => setForm({ ...form, phoneNumber: e.target.value })}
+                  disabled={accountContacts.length > 0}
+                  sx={{ mb: 2 }}
+                  helperText={accountContacts.length > 0 ? 'Auto-populated from account contact' : "From the account — edit if needed"}
+                />
+            <TextField
+              fullWidth
+              label="Value"
+              type="number"
+              value={form.value}
+              onChange={(e) => setForm({ ...form, value: e.target.value })}
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              fullWidth
+              label="Expected Close Date"
+              type="date"
+              value={form.expectedCloseDate}
+              onChange={(e) => setForm({ ...form, expectedCloseDate: e.target.value })}
+              InputLabelProps={{ shrink: true }}
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              fullWidth
+              select
+              label="Source"
+              value={form.source}
+              onChange={(e) => setForm({ ...form, source: e.target.value })}
+              sx={{ mb: 2 }}
+            >
+              <MenuItem value="">Select Source</MenuItem>
+              <MenuItem value="inbound">Inbound</MenuItem>
+              <MenuItem value="referral">Referral</MenuItem>
+              <MenuItem value="cold outreach">Cold Outreach</MenuItem>
+              <MenuItem value="website">Website</MenuItem>
+              <MenuItem value="event">Event</MenuItem>
+            </TextField>
+            <TextField
+              fullWidth
+              select
+              label="Status"
+              value={form.status}
+              onChange={(e) => setForm({ ...form, status: e.target.value })}
+              sx={{ mb: 2 }}
+            >
+              <MenuItem value="">Select Status</MenuItem>
+              <MenuItem value="Open">Open</MenuItem>
+              {/* Legacy leads already marked Qualified keep showing it; new leads go straight to the questionnaire. */}
+              {form.status === 'Qualified' && <MenuItem value="Qualified">Qualified</MenuItem>}
+              <MenuItem value="Prospect">Opportunity (complete the qualification questionnaire first)</MenuItem>
+              <MenuItem value="Disqualified">Disqualified</MenuItem>
+            </TextField>
+            <TextField
+              fullWidth
+              select
+              label="Products (Multi-Select)"
+              value={form.productIds}
+              onChange={(e) => setForm({ ...form, productIds: typeof e.target.value === 'string' ? [e.target.value] : e.target.value })}
+              SelectProps={{ multiple: true }}
+              sx={{ mb: 1 }}
+            >
+              {products.map((product) => (
+                <MenuItem key={product.id} value={product.id}>
+                  {product.name}
+                </MenuItem>
+              ))}
+            </TextField>
+            {form.productIds.length > 0 && (
+              <Box sx={{ mb: 2, p: 1, bgcolor: 'action.hover', borderRadius: 1 }}>
+                <Typography variant="caption" sx={{ display: 'block', mb: 1, fontWeight: 600 }}>
+                  Selected Products:
+                </Typography>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                  {form.productIds.map((productId) => {
+                    const product = products.find((p) => p.id === productId);
+                    return (
+                      <Chip
+                        key={productId}
+                        label={product?.name || productId}
+                        onDelete={() => setForm({ ...form, productIds: form.productIds.filter((id) => id !== productId) })}
+                        size="small"
+                      />
+                    );
+                  })}
+                </Box>
+              </Box>
+            )}
+            <TextField
+              fullWidth
+              label="Business Volume"
+              type="number"
+              value={form.businessVolume}
+              onChange={(e) => setForm({ ...form, businessVolume: e.target.value })}
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              fullWidth
+              select
+              label="Supplier List (Multi-Select)"
+              value={form.supplierList}
+              onChange={(e) => setForm({ ...form, supplierList: typeof e.target.value === 'string' ? [e.target.value] : e.target.value })}
+              SelectProps={{ multiple: true }}
+              helperText={suppliers.length === 0 ? 'No suppliers yet — add them in Supplier Master' : ''}
+              sx={{ mb: 2 }}
+            >
+              {suppliers.map((s) => (
+                <MenuItem key={s.id} value={s.name}>{s.name}</MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              fullWidth
+              label="Region"
+              value={form.region}
+              onChange={(e) => setForm({ ...form, region: e.target.value })}
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              fullWidth
+              label="Country"
+              value={form.country}
+              onChange={(e) => setForm({ ...form, country: e.target.value })}
+              sx={{ mb: 2 }}
+            />
+                <TextField
+                  fullWidth
+                  label="Remark"
+                  multiline
+                  rows={3}
+                  value={form.remark}
+                  onChange={(e) => setForm({ ...form, remark: e.target.value })}
+                />
+                {!openEdit && (
+                  <>
+                    <Typography variant="subtitle2" sx={{ mt: 3, mb: 1, fontWeight: 600 }}>
+                      Step 4: Buying Committee
+                    </Typography>
+                    <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mb: 2 }}>
+                      Add the people on this deal. A named member needs an email and a phone number.
+                      Optional, but the prospect is highlighted until a member is named.
+                    </Typography>
+                    <BuyingCommitteeEditor value={committeeForm} onChange={setCommitteeForm} />
+                  </>
+                )}
+              </>
+            )}
+            {openEdit && (['Qualified', 'Prospect'].includes(form.status) || ['Qualified', 'Prospect'].includes(openEdit.status)) && (
+              <Box sx={{ mt: 3 }}>
+                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>Qualification questionnaire</Typography>
+                <ProspectQualificationForm value={lqAnswers} onChange={setLqAnswers} />
+                {openEdit.status === 'Qualified' && (
+                  <Button variant="contained" sx={{ mt: 2 }} onClick={async () => {
+                    if (lqMissing.length) {
+                      alert(`Answer the mandatory questions first: ${lqMissing.length} still open.`);
+                      return;
+                    }
+                    try {
+                      await api.updateAccount(form.accountId, { leadQualification: lqAnswers });
+                      await api.updateLeadStatus(openEdit.id, 'Prospect');
+                      alert('Moved to prospect.');
+                      setOpenEdit(null);
+                      fetchLeads();
+                    } catch (error: any) {
+                      alert(error.response?.data?.error || 'Could not move to prospect');
+                    }
+                  }}>Move to prospect</Button>
+                )}
+                {openEdit.status === 'Prospect' && (
+                  <Button variant="contained" sx={{ mt: 2 }} onClick={async () => {
+                    try {
+                      await apiClient.post(`/leads/${openEdit.id}/convert-to-opportunity`, {});
+                      alert('Converted to an opportunity. It starts at Demonstration.');
+                      setOpenEdit(null);
+                      fetchLeads();
+                    } catch (error: any) {
+                      alert(error.response?.data?.error || 'Could not convert to an opportunity');
+                    }
+                  }}>Convert to opportunity</Button>
+                )}
+              </Box>
+            )}
+            {!form.accountId && !openEdit && (
+              <Box sx={{ p: 2, bgcolor: '#fff3cd', borderRadius: 1, mt: 2 }}>
+                <Typography variant="body2" color="textSecondary">
+                  ℹ️ Please select an account first to proceed with prospect details.
+                </Typography>
+              </Box>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => { setOpenCreate(false); setOpenEdit(null); }}>Cancel</Button>
+            <Button
+              onClick={openEdit ? handleUpdate : handleCreate}
+              variant="contained"
+              disabled={!form.accountId}
+            >
+              {openEdit ? 'Update' : 'Create'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        <ConfirmDialog
+          open={confirmDelete.open}
+          title="Delete Qualification"
+          message="Are you sure you want to delete this prospect? This cannot be undone."
+          confirmText="Delete"
+          cancelText="Cancel"
+          variant="danger"
+          onConfirm={handleConfirmDelete}
+          onCancel={() => setConfirmDelete({ open: false, leadId: null })}
+        />
+      </Box>
+    </Layout>
+  );
+}
+
+// Memoized table row to prevent re-renders on parent state changes
+const LeadTableRow = React.memo(
+  ({
+    lead,
+    onEdit,
+    onDelete,
+    canDelete,
+    onAssigned,
+  }: {
+    lead: Lead;
+    onEdit: (lead: Lead) => void;
+    onDelete: (id: string) => void;
+    canDelete: boolean;
+    onAssigned: () => void;
+  }) => {
+    const [showCommittee, setShowCommittee] = React.useState(false);
+    return (
+    <TableRow>
+      <TableCell sx={{ fontWeight: 'bold' }}>
+        {lead.firstName} {lead.lastName}
+        <NoCommitteeChip buyingCommitteeCount={lead.buyingCommitteeCount} hasBuyingCommittee={lead.hasBuyingCommittee} />
+      </TableCell>
+      <TableCell>
+        {(lead as any).owner ? `${(lead as any).owner.firstName || ''} ${(lead as any).owner.lastName || ''}`.trim() : '-'}
+      </TableCell>
+      <TableCell>{lead.email}</TableCell>
+      <TableCell>{(lead as any).account?.name || lead.company || '-'}</TableCell>
+      <TableCell>{lead.country || '-'}</TableCell>
+      <TableCell>
+        {((lead as any).account?.tier || (lead as any).tier) ? (
+          <Chip
+            label={(lead as any).account?.tier || (lead as any).tier}
+            size="small"
+            variant="outlined"
+          />
+        ) : '-'}
+      </TableCell>
+      <TableCell>{formatCurrency(lead.value)}</TableCell>
+      <TableCell>
+        <Chip
+          label={statusDisplay[lead.status] || lead.status}
+          color={statusColor[lead.status] || 'default'}
+          size="small"
+        />
+      </TableCell>
+      <TableCell>
+        {(lead as any).productNames && (lead as any).productNames.length > 0
+          ? (lead as any).productNames.join(', ')
+          : lead.productName || '-'}
+      </TableCell>
+      <TableCell>{new Date(lead.createdAt).toLocaleDateString()}</TableCell>
+      <TableCell sx={{ whiteSpace: 'nowrap' }}>
+        {/* One row of actions: they stay on one line so every row lines up. */}
+        <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'nowrap', gap: 0.5 }}>
+          <Button size="small" variant="text" onClick={() => onEdit(lead)}>
+            Edit
+          </Button>
+          <Button size="small" variant="text" onClick={() => setShowCommittee(true)}>
+            Buying Committee
+          </Button>
+          <AssignOwner
+            module="leads"
+            recordId={lead.id}
+            currentOwnerId={(lead as any).ownerId}
+            currentAssigneeIds={(lead as any).assigneeIds}
+            onAssigned={onAssigned}
+          />
+          {canDelete && (
+            <Button size="small" variant="text" color="error" onClick={() => onDelete(lead.id)}>
+              Delete
+            </Button>
+          )}
+        </Box>
+      </TableCell>
+      <BuyingCommitteeViewDialog
+        open={showCommittee}
+        onClose={() => setShowCommittee(false)}
+        accountId={(lead as any).accountId || null}
+        accountName={(lead as any).account?.name || lead.company}
+      />
+    </TableRow>
+    );
+  }
+);

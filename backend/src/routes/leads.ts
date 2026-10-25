@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import LeadController from '../controllers/lead.controller';
+import LeadController from '../controllers/prospect.controller';
 import { verifyToken } from '../middleware/auth';
 
 const router = Router();

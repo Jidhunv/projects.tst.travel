@@ -12,12 +12,14 @@ exports.ROLES_WITH_FULL_VISIBILITY = [exports.ROLES.ADMIN, exports.ROLES.MANAGER
 // Roles that can manage users
 exports.ROLES_CAN_MANAGE_USERS = [exports.ROLES.ADMIN, exports.ROLES.MANAGER];
 exports.LEAD_STATUSES = ['Open', 'Qualified', 'Disqualified', 'Converted'];
+// Qualification is kept only for deals that already sit there; new deals start at Demonstration.
 exports.OPPORTUNITY_STAGES = [
-    'Qualification',
+    'Customer engagement',
     'Demonstration',
     'Proposal',
     'Negotiation',
     'Closed-Won',
+    'Handover',
     'Closed-Lost',
 ];
 // Fixed rejection / loss reasons (dropdown) used when a deal is Closed-Lost

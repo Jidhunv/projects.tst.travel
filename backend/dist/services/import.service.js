@@ -42,7 +42,7 @@ const Account_1 = require("../models/Account");
 const User_1 = require("../models/User");
 const errorHandler_1 = require("../middleware/errorHandler");
 const csv = __importStar(require("csv-parse/sync"));
-const XLSX = __importStar(require("xlsx"));
+const exceljs_1 = __importDefault(require("exceljs"));
 const fs = __importStar(require("fs"));
 const logger_1 = __importDefault(require("../utils/logger"));
 class ImportService {
@@ -53,12 +53,9 @@ class ImportService {
     async parseAndValidateImport(filePath, columnMapping, defaultUserId = '', originalFilename = '') {
         let records = [];
         // Detect file type from original filename and parse accordingly
-        const isExcel = originalFilename.toLowerCase().endsWith('.xlsx') || originalFilename.toLowerCase().endsWith('.xls');
+        const isExcel = originalFilename.toLowerCase().endsWith('.xlsx');
         if (isExcel) {
-            // Parse Excel file
-            const workbook = XLSX.readFile(filePath);
-            const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-            records = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+            records = await readFirstSheet(filePath);
         }
         else {
             // Parse CSV file
@@ -234,4 +231,46 @@ class ImportService {
 }
 exports.ImportService = ImportService;
 exports.default = new ImportService();
+// First worksheet of an .xlsx file as records keyed by the header row. Cell values
+// are read as text, so formulas and rich text cannot inject objects into the import.
+async function readFirstSheet(filePath) {
+    const workbook = new exceljs_1.default.Workbook();
+    await workbook.xlsx.readFile(filePath);
+    const worksheet = workbook.worksheets[0];
+    if (!worksheet)
+        return [];
+    const headers = [];
+    const records = [];
+    worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+        const values = row.values; // index 0 is unused by exceljs
+        if (rowNumber === 1) {
+            for (let c = 1; c < values.length; c++)
+                headers[c - 1] = String(values[c] ?? '').trim();
+            return;
+        }
+        const record = {};
+        headers.forEach((h, i) => {
+            if (!h)
+                return;
+            const v = values[i + 1];
+            record[h] = v === null || v === undefined ? '' : cellText(v);
+        });
+        records.push(record);
+    });
+    return records;
+}
+function cellText(v) {
+    if (v instanceof Date)
+        return v.toISOString().slice(0, 10);
+    if (typeof v === 'object') {
+        if (Array.isArray(v.richText))
+            return v.richText.map((t) => t.text).join('');
+        if (v.text !== undefined)
+            return String(v.text);
+        if (v.result !== undefined)
+            return String(v.result ?? '');
+        return '';
+    }
+    return String(v);
+}
 //# sourceMappingURL=import.service.js.map

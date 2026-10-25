@@ -1,7 +1,7 @@
 import { User } from './User';
 export declare class Notification {
     id: string;
-    type: 'ContractExpiry' | 'InvoiceDue' | 'UATApproval' | 'PaymentReminder' | 'ProjectMilestone' | 'TicketUpdate';
+    type: 'ContractExpiry' | 'InvoiceDue' | 'UATApproval' | 'PaymentReminder' | 'ProjectMilestone' | 'TicketUpdate' | 'SecurityAlert';
     title: string;
     message: string;
     recipient: User;

@@ -6,8 +6,8 @@ exports.summarise = summarise;
 const salesStrategy_1 = require("../utils/salesStrategy");
 const DAY = 86400000;
 const SEVERITY_ORDER = { critical: 0, high: 1, medium: 2, low: 3 };
-const EARLY_STAGES = ['Qualification', 'Demonstration'];
-const STAGE_ORDER = ['Qualification', 'Demonstration', 'Proposal', 'Negotiation'];
+const EARLY_STAGES = ['Customer engagement', 'Demonstration'];
+const STAGE_ORDER = ['Customer engagement', 'Demonstration', 'Proposal', 'Negotiation'];
 const daysBetween = (from, to) => Math.floor((to.getTime() - from.getTime()) / DAY);
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 function analyseAccount(a, now = new Date(), S = salesStrategy_1.SALES_STRATEGY) {

@@ -7,6 +7,7 @@ import Layout from '@components/Layout';
 import { api } from '@services/api';
 import { formatCurrency } from '@utils/format';
 import { exportToCsv } from '@utils/exportCsv';
+import useAuth from '@hooks/useAuth';
 
 const errMsg = (e: any, fb: string) => e?.response?.data?.error || e?.response?.data?.message || e?.message || fb;
 const iso = (d: Date) => d.toISOString().slice(0, 10);
@@ -26,6 +27,7 @@ const fmtVal = (v: number, unit?: string | null) => `${Math.round(v * 100) / 100
 
 // One report for the daily and weekly meeting: combined for the team, or one person at a time.
 export default function MeetingReportPage() {
+  const { hasPermission } = useAuth();
   const [preset, setPreset] = React.useState('today');
   const [[from, to], setRange] = React.useState<[string, string]>(() => PRESETS[0].range());
   const [person, setPerson] = React.useState(''); // '' = combined
@@ -82,7 +84,9 @@ export default function MeetingReportPage() {
           <Typography variant="h4">KPI Meeting Report</Typography>
           <Typography variant="body2" color="text.secondary">Daily and weekly review: who reported, how KPIs are tracking, pipeline movement and projections.</Typography>
         </Box>
-        <Button variant="outlined" onClick={exportCsv} disabled={!data || people.length === 0}>Export CSV</Button>
+        {hasPermission('report_exports', 'kpi_meeting') && (
+          <Button variant="outlined" onClick={exportCsv} disabled={!data || people.length === 0}>Export CSV</Button>
+        )}
       </Box>
 
       <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap alignItems="center" sx={{ mb: 2 }}>
@@ -126,7 +130,7 @@ function PipelineStats({ pl }: { pl: any }) {
     <Grid container spacing={2} sx={{ mb: 2 }}>
       <Stat label="Opportunity value created" value={formatCurrency(pl.createdValue)} sub={`${pl.createdCount} deals`} color="primary.main" />
       <Stat label="Won" value={formatCurrency(pl.wonValue)} sub={`${pl.wonCount} deals`} color="success.main" />
-      <Stat label="Leads created" value={String(pl.leadsCreated)} />
+      <Stat label="Qualifications created" value={String(pl.leadsCreated)} />
       <Stat label="Visits / calls logged" value={String(pl.visitsLogged)} />
     </Grid>
   );
@@ -176,7 +180,7 @@ function Combined({ data, onPick }: { data: any; onPick: (id: string) => void })
               <TableHead>
                 <TableRow>
                   <TableCell>Staff</TableCell><TableCell align="right">Reported days</TableCell><TableCell>Missed</TableCell>
-                  <TableCell align="right">Created</TableCell><TableCell align="right">Won</TableCell><TableCell align="right">Leads</TableCell><TableCell align="right">Visits</TableCell><TableCell align="right">KPIs on target</TableCell>
+                  <TableCell align="right">Created</TableCell><TableCell align="right">Won</TableCell><TableCell align="right">Qualifications</TableCell><TableCell align="right">Visits</TableCell><TableCell align="right">KPIs on target</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -283,9 +287,9 @@ function Individual({ p, showDaily, workdays, today }: { p: any; showDaily: bool
       {p.kpis.some((k: any) => k.answers.length > 0) && (
         <Card sx={{ mb: 2 }}>
           <CardContent>
-            <Typography variant="h6" gutterBottom>Answers &amp; prospects discussed</Typography>
+            <Typography variant="h6" gutterBottom>Answers &amp; leads discussed</Typography>
             <Table size="small">
-              <TableHead><TableRow><TableCell>Date</TableCell><TableCell>KPI</TableCell><TableCell>Prospect</TableCell><TableCell>Answer</TableCell></TableRow></TableHead>
+              <TableHead><TableRow><TableCell>Date</TableCell><TableCell>KPI</TableCell><TableCell>Lead</TableCell><TableCell>Answer</TableCell></TableRow></TableHead>
               <TableBody>
                 {p.kpis.flatMap((k: any) => k.answers.map((a: any, i: number) => ({ ...a, kpi: k.name, key: `${k.kpiId}${i}` })))
                   .sort((a: any, b: any) => String(b.date).localeCompare(String(a.date)))

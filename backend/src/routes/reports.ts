@@ -14,6 +14,8 @@ router.get('/mis', (req, res, next) => ReportController.getMIS(req, res, next));
 router.get('/conversion-timeline', (req, res, next) =>
   ReportController.getConversionTimeline(req, res, next)
 );
+router.get('/activity', (req, res, next) => ReportController.getActivity(req, res, next));
+router.get('/lifecycle', (req, res, next) => ReportController.getLifecycle(req, res, next));
 router.get('/sales-health', (req, res, next) => ReportController.getSalesHealth(req, res, next));
 
 export default router;

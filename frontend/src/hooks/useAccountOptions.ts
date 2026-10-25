@@ -4,7 +4,9 @@ import { api } from '@services/api';
 // Options for an account drop-down, searched on the server. The old pattern loaded the first
 // 20-200 accounts once, so any account outside that slice - including ones that already had
 // opportunities - could not be picked. This keeps the list small and fetches matches as the user types.
-export function useAccountOptions(selectedId?: string) {
+// prospectReady: list only accounts whose Prospecting questionnaire is complete.
+export function useAccountOptions(selectedId?: string, opts: { prospectReady?: boolean } = {}) {
+  const prospectReady = !!opts.prospectReady;
   const [list, setList] = React.useState<any[]>([]);
   const [pinned, setPinned] = React.useState<any | null>(null);
   const [loading, setLoading] = React.useState(false);
@@ -18,7 +20,9 @@ export function useAccountOptions(selectedId?: string) {
     query.current = q;
     setLoading(true);
     try {
-      const r = await api.getAccounts(1, 25, q ? { search: q } : {});
+      const params: Record<string, string> = q ? { search: q } : {};
+      if (prospectReady) params.prospectReady = 'true';
+      const r = await api.getAccounts(1, 25, params);
       if (mine !== seq.current) return;
       setList([...(r.data.data || [])].sort((a: any, b: any) => a.name.localeCompare(b.name)));
       setError(false);
@@ -29,7 +33,7 @@ export function useAccountOptions(selectedId?: string) {
     } finally {
       if (mine === seq.current) setLoading(false);
     }
-  }, []);
+  }, [prospectReady]);
 
   React.useEffect(() => { load(''); }, [load]);
   React.useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);

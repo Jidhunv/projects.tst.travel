@@ -117,7 +117,7 @@ export default function KpiMasterPage() {
           {dialogError && <Alert severity="error" sx={{ mb: 2 }}>{dialogError}</Alert>}
           {dialog && (
             <Stack spacing={2} sx={{ mt: 1 }}>
-              <TextField required label="Question / figure" placeholder="e.g. New Prospect Calls (3-5)" value={dialog.form.name} onChange={(e) => setDialog({ ...dialog, form: { ...dialog.form, name: e.target.value } })} />
+              <TextField required label="Question / figure" placeholder="e.g. New Lead Calls (3-5)" value={dialog.form.name} onChange={(e) => setDialog({ ...dialog, form: { ...dialog.form, name: e.target.value } })} />
               <TextField label="Guidance (optional)" multiline minRows={2} value={dialog.form.description} onChange={(e) => setDialog({ ...dialog, form: { ...dialog.form, description: e.target.value } })} />
               <Stack direction="row" spacing={2}>
                 <TextField fullWidth select label="Answer type" value={dialog.form.type} disabled={!!dialog.inUse} helperText={dialog.inUse ? `Locked: assigned to ${dialog.inUse} staff` : undefined} onChange={(e) => setDialog({ ...dialog, form: { ...dialog.form, type: e.target.value } })}>

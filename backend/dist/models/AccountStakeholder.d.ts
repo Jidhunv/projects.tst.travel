@@ -5,9 +5,11 @@ export declare class AccountStakeholder {
     account: Account;
     accountId: string;
     role: string;
-    name: string;
+    name: string | null;
+    email: string | null;
+    phone: string | null;
     designation: Designation;
-    designationId: string;
+    designationId: string | null;
     createdAt: Date;
     updatedAt: Date;
 }

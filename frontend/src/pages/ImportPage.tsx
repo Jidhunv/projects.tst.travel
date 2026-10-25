@@ -39,7 +39,7 @@ const MIDT_FIELDS = [
   { field: 'region', label: 'Region', required: false },
   { field: 'country', label: 'Country', required: false },
   { field: 'size', label: 'Company Size', required: false },
-  { field: 'type', label: 'Type (Prospect/Customer)', required: false },
+  { field: 'type', label: 'Type (Lead/Customer)', required: false },
   { field: 'tier', label: 'Tier (T1/T2/T3/T4/T5)', required: false },
   { field: 'ownerId', label: 'Owner/User', required: false },
 ];

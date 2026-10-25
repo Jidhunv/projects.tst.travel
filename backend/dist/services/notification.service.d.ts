@@ -2,7 +2,7 @@ import { Notification } from '../models/Notification';
 declare class NotificationService {
     private repository;
     createNotification(data: {
-        type: 'ContractExpiry' | 'InvoiceDue' | 'UATApproval' | 'PaymentReminder' | 'ProjectMilestone' | 'TicketUpdate';
+        type: 'ContractExpiry' | 'InvoiceDue' | 'UATApproval' | 'PaymentReminder' | 'ProjectMilestone' | 'TicketUpdate' | 'SecurityAlert';
         title: string;
         message: string;
         recipientId: string;

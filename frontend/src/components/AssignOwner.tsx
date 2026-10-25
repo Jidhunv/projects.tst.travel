@@ -15,12 +15,14 @@ interface Props {
   currentAssigneeIds?: string[];
   onAssigned?: () => void;
   size?: 'small' | 'medium';
+  // The record owner may reassign it without the module privilege.
+  isOwner?: boolean;
 }
 
 // "Assign" button + dialog to assign a record to one OR MORE users.
 // The first selected user becomes the primary owner; all are stored as assignees.
 // Renders nothing unless the current user is allowed to reassign this module.
-export const AssignOwner: React.FC<Props> = ({ module, recordId, currentOwnerId, currentAssigneeIds, onAssigned, size = 'small' }) => {
+export const AssignOwner: React.FC<Props> = ({ module, recordId, currentOwnerId, currentAssigneeIds, onAssigned, size = 'small', isOwner = false }) => {
   const canReassign = useAuth((s) => s.canReassign);
   const [open, setOpen] = useState(false);
   const [users, setUsers] = useState<any[]>([]);
@@ -41,7 +43,8 @@ export const AssignOwner: React.FC<Props> = ({ module, recordId, currentOwnerId,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  if (!canReassign(module)) return null;
+  // The record's owner may always reassign it; anyone else needs the reassign privilege.
+  if (!isOwner && !canReassign(module)) return null;
 
   const assignFn: Record<Module, (id: string, ids: string[]) => Promise<any>> = {
     leads: api.assignLead,

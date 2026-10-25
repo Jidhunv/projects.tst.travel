@@ -13,6 +13,7 @@ const logger_1 = __importDefault(require("../utils/logger"));
 const securityLogger_1 = require("../utils/securityLogger");
 const token_blacklist_service_1 = __importDefault(require("../services/token-blacklist.service"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
+const loginActivity_service_1 = __importDefault(require("../services/loginActivity.service"));
 class AuthController {
     async login(req, res, next) {
         try {
@@ -27,10 +28,19 @@ class AuthController {
             catch (authError) {
                 // Distinguish a lockout (HTTP 423) from an ordinary failed attempt.
                 const isLockout = authError instanceof errorHandler_1.AppError && authError.statusCode === 423;
+                const reason = authError instanceof errorHandler_1.AppError ? authError.message : 'authentication failed';
                 (0, securityLogger_1.logSecurityEvent)(isLockout ? 'ACCOUNT_LOCKED' : 'LOGIN_FAILURE', {
                     ...(0, securityLogger_1.requestContext)(req),
                     email,
-                    reason: authError instanceof errorHandler_1.AppError ? authError.message : 'authentication failed',
+                    reason,
+                });
+                await loginActivity_service_1.default.record({
+                    emailTried: email,
+                    event: isLockout ? 'ACCOUNT_LOCKED' : 'LOGIN_FAILURE',
+                    success: false,
+                    reason,
+                    ipAddress: req.ip,
+                    userAgent: req.get('user-agent'),
                 });
                 throw authError;
             }
@@ -47,6 +57,14 @@ class AuthController {
                 email: user.email,
                 userId: user.id,
                 role: user.role?.name,
+            });
+            await loginActivity_service_1.default.record({
+                userId: user.id,
+                emailTried: user.email,
+                event: 'LOGIN_SUCCESS',
+                success: true,
+                ipAddress: req.ip,
+                userAgent: req.get('user-agent'),
             });
             // Set token in HTTPOnly cookie to prevent XSS attacks
             // Note: secure flag should be true in production, but can be false in local development
@@ -92,6 +110,14 @@ class AuthController {
                 ...(0, securityLogger_1.requestContext)(req),
                 userId: req.user?.id,
                 email: req.user?.email,
+            });
+            await loginActivity_service_1.default.record({
+                userId: req.user?.id ?? null,
+                emailTried: req.user?.email ?? null,
+                event: 'LOGOUT',
+                success: true,
+                ipAddress: req.ip,
+                userAgent: req.get('user-agent'),
             });
             return res.json({
                 success: true,

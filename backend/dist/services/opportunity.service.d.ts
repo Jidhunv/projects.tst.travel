@@ -1,6 +1,8 @@
 import { Opportunity } from '../models/Opportunity';
 import { LineItem } from '../models/LineItem';
 interface OpportunityFilters {
+    sortBy?: string;
+    sortDir?: string;
     stage?: string;
     status?: string;
     ownerId?: string;
@@ -42,14 +44,14 @@ export declare class OpportunityService {
         data: Opportunity[];
         total: number;
     }>;
-    updateOpportunity(id: string, data: any): Promise<any>;
+    updateOpportunity(id: string, data: any, actorId?: string): Promise<any>;
     adminUpdateDates(id: string, data: {
         createdAt?: string;
         forecastedCloseDate?: string;
         closedAt?: string | null;
     }): Promise<any>;
-    updateStage(id: string, stage: string): Promise<any>;
-    closeOpportunity(id: string, outcome: 'Won' | 'Lost', rejectionReason?: string): Promise<any>;
+    updateStage(id: string, stage: string, actorId?: string): Promise<any>;
+    closeOpportunity(id: string, outcome: 'Won' | 'Lost', rejectionReason?: string, actorId?: string): Promise<any>;
     deleteOpportunity(id: string): Promise<void>;
     addLineItem(opportunityId: string, data: {
         productId?: string;

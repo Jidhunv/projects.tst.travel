@@ -15,7 +15,7 @@ import { Designation } from './Designation';
 // utils/constants.ts for the fixed set of 8 roles. An account's "onboarding"
 // is complete once it has a row for every role, each with a name and a
 // designation. Enforced before a lead can be created against the account
-// (see lead.controller.ts#createLead).
+// (see prospect.controller.ts#createLead).
 @Entity('account_stakeholders')
 @Unique(['accountId', 'role'])
 export class AccountStakeholder {
@@ -32,15 +32,21 @@ export class AccountStakeholder {
   @Column()
   role: string; // one of STAKEHOLDER_ROLES
 
-  @Column({ nullable: true })
-  name: string;
+  @Column({ type: "varchar", length: 255, nullable: true })
+  name: string | null;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  email: string | null;
+
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  phone: string | null;
 
   @ManyToOne(() => Designation)
   @JoinColumn({ name: 'designationId' })
   designation: Designation;
 
-  @Column({ nullable: true })
-  designationId: string;
+  @Column({ type: "uuid", nullable: true })
+  designationId: string | null;
 
   @CreateDateColumn()
   createdAt: Date;

@@ -269,7 +269,7 @@ export const SettingsPage: React.FC = () => {
                     onChange={(e) => setNotificationRules((prev) => ({ ...prev, leads: e.target.checked }))}
                   />
                 }
-                label="Lead Assignments & Updates"
+                label="Qualification Assignments & Updates"
               />
               <FormControlLabel
                 control={

@@ -14,12 +14,14 @@ export const ROLES_CAN_MANAGE_USERS: string[] = [ROLES.ADMIN, ROLES.MANAGER];
 
 export const LEAD_STATUSES = ['Open', 'Qualified', 'Disqualified', 'Converted'] as const;
 
+// Qualification is kept only for deals that already sit there; new deals start at Demonstration.
 export const OPPORTUNITY_STAGES = [
-  'Qualification',
+  'Customer engagement',
   'Demonstration',
   'Proposal',
   'Negotiation',
   'Closed-Won',
+  'Handover',
   'Closed-Lost',
 ] as const;
 

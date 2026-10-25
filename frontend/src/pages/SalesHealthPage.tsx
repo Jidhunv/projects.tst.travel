@@ -29,7 +29,7 @@ const SEVERITY: Record<Severity, { label: string; tone: Tone }> = {
 const EMPTY_FILTERS = { ownerId: '', tier: '', status: '', severity: '', flagCode: '', search: '', sort: 'score' };
 
 export default function SalesHealthPage() {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const isAdmin = user?.role?.name === 'Admin';
   const [filters, setFilters] = React.useState(EMPTY_FILTERS);
   const [page, setPage] = React.useState(0);
@@ -107,9 +107,11 @@ export default function SalesHealthPage() {
             {report && ` Updated ${new Date(report.generatedAt).toLocaleString()}.`}
           </Typography>
         </Box>
-        <Button variant="outlined" onClick={exportAll} disabled={exporting || !report || report.meta.total === 0}>
-          {exporting ? 'Exporting…' : 'Export CSV'}
-        </Button>
+        {hasPermission('report_exports', 'sales_health') && (
+          <Button variant="outlined" onClick={exportAll} disabled={exporting || !report || report.meta.total === 0}>
+            {exporting ? 'Exporting...' : 'Export CSV'}
+          </Button>
+        )}
       </Box>
 
       {error && <Alert severity="error" sx={{ my: 2 }}>{error}</Alert>}

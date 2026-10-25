@@ -1,3 +1,10 @@
+export interface ReportScope {
+    ownerIds: string[] | null;
+    from?: string;
+    to?: string;
+    country?: string;
+    region?: string;
+}
 interface StageBucket {
     stage: string;
     count: number;
@@ -24,14 +31,14 @@ export declare class ReportService {
     private oppRepository;
     private leadRepository;
     private accountRepository;
-    private scopeOwner;
-    getPipelineReport(ownerId?: string): Promise<{
+    private applyScope;
+    getPipelineReport(scope?: ReportScope): Promise<{
         byStage: StageBucket[];
         totalOpenValue: number;
         totalWeightedValue: number;
         openCount: number;
     }>;
-    getSalesReport(ownerId?: string, from?: Date, to?: Date): Promise<{
+    getSalesReport(scope?: ReportScope): Promise<{
         wonCount: number;
         wonValue: number;
         lostCount: number;
@@ -44,7 +51,7 @@ export declare class ReportService {
             value: number;
         }[];
     }>;
-    getSalesByOwner(): Promise<{
+    getSalesByOwner(scope?: ReportScope): Promise<{
         ownerId: string;
         ownerName: string;
         openValue: number;
@@ -52,14 +59,16 @@ export declare class ReportService {
         lostValue: number;
         winRate: number;
     }[]>;
-    getMIS(ownerId?: string): Promise<any>;
-    getConversionTimeline(ownerId?: string, opts?: {
+    getMIS(scope?: ReportScope): Promise<any>;
+    getConversionTimeline(scope?: ReportScope, opts?: {
         page?: number;
         limit?: number;
         fromDate?: string;
         toDate?: string;
         search?: string;
         all?: boolean;
+        sortBy?: string;
+        sortDir?: string;
     }): Promise<{
         rows: ConversionTimelineRow[];
         meta: {

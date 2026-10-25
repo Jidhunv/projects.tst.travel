@@ -15,6 +15,8 @@ const csrf_1 = require("./middleware/csrf");
 const sanitizeResponse_1 = require("./middleware/sanitizeResponse");
 const logger_1 = __importDefault(require("./utils/logger"));
 const ensurePermissions_1 = __importDefault(require("./utils/ensurePermissions"));
+const questionBank_service_1 = require("./services/questionBank.service");
+const questionMaster_1 = __importDefault(require("./routes/questionMaster"));
 // Import routes (will be created next)
 // import authRoutes from './routes/auth';
 // import leadRoutes from './routes/leads';
@@ -114,18 +116,29 @@ const email_settings_1 = __importDefault(require("./routes/email-settings"));
 const suppliers_1 = __importDefault(require("./routes/suppliers"));
 const teams_1 = __importDefault(require("./routes/teams"));
 const sales_visits_1 = __importDefault(require("./routes/sales-visits"));
+const salesActivity_1 = __importDefault(require("./routes/salesActivity"));
 const expenses_1 = __importDefault(require("./routes/expenses"));
 const countries_1 = __importDefault(require("./routes/countries"));
 const performance_1 = __importDefault(require("./routes/performance"));
 const issues_1 = __importDefault(require("./routes/issues"));
 const text_1 = __importDefault(require("./routes/text"));
 const designations_1 = __importDefault(require("./routes/designations"));
+const loginActivity_1 = __importDefault(require("./routes/loginActivity"));
+const securityAlerts_1 = __importDefault(require("./routes/securityAlerts"));
+const loginActivity_service_1 = __importDefault(require("./services/loginActivity.service"));
+const companyTypes_1 = __importDefault(require("./routes/companyTypes"));
+const prospectOptions_1 = __importDefault(require("./routes/prospectOptions"));
 // Database initialization
 database_1.AppDataSource.initialize()
     .then(async () => {
     logger_1.default.info('Database connection established');
     // Ensure the permission catalog is up to date for newly added modules.
     await (0, ensurePermissions_1.default)();
+    await (0, questionBank_service_1.ensureQuestionBank)();
+    // Login history older than the retention period is removed at startup and then daily.
+    const purge = () => loginActivity_service_1.default.purgeExpired().catch((err) => logger_1.default.error(`Login activity purge failed: ${err.message}`));
+    purge();
+    setInterval(purge, 24 * 60 * 60 * 1000).unref();
 })
     .catch((error) => {
     logger_1.default.error('Database connection error:', error);
@@ -157,12 +170,18 @@ app.use('/api/email-settings', email_settings_1.default);
 app.use('/api/suppliers', suppliers_1.default);
 app.use('/api/teams', teams_1.default);
 app.use('/api/sales-visits', sales_visits_1.default);
+app.use('/api/sales-activity', salesActivity_1.default);
 app.use('/api/expenses', expenses_1.default);
 app.use('/api/countries', countries_1.default);
 app.use('/api/designations', designations_1.default);
+app.use('/api/login-activity', loginActivity_1.default);
+app.use('/api/security-alerts', securityAlerts_1.default);
+app.use('/api/company-types', companyTypes_1.default);
+app.use('/api/prospect-options', prospectOptions_1.default);
 app.use('/api/performance', performance_1.default);
 app.use('/api/issues', issues_1.default);
 app.use('/api/text', text_1.default);
+app.use('/api/questionnaire-master', questionMaster_1.default);
 // Error handling middleware
 app.use(errorHandler_1.errorHandler);
 // Start server

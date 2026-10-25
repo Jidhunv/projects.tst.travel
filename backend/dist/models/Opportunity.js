@@ -32,7 +32,7 @@ __decorate([
 ], Opportunity.prototype, "amount", void 0);
 __decorate([
     (0, typeorm_1.Column)({
-        default: 'Qualification',
+        default: 'Demonstration',
     }),
     __metadata("design:type", String)
 ], Opportunity.prototype, "stage", void 0);

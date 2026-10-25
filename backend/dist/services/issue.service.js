@@ -170,7 +170,7 @@ class IssueService {
             conds.push(`(i."assigneeId" = ${u} OR i."createdById" = ${u})`);
         }
         const w = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
-        const base = `FROM ticket_issues i JOIN tickets t ON t.id = i."ticketId" JOIN accounts a ON a.id = t."accountId"
+        const base = `FROM ticket_issues i JOIN tickets t ON t.id = i."ticketId" JOIN leads a ON a.id = t."accountId"
                   LEFT JOIN users u ON u.id = i."assigneeId" ${w}`;
         const [{ n }] = await database_1.AppDataSource.query(`SELECT COUNT(*) n ${base}`, args);
         const rows = await database_1.AppDataSource.query(`SELECT i.id, i."ticketId", i."issueNumber", i.title, i.description, i.priority, i.stage, i."assigneeId", i."closedAt",
@@ -203,7 +203,7 @@ class IssueService {
               COUNT(i.id) FILTER (WHERE i.stage NOT IN ('Deployed','Cancelled') AND i.priority IN ('Critical','High')) AS "urgentOpen",
               COUNT(i.id) FILTER (WHERE i.stage IN ('User acceptance')) AS "waitingOnCustomer",
               MAX(i."updatedAt") AS "lastUpdate"
-       FROM ticket_issues i JOIN tickets t ON t.id = i."ticketId" JOIN accounts a ON a.id = t."accountId"
+       FROM ticket_issues i JOIN tickets t ON t.id = i."ticketId" JOIN leads a ON a.id = t."accountId"
        ${w} GROUP BY a.id, a.name ORDER BY (COUNT(i.id) FILTER (WHERE i.stage NOT IN ('Deployed','Cancelled'))) DESC, a.name`, args);
         return rows.map((r) => {
             const total = num(r.total), closed = num(r.closed);
@@ -256,7 +256,7 @@ class IssueService {
         const issues = await database_1.AppDataSource.query(`SELECT i.id, i."issueNumber", i.title, i.priority, i.stage, i."closedAt", i."createdAt", i."assigneeId",
               t."ticketNumber", t.title AS "ticketTitle", t."slaResponseHours", t."slaResolutionHours", t."accountId",
               a.name AS "accountName", u."firstName" || ' ' || u."lastName" AS "assigneeName"
-       FROM ticket_issues i JOIN tickets t ON t.id = i."ticketId" JOIN accounts a ON a.id = t."accountId"
+       FROM ticket_issues i JOIN tickets t ON t.id = i."ticketId" JOIN leads a ON a.id = t."accountId"
        LEFT JOIN users u ON u.id = i."assigneeId" ${w} ORDER BY i."createdAt" DESC LIMIT 5000`, args);
         const hist = issues.length
             ? await database_1.AppDataSource.query(`SELECT "issueId", "toStage", "createdAt" FROM ticket_issue_history WHERE "issueId" = ANY($1::uuid[]) ORDER BY "createdAt" ASC`, [issues.map((i) => i.id)])

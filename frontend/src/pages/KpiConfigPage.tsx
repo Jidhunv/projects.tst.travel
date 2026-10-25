@@ -12,7 +12,8 @@ import { api } from '@services/api';
 const errMsg = (e: any, fb: string) => e?.response?.data?.error || e?.response?.data?.message || e?.message || fb;
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 const today = () => iso(new Date());
-const blank = { masterId: '', userId: '', frequency: 'daily', targetValue: '', isActive: true, startDate: '' };
+const CUSTOM = '__custom__';
+const blank = { masterId: '', custom: false, name: '', type: 'number', unit: '', weightage: '', userId: '', frequency: 'daily', targetValue: '', isActive: true, startDate: '' };
 const fmtDate = (v: any) => (v ? new Date(v).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '-');
 const fmtStamp = (v: any) => (v ? new Date(v).toLocaleString(undefined, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-');
 const TYPE_LABEL: Record<string, string> = { number: 'Number', yes_no: 'Yes / No', text: 'Text answer', choice: 'Choice (pick from a list)' };
@@ -23,6 +24,7 @@ export default function KpiConfigPage() {
   const [defs, setDefs] = React.useState<any[]>([]);
   const [master, setMaster] = React.useState<any[]>([]);
   const [summary, setSummary] = React.useState<any[]>([]);
+  const [weights, setWeights] = React.useState<any[]>([]);
   const [staff, setStaff] = React.useState('');
   const [from, setFrom] = React.useState(() => iso(new Date(Date.now() - 29 * 86_400_000)));
   const [to, setTo] = React.useState(() => iso(new Date()));
@@ -47,6 +49,7 @@ export default function KpiConfigPage() {
       ]);
       setDefs(d.data.data || []);
       setSummary((s.data.data?.rows || []).filter((r: any) => !staff || r.userId === staff));
+      setWeights((s.data.data?.users || []).filter((u: any) => !staff || u.userId === staff));
     } catch (e) {
       setError(errMsg(e, 'Failed to load KPIs'));
     } finally {
@@ -68,9 +71,12 @@ export default function KpiConfigPage() {
     setDialogError('');
     try {
       const f = dialog.form;
-      const payload = { masterId: f.masterId, userId: f.userId, frequency: f.frequency, targetValue: f.targetValue === '' ? null : Number(f.targetValue), isActive: f.isActive, startDate: f.startDate || today() };
-      if (dialog.id) await api.updateKpiDefinition(dialog.id, { frequency: payload.frequency, targetValue: payload.targetValue, isActive: payload.isActive, startDate: payload.startDate });
-      else await api.createKpiDefinition(payload);
+      const weightage = f.weightage === '' ? null : Number(f.weightage);
+      const common = { frequency: f.frequency, targetValue: f.targetValue === '' ? null : Number(f.targetValue), isActive: f.isActive, startDate: f.startDate || today(), weightage };
+      // A custom KPI carries its own name, answer type and unit; a master question carries the master id.
+      const custom = f.custom ? { name: f.name.trim(), type: f.type, unit: f.unit.trim() || null } : {};
+      if (dialog.id) await api.updateKpiDefinition(dialog.id, { ...common, ...custom });
+      else await api.createKpiDefinition({ ...common, ...custom, masterId: f.custom ? undefined : f.masterId, userId: f.userId });
       setDialog(null);
       await load();
     } catch (e) {
@@ -103,7 +109,7 @@ export default function KpiConfigPage() {
 
   const openEdit = (d: any) => {
     setDialogError('');
-    setDialog({ id: d.id, form: { startDate: String(d.startDate || '').slice(0, 10), masterId: d.masterId || '', userId: d.userId, frequency: d.frequency, targetValue: d.targetValue === null ? '' : String(Number(d.targetValue)), isActive: d.isActive } });
+    setDialog({ id: d.id, form: { startDate: String(d.startDate || '').slice(0, 10), masterId: d.masterId || '', custom: !d.masterId, name: d.name || '', type: d.type || 'number', unit: d.unit || '', weightage: d.weightage === null || d.weightage === undefined ? '' : String(Number(d.weightage)), userId: d.userId, frequency: d.frequency, targetValue: d.targetValue === null ? '' : String(Number(d.targetValue)), isActive: d.isActive } });
   };
   const defById = React.useMemo(() => new Map(defs.map((d) => [d.id, d])), [defs]);
 
@@ -143,6 +149,18 @@ export default function KpiConfigPage() {
 
       <Card sx={{ mb: 2 }}>
         <CardContent>
+          <Typography variant="h6" gutterBottom>Weighted score by staff</Typography>
+          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 2 }}>
+            {weights.map((w) => (
+              <Chip
+                key={w.userId}
+                color={w.weightTotal === 100 ? 'default' : 'warning'}
+                variant="outlined"
+                label={`${w.userName}: ${w.scorePct === null ? 'no score yet' : `${w.scorePct}%`} · weights ${w.weightTotal}%${w.weightTotal === 100 ? '' : ' (should total 100%)'}`}
+              />
+            ))}
+            {weights.length === 0 && <Typography variant="body2" color="text.secondary">No weighted KPIs in this selection.</Typography>}
+          </Stack>
           <Typography variant="h6" gutterBottom>Tracking</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>Use the pencil to edit a KPI or the bin to delete it. Filter by staff to see one person's set.</Typography>
           <Box sx={{ overflowX: 'auto' }}>
@@ -151,7 +169,7 @@ export default function KpiConfigPage() {
                 <TableRow>
                   <TableCell sx={{ whiteSpace: 'nowrap' }}>Actions</TableCell><TableCell>Staff</TableCell><TableCell>KPI</TableCell>
                   <TableCell align="right">Reported</TableCell><TableCell align="right">Target for range</TableCell>
-                  <TableCell sx={{ minWidth: 140 }}>% of target</TableCell><TableCell>Last entry</TableCell><TableCell>Start date</TableCell><TableCell>Created</TableCell><TableCell>Last edited</TableCell>
+                  <TableCell sx={{ minWidth: 140 }}>% of target</TableCell><TableCell>Done in range</TableCell><TableCell align="right">Weight</TableCell><TableCell>Last entry</TableCell><TableCell>Start date</TableCell><TableCell>Created</TableCell><TableCell>Last edited</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -177,13 +195,15 @@ export default function KpiConfigPage() {
                         </Box>
                       )}
                     </TableCell>
+                    <TableCell>{r.met === null || r.met === undefined ? <Typography variant="caption" color="text.secondary">n/a</Typography> : <Chip size="small" color={r.met ? 'success' : 'error'} variant={r.met ? 'filled' : 'outlined'} label={r.met ? 'Done' : 'Not done'} />}</TableCell>
+                    <TableCell align="right">{r.weightage === null ? '-' : `${r.weightage}%`}</TableCell>
                     <TableCell sx={{ whiteSpace: 'nowrap' }}>{r.lastEntry || <Typography variant="body2" color="error">Never</Typography>}</TableCell>
                     <TableCell sx={{ whiteSpace: 'nowrap' }}>{fmtDate(`${String(r.startDate).slice(0, 10)}T00:00:00`)}</TableCell>
                     <TableCell sx={{ whiteSpace: 'nowrap' }}>{fmtStamp(defById.get(r.kpiId)?.createdAt)}</TableCell>
                     <TableCell sx={{ whiteSpace: 'nowrap' }}>{fmtStamp(defById.get(r.kpiId)?.updatedAt)}</TableCell>
                   </TableRow>
                 ))}
-                {summary.length === 0 && <TableRow><TableCell colSpan={10} align="center">{loading ? 'Loading…' : 'No active KPIs for this selection'}</TableCell></TableRow>}
+                {summary.length === 0 && <TableRow><TableCell colSpan={12} align="center">{loading ? 'Loading…' : 'No active KPIs for this selection'}</TableCell></TableRow>}
               </TableBody>
             </Table>
           </Box>
@@ -198,7 +218,7 @@ export default function KpiConfigPage() {
               <TableHead>
                 <TableRow>
                   <TableCell sx={{ whiteSpace: 'nowrap' }}>Actions</TableCell><TableCell>Question / figure</TableCell><TableCell>Staff</TableCell><TableCell>Type</TableCell>
-                  <TableCell>How often</TableCell><TableCell align="right">Target</TableCell><TableCell>Status</TableCell><TableCell>Start date</TableCell><TableCell>Created</TableCell><TableCell>Last edited</TableCell>
+                  <TableCell>How often</TableCell><TableCell align="right">Target</TableCell><TableCell align="right">Weight</TableCell><TableCell>Status</TableCell><TableCell>Start date</TableCell><TableCell>Created</TableCell><TableCell>Last edited</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -213,13 +233,14 @@ export default function KpiConfigPage() {
                     <TableCell>{TYPE_LABEL[d.type]}{d.unit ? ` (${d.unit})` : ''}</TableCell>
                     <TableCell sx={{ textTransform: 'capitalize' }}>{d.frequency}</TableCell>
                     <TableCell align="right">{d.targetValue === null ? '-' : Number(d.targetValue)}</TableCell>
+                    <TableCell align="right">{d.weightage === null || d.weightage === undefined ? '-' : `${Number(d.weightage)}%`}</TableCell>
                     <TableCell><Chip size="small" clickable color={d.isActive ? 'success' : 'default'} label={d.isActive ? 'Active' : 'Paused'} onClick={() => toggleActive(d)} /></TableCell>
                     <TableCell sx={{ whiteSpace: 'nowrap' }}>{fmtDate(String(d.startDate).slice(0, 10) + 'T00:00:00')}</TableCell>
                     <TableCell sx={{ whiteSpace: 'nowrap' }}>{fmtStamp(d.createdAt)}</TableCell>
                     <TableCell sx={{ whiteSpace: 'nowrap' }}>{fmtStamp(d.updatedAt)}</TableCell>
                   </TableRow>
                 ))}
-                {defs.length === 0 && <TableRow><TableCell colSpan={10} align="center">{loading ? 'Loading…' : 'No KPIs configured yet. Use “Add KPI”.'}</TableCell></TableRow>}
+                {defs.length === 0 && <TableRow><TableCell colSpan={11} align="center">{loading ? 'Loading…' : 'No KPIs configured yet. Use “Add KPI”.'}</TableCell></TableRow>}
               </TableBody>
             </Table>
           </Box>
@@ -262,12 +283,28 @@ export default function KpiConfigPage() {
             return (
               <Stack spacing={2} sx={{ mt: 1 }}>
                 <TextField
-                  required select label="Question (from KPI Master)" value={dialog.form.masterId} disabled={!!dialog.id}
-                  helperText={dialog.id ? 'The question is managed in KPI Master' : master.length === 0 ? 'No questions yet - add them in KPI Master first' : undefined}
-                  onChange={(e) => { const m = master.find((x) => x.id === e.target.value); setForm({ masterId: e.target.value, frequency: m?.defaultFrequency || 'daily', targetValue: m && m.defaultTarget !== null ? String(Number(m.defaultTarget)) : '' }); }}
+                  required select label="Question" value={dialog.form.custom ? CUSTOM : dialog.form.masterId} disabled={!!dialog.id && !dialog.form.custom}
+                  helperText={dialog.id ? (dialog.form.custom ? 'Custom to this person' : 'The question is managed in KPI Master') : master.length === 0 ? 'No questions in KPI Master yet - or choose “Custom KPI” to set one for this person' : undefined}
+                  onChange={(e) => {
+                    if (e.target.value === CUSTOM) { setForm({ custom: true, masterId: '', name: '', type: 'number', unit: '', frequency: 'daily', targetValue: '' }); return; }
+                    const m = master.find((x) => x.id === e.target.value);
+                    setForm({ custom: false, masterId: e.target.value, frequency: m?.defaultFrequency || 'daily', targetValue: m && m.defaultTarget !== null ? String(Number(m.defaultTarget)) : '' });
+                  }}
                 >
+                  {!dialog.id && <MenuItem value={CUSTOM}>Custom KPI for this person…</MenuItem>}
                   {options.map((m) => <MenuItem key={m.id} value={m.id}>{m.name}{!m.isActive ? ' (inactive)' : ''}</MenuItem>)}
                 </TextField>
+                {dialog.form.custom && (
+                  <Stack spacing={2}>
+                    <TextField required label="KPI name" value={dialog.form.name} onChange={(e) => setForm({ name: e.target.value })} helperText="For example: Lead calls made, Sent a proposal today, Client visit notes" />
+                    <Stack direction="row" spacing={2}>
+                      <TextField fullWidth required select label="Answer type" value={dialog.form.type} onChange={(e) => setForm({ type: e.target.value })}>
+                        <MenuItem value="number">Number</MenuItem><MenuItem value="yes_no">Yes / No (boolean)</MenuItem><MenuItem value="text">Text</MenuItem>
+                      </TextField>
+                      {dialog.form.type === 'number' && <TextField fullWidth label="Unit (optional)" value={dialog.form.unit} onChange={(e) => setForm({ unit: e.target.value })} placeholder="calls, visits, USD" />}
+                    </Stack>
+                  </Stack>
+                )}
                 {picked && (
                   <Typography variant="body2" color="text.secondary">
                     Answer type: {TYPE_LABEL[picked.type]}{picked.unit ? ` (${picked.unit})` : ''}{picked.description ? ` · ${picked.description}` : ''}
@@ -287,10 +324,16 @@ export default function KpiConfigPage() {
                   <TextField fullWidth select label="How often" value={dialog.form.frequency} onChange={(e) => setForm({ frequency: e.target.value })}>
                     <MenuItem value="daily">Daily</MenuItem><MenuItem value="weekly">Weekly</MenuItem><MenuItem value="monthly">Monthly</MenuItem>
                   </TextField>
-                  {picked?.type !== 'text' && picked?.type !== 'choice' && (
-                    <TextField fullWidth type="number" label={`Target per ${dialog.form.frequency.replace('ly', '').replace('dai', 'day')}`} helperText={picked?.type === 'yes_no' ? 'Number of “yes” answers expected' : undefined} value={dialog.form.targetValue} onChange={(e) => setForm({ targetValue: e.target.value })} inputProps={{ min: 0 }} />
+                  {(dialog.form.custom ? dialog.form.type !== 'text' : picked?.type !== 'text' && picked?.type !== 'choice') && (
+                    <TextField fullWidth type="number" label={`Target per ${dialog.form.frequency.replace('ly', '').replace('dai', 'day')}`} helperText={(dialog.form.custom ? dialog.form.type : picked?.type) === 'yes_no' ? 'Number of “yes” answers expected' : 'Optional: leave blank for no target'} value={dialog.form.targetValue} onChange={(e) => setForm({ targetValue: e.target.value })} inputProps={{ min: 0 }} />
                   )}
                 </Stack>
+                <TextField
+                  fullWidth type="number" label="Weightage (%)" value={dialog.form.weightage}
+                  onChange={(e) => setForm({ weightage: e.target.value })}
+                  helperText="Share of this person's score. Their KPI weights should total 100%. Leave blank if not weighted."
+                  inputProps={{ min: 0, max: 100, step: 0.5 }}
+                />
                 <FormControlLabel control={<Checkbox checked={dialog.form.isActive} onChange={(e) => setForm({ isActive: e.target.checked })} />} label="Active (shown to staff)" />
               </Stack>
             );
@@ -298,7 +341,7 @@ export default function KpiConfigPage() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDialog(null)} disabled={saving}>Cancel</Button>
-          <Button variant="contained" onClick={save} disabled={saving || !dialog?.form.masterId || !dialog?.form.userId || !dialog?.form.startDate}>{saving ? 'Saving…' : 'Save'}</Button>
+          <Button variant="contained" onClick={save} disabled={saving || !dialog?.form.userId || !dialog?.form.startDate || (dialog?.form.custom ? !dialog.form.name.trim() || !dialog.form.type : !dialog?.form.masterId)}>{saving ? 'Saving…' : 'Save'}</Button>
         </DialogActions>
       </Dialog>
     </Layout>

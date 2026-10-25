@@ -17,7 +17,7 @@ export const SALES_STRATEGY = {
   // Longest an open opportunity may sit in a stage without any update before
   // it counts as stalled. There is no stage-history table, so "time in stage"
   // is measured as days since the record was last updated.
-  stageMaxDays: { Qualification: 14, Demonstration: 14, Proposal: 21, Negotiation: 21 } as Record<string, number>,
+  stageMaxDays: { 'Customer engagement': 14, Demonstration: 14, Handover: 30, Proposal: 21, Negotiation: 21 } as Record<string, number>,
 
   leadFirstActionDays: 3, // an Open lead needs a first touch within this
   leadToOpportunityDays: 30, // an Open/Qualified lead should convert (or close) within this

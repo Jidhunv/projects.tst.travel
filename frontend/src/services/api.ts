@@ -244,8 +244,8 @@ export const api = {
     apiClient.get<ApiResponse<any>>('/pipeline/forecast', { params: filters }),
 
   // Reports & MIS (dollar figures, role-scoped)
-  getMIS: () =>
-    apiClient.get<ApiResponse<any>>('/reports/mis'),
+  getMIS: (filters?: Record<string, any>) =>
+    apiClient.get<ApiResponse<any>>('/reports/mis', { params: filters }),
 
   getConversionTimeline: (filters?: Record<string, any>) =>
     apiClient.get<PaginatedResponse<any>>('/reports/conversion-timeline', { params: filters }),
@@ -283,6 +283,16 @@ export const api = {
     apiClient.get<ApiResponse<any>>('/performance/meeting-report', { params: filters }),
   deleteKpiEntry: (id: string) => apiClient.delete<ApiResponse<any>>(`/performance/kpi-entries/${id}`),
 
+  getQuestionMaster: () => apiClient.get<any>('/questionnaire-master'),
+  createQuestion: (data: any) => apiClient.post<ApiResponse<any>>('/questionnaire-master', data),
+  updateQuestion: (id: string, data: any) => apiClient.patch<ApiResponse<any>>(`/questionnaire-master/${id}`, data),
+  deleteQuestion: (id: string) => apiClient.delete<ApiResponse<any>>(`/questionnaire-master/${id}`),
+  getStageHistory: (oppId: string) => apiClient.get<ApiResponse<any>>(`/opportunities/${oppId}/stage-history`),
+  getQuestionnaire: (oppId: string) => apiClient.get<ApiResponse<any>>(`/opportunities/${oppId}/questionnaire`),
+  saveQuestionAnswer: (oppId: string, key: string, data: { value?: string | null; status?: string }) =>
+    apiClient.put<ApiResponse<any>>(`/opportunities/${oppId}/questionnaire/${key}`, data),
+  getQuestionHistory: (oppId: string, key: string) =>
+    apiClient.get<ApiResponse<any[]>>(`/opportunities/${oppId}/questionnaire/${key}/history`),
   polishText: (data: { text: string; context: string }) => apiClient.post<ApiResponse<any>>('/text/polish', data),
   getTextStatus: () => apiClient.get<ApiResponse<any>>('/text/status'),
 
@@ -330,6 +340,22 @@ export const api = {
     apiClient.get<ApiResponse<any[]>>('/countries', { params: filters }),
   createCountry: (data: any) => apiClient.post<ApiResponse<any>>('/countries', data),
 
+  // Prospect options (master data for the Prospecting questionnaire)
+  getProspectOptions: (category?: string) =>
+    apiClient.get<ApiResponse<any[]>>('/prospect-options', { params: category ? { category } : undefined }),
+  createProspectOption: (data: { category: string; name: string }) => apiClient.post<ApiResponse<any>>('/prospect-options', data),
+  updateProspectOption: (id: string, data: { name?: string; isActive?: boolean }) =>
+    apiClient.patch<ApiResponse<any>>(`/prospect-options/${id}`, data),
+
+  // Company types (master data: what kind of company an account is)
+  getCompanyTypes: (filters?: Record<string, any>) =>
+    apiClient.get<ApiResponse<any[]>>('/company-types', { params: filters }),
+  createCompanyType: (data: any) => apiClient.post<ApiResponse<any>>('/company-types', data),
+  updateCompanyType: (id: string, data: any) =>
+    apiClient.patch<ApiResponse<any>>(`/company-types/${id}`, data),
+  deleteCompanyType: (id: string) =>
+    apiClient.delete<ApiResponse<void>>(`/company-types/${id}`),
+
   // Designations (master data)
   getDesignations: (filters?: Record<string, any>) =>
     apiClient.get<ApiResponse<any[]>>('/designations', { params: filters }),
@@ -342,7 +368,7 @@ export const api = {
   // Account stakeholders (buying-committee onboarding)
   getAccountStakeholders: (accountId: string) =>
     apiClient.get<ApiResponse<any[]>>(`/accounts/${accountId}/stakeholders`),
-  saveAccountStakeholders: (accountId: string, stakeholders: Array<{ role: string; name?: string; designationId?: string }>) =>
+  saveAccountStakeholders: (accountId: string, stakeholders: Array<{ role: string; name?: string; email?: string; phone?: string; designationId?: string }>) =>
     apiClient.put<ApiResponse<any[]>>(`/accounts/${accountId}/stakeholders`, { stakeholders }),
   getAccountOnboardingStatus: (accountId: string) =>
     apiClient.get<ApiResponse<{ complete: boolean; missingRoles: string[] }>>(`/accounts/${accountId}/onboarding-status`),
@@ -364,6 +390,11 @@ export const api = {
   createSalesVisit: (data: any) => apiClient.post<ApiResponse<any>>('/sales-visits', data),
   updateSalesVisit: (id: string, data: any) => apiClient.patch<ApiResponse<any>>(`/sales-visits/${id}`, data),
   deleteSalesVisit: (id: string) => apiClient.delete<ApiResponse<void>>(`/sales-visits/${id}`),
+
+  // Sales activity KPIs (what each salesperson has done over a date range)
+  getSalesActivitySummary: (filters?: Record<string, any>) =>
+    apiClient.get<ApiResponse<any>>('/sales-activity/summary', { params: filters }),
+  getSalesActivityOptions: (params?: Record<string, any>) => apiClient.get<ApiResponse<any>>('/sales-activity/options', { params }),
 
   // Expense management (with approval workflow)
   getExpenses: (filters?: Record<string, any>) =>

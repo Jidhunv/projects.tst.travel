@@ -154,21 +154,49 @@ __decorate([
     __metadata("design:type", Date)
 ], Account.prototype, "onboardingDate", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: 'timestamp', nullable: true }),
-    __metadata("design:type", Date)
-], Account.prototype, "onboardingCompletedDate", void 0);
-__decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
 ], Account.prototype, "onboardingNotes", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ nullable: true }),
-    __metadata("design:type", Date)
-], Account.prototype, "contractSignedDate", void 0);
+    (0, typeorm_1.Column)({ type: 'jsonb', nullable: true }),
+    __metadata("design:type", Object)
+], Account.prototype, "prospectingAnswers", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ nullable: true }),
-    __metadata("design:type", Date)
-], Account.prototype, "goLiveDate", void 0);
+    (0, typeorm_1.Column)({ type: 'jsonb', nullable: true }),
+    __metadata("design:type", Object)
+], Account.prototype, "leadQualification", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'timestamptz', nullable: true }),
+    __metadata("design:type", Object)
+], Account.prototype, "prospectedAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'timestamptz', nullable: true }),
+    __metadata("design:type", Object)
+], Account.prototype, "prospectingUpdatedAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'uuid', nullable: true }),
+    __metadata("design:type", Object)
+], Account.prototype, "companyTypeId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'boolean', nullable: true }),
+    __metadata("design:type", Object)
+], Account.prototype, "isB2B", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'boolean', nullable: true }),
+    __metadata("design:type", Object)
+], Account.prototype, "isRetail", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', length: 255, nullable: true }),
+    __metadata("design:type", Object)
+], Account.prototype, "primaryBusiness", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'integer', nullable: true }),
+    __metadata("design:type", Object)
+], Account.prototype, "employeeCount", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'text', array: true, nullable: true }),
+    __metadata("design:type", Object)
+], Account.prototype, "branchLocations", void 0);
 __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
@@ -214,6 +242,6 @@ __decorate([
     __metadata("design:type", Date)
 ], Account.prototype, "updatedAt", void 0);
 exports.Account = Account = __decorate([
-    (0, typeorm_1.Entity)('accounts')
+    (0, typeorm_1.Entity)('leads')
 ], Account);
 //# sourceMappingURL=Account.js.map

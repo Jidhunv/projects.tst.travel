@@ -35,6 +35,10 @@ export class KpiDefinition {
   @Column({ type: 'numeric', precision: 15, scale: 2, nullable: true })
   targetValue: number | null; // per frequency period
 
+  // Percent of this person's score this KPI carries (see migrations/029_kpi_weightage.sql).
+  @Column({ type: 'numeric', precision: 5, scale: 2, nullable: true })
+  weightage: number | null;
+
   @Column({ default: true })
   isActive: boolean;
 

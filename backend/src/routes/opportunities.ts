@@ -1,10 +1,16 @@
 import { Router } from 'express';
 import OpportunityController from '../controllers/opportunity.controller';
+import QuestionnaireController from '../controllers/questionnaire.controller';
 import { verifyToken } from '../middleware/auth';
 
 const router = Router();
 
 router.use(verifyToken);
+
+router.get('/:id/stage-history', (req, res, next) => OpportunityController.stageHistory(req, res, next));
+router.get('/:id/questionnaire', (req, res, next) => QuestionnaireController.get(req, res, next));
+router.put('/:id/questionnaire/:key', (req, res, next) => QuestionnaireController.save(req, res, next));
+router.get('/:id/questionnaire/:key/history', (req, res, next) => QuestionnaireController.history(req, res, next));
 
 router.post('/', (req, res, next) => OpportunityController.createOpportunity(req, res, next));
 router.get('/', (req, res, next) => OpportunityController.getOpportunities(req, res, next));

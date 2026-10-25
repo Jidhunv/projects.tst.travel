@@ -30,6 +30,9 @@ export interface Permission {
 
 export interface Lead {
   id: string;
+  // False when the lead's account has no named buying-committee member. Set by the list API.
+  hasBuyingCommittee?: boolean;
+  buyingCommitteeCount?: number;
   firstName: string;
   lastName: string;
   email: string;
@@ -38,7 +41,7 @@ export interface Lead {
   country?: string;
   jobTitle?: string;
   source?: string;
-  status: 'Open' | 'Qualified' | 'Disqualified' | 'Converted';
+  status: 'Open' | 'Qualified' | 'Prospect' | 'Disqualified' | 'Converted';
   score: number;
   value: number;
   expectedCloseDate?: Date;
@@ -84,10 +87,14 @@ export interface Account {
   remark?: string;
   onboardingStatus?: 'Not Started' | 'In Progress' | 'Completed' | 'On Hold';
   onboardingDate?: Date;
-  onboardingCompletedDate?: Date;
   onboardingNotes?: string;
-  contractSignedDate?: Date;
-  goLiveDate?: Date;
+  // Onboarding profile
+  companyTypeId?: string | null;
+  isB2B?: boolean | null;
+  isRetail?: boolean | null;
+  primaryBusiness?: string | null;
+  employeeCount?: number | null;
+  branchLocations?: string[] | null;
   accountManager?: string;
   billingContact?: string;
   technicalContact?: string;
@@ -115,14 +122,18 @@ export interface Contact {
 
 export interface Opportunity {
   id: string;
+  // False when the deal's account has no named buying-committee member. Set by the list API.
+  hasBuyingCommittee?: boolean;
+  buyingCommitteeCount?: number;
   name: string;
   amount: number;
   stage:
-    | 'Qualification'
+    | 'Customer engagement'
     | 'Demonstration'
     | 'Proposal'
     | 'Negotiation'
     | 'Closed-Won'
+    | 'Handover'
     | 'Closed-Lost';
   status: 'Open' | 'Won' | 'Lost';
   description?: string;

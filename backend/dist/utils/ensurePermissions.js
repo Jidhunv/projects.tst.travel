@@ -48,6 +48,18 @@ function buildCatalog() {
         ...crud('product_categories', 'product categories'),
         ...crud('countries', 'countries'),
         ...crud('designations', 'designations'),
+        ...crud('company_types', 'company types'),
+        ...crud('prospect_options', 'prospect options'),
+        // Downloading report data (CSV), one key per report. Set per role in Role Management.
+        ...[
+            ['leads', 'Leads report'],
+            ['accounts', 'Accounts report'],
+            ['opportunities', 'Opportunities report'],
+            ['conversion_timeline', 'Conversion timeline report'],
+            ['sales_health', 'Sales cycle health report'],
+            ['issue_sla', 'Issue SLA report'],
+            ['kpi_meeting', 'KPI meeting report'],
+        ].map(([key, label]) => ({ module: 'report_exports', action: key, scope: 'all', description: `export ${label}` })),
         // Sales targets, staff KPIs (daily entries, monthly projections, meeting report,
         // audit trail) and KPI configuration. See docs/RBAC.md.
         ...crud('targets', 'sales targets'),
@@ -55,6 +67,8 @@ function buildCatalog() {
         ...crud('kpi_setup', 'KPI definitions'),
         // Client issue log (issues inside tickets, with stage tracking)
         ...crud('issue_log', 'client issues'),
+        // Opportunity stage question master (who may edit questions is decided here in Role Management)
+        ...crud('questionnaire', 'opportunity stage questions'),
         // Team scope (hierarchical visibility)
         ...teamScoped('accounts', 'accounts'),
     ];

@@ -14,7 +14,7 @@ import { Opportunity } from './Opportunity';
 import { Contract } from './Contract';
 import { Project } from './Project';
 
-@Entity('accounts')
+@Entity('leads')
 export class Account {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -122,17 +122,43 @@ export class Account {
   @Column({ type: 'timestamp', nullable: true })
   onboardingDate: Date;
 
-  @Column({ type: 'timestamp', nullable: true })
-  onboardingCompletedDate: Date;
-
   @Column({ nullable: true })
   onboardingNotes: string;
 
-  @Column({ nullable: true })
-  contractSignedDate: Date;
+  // Prospecting questionnaire answers, keyed q1..q10 (see utils/prospecting.ts).
+  @Column({ type: 'jsonb', nullable: true })
+  prospectingAnswers: Record<string, any> | null;
 
-  @Column({ nullable: true })
-  goLiveDate: Date;
+  // Lead qualification answers, lq1..lq10 (see utils/prospectQualification.ts).
+  @Column({ type: 'jsonb', nullable: true })
+  leadQualification: Record<string, string> | null;
+
+  // UTC timestamps (timestamptz): when the account first became a prospect, and when its answers were last saved.
+  @Column({ type: 'timestamptz', nullable: true })
+  prospectedAt: Date | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  prospectingUpdatedAt: Date | null;
+
+  // Onboarding profile (asked when the customer is onboarded).
+  // Columns are added by migrations/028_account_onboarding_profile.sql.
+  @Column({ type: 'uuid', nullable: true })
+  companyTypeId: string | null; // what kind of company it is (Company Type master)
+
+  @Column({ type: 'boolean', nullable: true })
+  isB2B: boolean | null;
+
+  @Column({ type: 'boolean', nullable: true })
+  isRetail: boolean | null;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  primaryBusiness: string | null;
+
+  @Column({ type: 'integer', nullable: true })
+  employeeCount: number | null;
+
+  @Column({ type: 'text', array: true, nullable: true })
+  branchLocations: string[] | null;
 
   @Column({ nullable: true })
   accountManager: string;

@@ -12,16 +12,10 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 export const ThemeContextProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isDarkMode, setIsDarkMode] = useState(false);
 
-  // Load saved theme preference on mount
+  // Load the saved theme on mount. Light is the default; the system setting is not used.
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme-mode');
-    if (savedTheme) {
-      setIsDarkMode(savedTheme === 'dark');
-    } else {
-      // Check system preference
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      setIsDarkMode(prefersDark);
-    }
+    setIsDarkMode(savedTheme === 'dark');
   }, []);
 
   const toggleTheme = () => {

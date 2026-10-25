@@ -1,11 +1,28 @@
 import { AppDataSource } from '../config/database';
+import stageHistory from './stageHistory.service';
 import { Opportunity } from '../models/Opportunity';
 import { LineItem } from '../models/LineItem';
 import { Account } from '../models/Account';
 import { AppError } from '../middleware/errorHandler';
 import { OPPORTUNITY_STAGES } from '../utils/constants';
+import { committeeCountsByAccount } from './buyingCommittee.service';
+import { resolveSort, SortMap } from '../utils/listSort';
+
+const OPPORTUNITY_SORT: SortMap = {
+  name: 'opp.name',
+  amount: 'opp.amount',
+  stage: 'opp.stage',
+  status: 'opp.status',
+  probability: 'opp.probability',
+  closeDate: 'opp.forecastedCloseDate',
+  country: 'opp.country',
+  region: 'opp.region',
+  createdAt: 'opp.createdAt',
+};
 
 interface OpportunityFilters {
+  sortBy?: string;
+  sortDir?: string;
   stage?: string;
   status?: string;
   ownerId?: string;
@@ -81,6 +98,7 @@ export class OpportunityService {
     });
 
     const savedOpp = await this.oppRepository.save(opp);
+    await stageHistory.record(savedOpp.id, savedOpp.stage, data.ownerId, 'Deal created');
 
     // Create line items if products are provided
     if (productIds && productIds.length > 0) {
@@ -120,6 +138,7 @@ export class OpportunityService {
     total: number;
   }> {
     const { page = 1, limit = 20, search, fromDate, toDate, amountFrom, amountTo, ...where } = filters;
+    const order = resolveSort(filters.sortBy, filters.sortDir, OPPORTUNITY_SORT, 'closeDate', 'ASC');
     const skip = (page - 1) * limit;
 
     const query = this.oppRepository
@@ -174,16 +193,23 @@ export class OpportunityService {
       query.andWhere('opp.amount <= :amountTo', { amountTo: Number(amountTo) });
     }
 
-    const [data, total] = await query
-      .orderBy('opp.forecastedCloseDate', 'ASC')
+    const [rows, total] = await query
+      .orderBy(order.column, order.dir)
       .skip(skip)
       .take(limit)
       .getManyAndCount();
 
-    return { data: data.map((opp) => this.formatOpportunity(opp)), total };
+    // Flag deals whose account has no buying committee yet, at every stage.
+    const counts = await committeeCountsByAccount(rows.map((o) => o.accountId));
+    const data = rows.map((opp) => {
+      const n = counts.get(opp.accountId) ?? 0;
+      return { ...this.formatOpportunity(opp), buyingCommitteeCount: n, hasBuyingCommittee: n > 0 };
+    });
+
+    return { data, total };
   }
 
-  async updateOpportunity(id: string, data: any): Promise<any> {
+  async updateOpportunity(id: string, data: any, actorId?: string): Promise<any> {
     const opp = await this.oppRepository.findOne({
       where: { id },
       relations: ['lineItems'],
@@ -245,6 +271,7 @@ export class OpportunityService {
     // the FK would be silently overwritten by the stale relation object.
     // update() writes exactly the columns given.
     await this.oppRepository.update(id, oppData as any);
+    if (data.stage && data.stage !== opp.stage) await stageHistory.record(id, data.stage, actorId ?? null, null, opp.stage);
     return await this.getOpportunityById(id);
   }
 
@@ -291,7 +318,7 @@ export class OpportunityService {
     return await this.getOpportunityById(id);
   }
 
-  async updateStage(id: string, stage: string): Promise<any> {
+  async updateStage(id: string, stage: string, actorId?: string): Promise<any> {
     if (!(OPPORTUNITY_STAGES as readonly string[]).includes(stage)) {
       throw new AppError(400, 'Invalid opportunity stage');
     }
@@ -305,28 +332,32 @@ export class OpportunityService {
       throw new AppError(404, 'Opportunity not found');
     }
 
+    const fromStage = rawOpp.stage;
     rawOpp.stage = stage;
 
     // Update probability based on stage
     const stageProbability: { [key: string]: number } = {
-      Qualification: 10,
+      'Customer engagement': 10,
       Demonstration: 25,
       Proposal: 50,
       Negotiation: 75,
       'Closed-Won': 100,
+      Handover: 100,
       'Closed-Lost': 0,
     };
 
     rawOpp.probability = stageProbability[stage] || rawOpp.probability;
 
     const saved = await this.oppRepository.save(rawOpp);
+    if (fromStage !== stage) await stageHistory.record(id, stage, actorId ?? null, null, fromStage);
     return this.formatOpportunity(saved);
   }
 
   async closeOpportunity(
     id: string,
     outcome: 'Won' | 'Lost',
-    rejectionReason?: string
+    rejectionReason?: string,
+    actorId?: string
   ): Promise<any> {
     const rawOpp = await this.oppRepository.findOne({
       where: { id },
@@ -337,6 +368,7 @@ export class OpportunityService {
       throw new AppError(404, 'Opportunity not found');
     }
 
+    const fromStage = rawOpp.stage;
     rawOpp.status = outcome === 'Won' ? 'Won' : 'Lost';
     rawOpp.stage = outcome === 'Won' ? 'Closed-Won' : 'Closed-Lost';
     // For a win, record the outcome; for a loss, store the selected rejection reason.
@@ -345,6 +377,7 @@ export class OpportunityService {
     rawOpp.probability = outcome === 'Won' ? 100 : 0;
 
     const saved = await this.oppRepository.save(rawOpp);
+    if (fromStage !== rawOpp.stage) await stageHistory.record(id, rawOpp.stage, actorId ?? null, rejectionReason ? `Lost: ${rejectionReason}` : null, fromStage);
     return this.formatOpportunity(saved);
   }
 

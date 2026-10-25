@@ -3,7 +3,7 @@ import { Account } from '../models/Account';
 import { User } from '../models/User';
 import { AppError } from '../middleware/errorHandler';
 import * as csv from 'csv-parse/sync';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import * as fs from 'fs';
 import logger from '../utils/logger';
 
@@ -37,13 +37,10 @@ export class ImportService {
     let records: Record<string, any>[] = [];
 
     // Detect file type from original filename and parse accordingly
-    const isExcel = originalFilename.toLowerCase().endsWith('.xlsx') || originalFilename.toLowerCase().endsWith('.xls');
+    const isExcel = originalFilename.toLowerCase().endsWith('.xlsx');
 
     if (isExcel) {
-      // Parse Excel file
-      const workbook = XLSX.readFile(filePath);
-      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      records = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+      records = await readFirstSheet(filePath);
     } else {
       // Parse CSV file
       const fileContent = fs.readFileSync(filePath, 'utf-8');
@@ -241,3 +238,40 @@ export class ImportService {
 }
 
 export default new ImportService();
+
+// First worksheet of an .xlsx file as records keyed by the header row. Cell values
+// are read as text, so formulas and rich text cannot inject objects into the import.
+async function readFirstSheet(filePath: string): Promise<Record<string, any>[]> {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.readFile(filePath);
+  const worksheet = workbook.worksheets[0];
+  if (!worksheet) return [];
+  const headers: string[] = [];
+  const records: Record<string, any>[] = [];
+  worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+    const values = row.values as any[]; // index 0 is unused by exceljs
+    if (rowNumber === 1) {
+      for (let c = 1; c < values.length; c++) headers[c - 1] = String(values[c] ?? '').trim();
+      return;
+    }
+    const record: Record<string, any> = {};
+    headers.forEach((h, i) => {
+      if (!h) return;
+      const v = values[i + 1];
+      record[h] = v === null || v === undefined ? '' : cellText(v);
+    });
+    records.push(record);
+  });
+  return records;
+}
+
+function cellText(v: any): string {
+  if (v instanceof Date) return v.toISOString().slice(0, 10);
+  if (typeof v === 'object') {
+    if (Array.isArray(v.richText)) return v.richText.map((t: any) => t.text).join('');
+    if (v.text !== undefined) return String(v.text);
+    if (v.result !== undefined) return String(v.result ?? '');
+    return '';
+  }
+  return String(v);
+}

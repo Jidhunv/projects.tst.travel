@@ -10,7 +10,7 @@ const router = Router();
 // legitimate prospect list needs (multer's bare `{ dest }` form has no size
 // or type limit at all, unlike the hardened upload middleware used for
 // ticket attachments).
-const IMPORT_ALLOWED_EXTENSIONS = ['csv', 'xlsx', 'xls'];
+const IMPORT_ALLOWED_EXTENSIONS = ['csv', 'xlsx']; // legacy .xls is not supported
 const upload = multer({
   dest: 'uploads/temp/',
   limits: { fileSize: 10 * 1024 * 1024, files: 1 }, // 10MB

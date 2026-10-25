@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   AppBar,
   Toolbar,
@@ -54,6 +54,10 @@ import { usePendingFollowups } from '@hooks/usePendingFollowups';
 import { Badge, IconButton } from '@mui/material';
 import { useThemeContext } from '@context/ThemeContext';
 import ChangePasswordDialog from './ChangePasswordDialog';
+import { useCopyProtection } from '@hooks/useCopyProtection';
+
+// Record pages whose content cannot be copied, selected or printed.
+const COPY_PROTECTED_PATHS = ['/prospects', '/leads', '/opportunities'];
 
 const DRAWER_WIDTH = 240;
 
@@ -63,6 +67,9 @@ interface LayoutProps {
 
 export default function Layout({ children }: LayoutProps) {
   const navigate = useNavigate();
+  const location = useLocation();
+  const copyProtected = COPY_PROTECTED_PATHS.includes(location.pathname);
+  useCopyProtection(copyProtected);
   const { logout, canViewModule, hasPermission, user } = useAuth();
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
   const [openChangePassword, setOpenChangePassword] = useState(false);
@@ -70,10 +77,11 @@ export default function Layout({ children }: LayoutProps) {
   const { isDarkMode, toggleTheme } = useThemeContext();
 
   // State for collapsible menu groups
+  // Every menu group starts collapsed; a group opens only when clicked.
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
-    accountsManagement: true,
-    billing: true,
-    projectManagement: true,
+    accountsManagement: false,
+    billing: false,
+    projectManagement: false,
     masters: false,
     sales: false,
     userManagement: false,
@@ -122,13 +130,13 @@ export default function Layout({ children }: LayoutProps) {
     {
       key: 'accountsManagement',
       type: 'group',
-      title: 'MIDT Management',
+      title: 'Lead Management',
       icon: <BusinessIcon />,
       show: true,
       items: [
-        { text: 'Prospects', icon: <BusinessIcon />, path: '/accounts', show: canViewModule('accounts') },
-        { text: 'Import Prospects', icon: <CategoryIcon />, path: '/import-midt', show: user?.role?.name === 'Admin' },
-        { text: 'Leads', icon: <PeopleIcon />, path: '/leads', show: canViewModule('leads') },
+        { text: 'Leads', icon: <BusinessIcon />, path: '/leads', show: canViewModule('accounts') },
+        { text: 'Import Leads', icon: <CategoryIcon />, path: '/import-midt', show: user?.role?.name === 'Admin' },
+        { text: 'Prospects', icon: <PeopleIcon />, path: '/prospects', show: canViewModule('leads') },
         { text: 'Opportunities', icon: <OpportunityIcon />, path: '/opportunities', show: canViewModule('opportunities') },
       ],
     },
@@ -168,6 +176,11 @@ export default function Layout({ children }: LayoutProps) {
         { text: 'Suppliers', icon: <SupplierIcon />, path: '/suppliers', show: canViewModule('suppliers') },
         { text: 'Country Master', icon: <CountryIcon />, path: '/countries', show: true },
         { text: 'Designation Master', icon: <CategoryIcon />, path: '/designations', show: true },
+        { text: 'Company Type Master', icon: <CategoryIcon />, path: '/company-types', show: true },
+        { text: 'Lead Options', icon: <CategoryIcon />, path: '/prospect-options', show: true },
+        { text: 'Question Master', icon: <TargetIcon />, path: '/questionnaire-master', show: canViewModule('questionnaire') },
+        { text: 'KPI Master', icon: <TargetIcon />, path: '/kpi-master', show: canViewModule('kpi_setup') },
+        { text: 'KPI Setup', icon: <TargetIcon />, path: '/kpi-config', show: canViewModule('kpi_setup') },
       ],
     },
     {
@@ -179,12 +192,20 @@ export default function Layout({ children }: LayoutProps) {
       items: [
         { text: 'Sales Report', icon: <VisitIcon />, path: '/sales-visits', show: canViewModule('sales_visits'), badge: pendingCount },
         { text: 'Reports', icon: <ReportsIcon />, path: '/reports', show: canViewModule('reports') },
+        { text: 'Sales Health', icon: <HealthIcon />, path: '/sales-health', show: canViewModule('reports') },
+      ],
+    },
+    {
+      key: 'kpi',
+      type: 'group',
+      title: 'KPI',
+      icon: <TargetIcon />,
+      show: true,
+      items: [
         { text: 'Targets & Performance', icon: <TargetIcon />, path: '/performance', show: canViewModule('reports') },
+        { text: 'Sales KPIs', icon: <TargetIcon />, path: '/sales-activity', show: canViewModule('sales_visits') },
         { text: 'My KPIs', icon: <TargetIcon />, path: '/my-kpis', show: canViewModule('kpis') },
         { text: 'KPI Meeting Report', icon: <ReportsIcon />, path: '/meeting-report', show: canViewModule('kpis') },
-        { text: 'KPI Master', icon: <TargetIcon />, path: '/kpi-master', show: canViewModule('kpi_setup') },
-        { text: 'KPI Setup', icon: <TargetIcon />, path: '/kpi-config', show: canViewModule('kpi_setup') },
-        { text: 'Sales Health', icon: <HealthIcon />, path: '/sales-health', show: canViewModule('reports') },
       ],
     },
     { key: 'divider2', type: 'divider', show: true },
@@ -238,7 +259,8 @@ export default function Layout({ children }: LayoutProps) {
         position="fixed"
         sx={{
           zIndex: (theme) => theme.zIndex.drawer + 1,
-          bgcolor: '#1e293b',
+          bgcolor: isDarkMode ? '#1e293b' : '#ffffff',
+          color: isDarkMode ? '#ffffff' : '#0f172a',
         }}
       >
         <Toolbar>
@@ -247,14 +269,14 @@ export default function Layout({ children }: LayoutProps) {
           </Typography>
           <IconButton
             onClick={toggleTheme}
-            sx={{ mr: 2, color: 'white' }}
+            sx={{ mr: 2, color: 'inherit' }}
             title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
           >
             {isDarkMode ? <LightModeIcon /> : <DarkModeIcon />}
           </IconButton>
           <NotificationCenter />
           <Avatar
-            sx={{ cursor: 'pointer', bgcolor: '#6366f1' }}
+            sx={{ cursor: 'pointer', bgcolor: isDarkMode ? '#6366f1' : '#334155' }}
             onClick={handleMenuOpen}
             title={fullName || 'Account'}
           >
@@ -358,8 +380,12 @@ export default function Layout({ children }: LayoutProps) {
                   <ListItemButton
                     onClick={() => toggleGroup(section.key)}
                     sx={{
+                      // Group headers sit on a light tint so they read apart from the links beneath them.
+                      bgcolor: isDarkMode ? '#334155' : '#eef2ff',
+                      color: isDarkMode ? '#e2e8f0' : '#312e81',
+                      '& .MuiListItemIcon-root': { color: 'inherit' },
                       '&:hover': {
-                        bgcolor: isDarkMode ? '#2a3441' : '#f0f0f0',
+                        bgcolor: isDarkMode ? '#3b4a61' : '#e0e7ff',
                       },
                     }}
                   >
@@ -412,7 +438,9 @@ export default function Layout({ children }: LayoutProps) {
       {/* Main Content */}
       <Box
         component="main"
+        className={copyProtected ? 'copy-protected' : undefined}
         sx={{
+          position: 'relative',
           flexGrow: 1,
           // Without this a wide table stretches the flex item past the window and clips
           // everything on the right (page action buttons, last table columns).
@@ -422,6 +450,15 @@ export default function Layout({ children }: LayoutProps) {
           minHeight: 'calc(100vh - 64px)',
         }}
       >
+        {copyProtected && (
+          <Box className="copy-protected-watermark" aria-hidden>
+            {Array.from({ length: 40 }).map((_, i) => (
+              <span key={i} style={{ top: `${(i % 8) * 14}%`, left: `${Math.floor(i / 8) * 22 - 6}%` }}>
+                {user?.email || ''}
+              </span>
+            ))}
+          </Box>
+        )}
         {children}
       </Box>
     </Box>

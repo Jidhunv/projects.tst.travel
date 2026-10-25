@@ -18,9 +18,9 @@ export class Notification {
 
   @Column({
     type: 'enum',
-    enum: ['ContractExpiry', 'InvoiceDue', 'UATApproval', 'PaymentReminder', 'ProjectMilestone', 'TicketUpdate'],
+    enum: ['ContractExpiry', 'InvoiceDue', 'UATApproval', 'PaymentReminder', 'ProjectMilestone', 'TicketUpdate', 'SecurityAlert'],
   })
-  type: 'ContractExpiry' | 'InvoiceDue' | 'UATApproval' | 'PaymentReminder' | 'ProjectMilestone' | 'TicketUpdate';
+  type: 'ContractExpiry' | 'InvoiceDue' | 'UATApproval' | 'PaymentReminder' | 'ProjectMilestone' | 'TicketUpdate' | 'SecurityAlert';
 
   @Column()
   title: string;

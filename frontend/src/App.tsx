@@ -15,18 +15,20 @@ import { ThemeContextProvider } from '@context/ThemeContext';
 // unauthenticated visitor needs, with nothing to gain from splitting it out.
 import LoginPage from '@pages/LoginPage';
 const DashboardPage = lazy(() => import('@pages/DashboardPage'));
+const ProspectsPage = lazy(() => import('@pages/ProspectsPage'));
 const LeadsPage = lazy(() => import('@pages/LeadsPage'));
-const AccountsPage = lazy(() => import('@pages/AccountsPage'));
 const ImportPage = lazy(() => import('@pages/ImportPage'));
 const OpportunitiesPage = lazy(() => import('@pages/OpportunitiesPage'));
 const ReportsPage = lazy(() => import('@pages/ReportsPage'));
-const PerformancePage = lazy(() => import('@pages/PerformancePage'));
 const MyKpisPage = lazy(() => import('@pages/MyKpisPage'));
 const MeetingReportPage = lazy(() => import('@pages/MeetingReportPage'));
 const IssueLogPage = lazy(() => import('@pages/IssueLogPage'));
 const KpiMasterPage = lazy(() => import('@pages/KpiMasterPage'));
+const QuestionMasterPage = lazy(() => import('@pages/QuestionMasterPage'));
 const KpiConfigPage = lazy(() => import('@pages/KpiConfigPage'));
 const SalesHealthPage = lazy(() => import('@pages/SalesHealthPage'));
+const SalesActivityPage = lazy(() => import('@pages/SalesActivityPage'));
+const PerformancePage = lazy(() => import('@pages/PerformancePage'));
 const ContractsPage = lazy(() => import('@pages/ContractsPage').then((m) => ({ default: m.ContractsPage })));
 const ProjectsPage = lazy(() => import('@pages/ProjectsPage').then((m) => ({ default: m.ProjectsPage })));
 const InvoicesPage = lazy(() => import('@pages/InvoicesPage').then((m) => ({ default: m.InvoicesPage })));
@@ -39,6 +41,8 @@ const ProductsPage = lazy(() => import('@pages/ProductsPage').then((m) => ({ def
 const ProductCategoriesPage = lazy(() => import('@pages/ProductCategoriesPage'));
 const CountriesPage = lazy(() => import('@pages/CountriesPage'));
 const DesignationsPage = lazy(() => import('@pages/DesignationsPage'));
+const CompanyTypesPage = lazy(() => import('@pages/CompanyTypesPage'));
+const ProspectOptionsPage = lazy(() => import('@pages/ProspectOptionsPage'));
 const TeamsPage = lazy(() => import('@pages/TeamsPage'));
 const SuppliersPage = lazy(() => import('@pages/SuppliersPage'));
 const SalesVisitsPage = lazy(() => import('@pages/SalesVisitsPage'));
@@ -168,21 +172,22 @@ function App() {
             }
           />
           <Route
-            path="/leads"
+            path="/prospects"
             element={
               <ProtectedRoute module="leads">
-                <LeadsPage />
+                <ProspectsPage />
               </ProtectedRoute>
             }
           />
           <Route
-            path="/accounts"
+            path="/leads"
             element={
               <ProtectedRoute module="accounts">
-                <AccountsPage />
+                <LeadsPage />
               </ProtectedRoute>
             }
           />
+          <Route path="/accounts" element={<Navigate to="/leads" replace />} />
           <Route
             path="/import-midt"
             element={
@@ -240,6 +245,14 @@ function App() {
             }
           />
           <Route
+            path="/questionnaire-master"
+            element={
+              <ProtectedRoute module="questionnaire">
+                <QuestionMasterPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/kpi-master"
             element={
               <ProtectedRoute module="kpi_setup">
@@ -260,6 +273,14 @@ function App() {
             element={
               <ProtectedRoute module="reports">
                 <SalesHealthPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/sales-activity"
+            element={
+              <ProtectedRoute module="sales_visits">
+                <SalesActivityPage />
               </ProtectedRoute>
             }
           />
@@ -364,6 +385,22 @@ function App() {
             element={
               <ProtectedRoute>
                 <DesignationsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/company-types"
+            element={
+              <ProtectedRoute>
+                <CompanyTypesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/prospect-options"
+            element={
+              <ProtectedRoute>
+                <ProspectOptionsPage />
               </ProtectedRoute>
             }
           />

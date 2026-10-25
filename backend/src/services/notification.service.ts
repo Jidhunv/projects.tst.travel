@@ -5,7 +5,7 @@ class NotificationService {
   private repository = AppDataSource.getRepository(Notification);
 
   async createNotification(data: {
-    type: 'ContractExpiry' | 'InvoiceDue' | 'UATApproval' | 'PaymentReminder' | 'ProjectMilestone' | 'TicketUpdate';
+    type: 'ContractExpiry' | 'InvoiceDue' | 'UATApproval' | 'PaymentReminder' | 'ProjectMilestone' | 'TicketUpdate' | 'SecurityAlert';
     title: string;
     message: string;
     recipientId: string;

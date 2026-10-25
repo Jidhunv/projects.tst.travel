@@ -6,6 +6,7 @@ import { Account } from '../models/Account';
 import { AuthRequest, canPerformAction, getOwnerScope } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
 import logger from '../utils/logger';
+import { ownersForFilter } from '../services/salesActivity.service';
 
 const repo = () => AppDataSource.getRepository(SalesVisit);
 const followupRepo = () => AppDataSource.getRepository(FollowupEntry);
@@ -16,7 +17,7 @@ export class SalesVisitController {
       if (!canPerformAction(req.user, 'sales_visits', 'read')) {
         throw new AppError(403, 'You do not have permission to view sales visits');
       }
-      const { search, accountId, visitType, fromDate, toDate } = req.query;
+      const { search, accountId, visitType, fromDate, toDate, country, region, salespersonId } = req.query;
 
       const qb = repo()
         .createQueryBuilder('v')
@@ -27,10 +28,13 @@ export class SalesVisitController {
         .orderBy('v.visitDate', 'DESC')
         .addOrderBy('followups.createdAt', 'DESC');
 
-      // Self-scope: users with only read:self see their own visits.
-      const scope = getOwnerScope(req.user, 'sales_visits');
-      if (scope) qb.andWhere('v.createdById = :scope', { scope });
+      // Scope: all = every salesperson, team = self plus supervised members, self = own visits only.
+      // The salesperson filter is limited to the same people.
+      const owners = await ownersForFilter(req.user, salespersonId as string | undefined);
+      if (owners) qb.andWhere('v.createdById = ANY(:owners)', { owners });
 
+      if (country) qb.andWhere('TRIM(account.country) = :country', { country });
+      if (region) qb.andWhere('TRIM(account.region) = :region', { region });
       if (accountId) qb.andWhere('v.accountId = :accountId', { accountId });
       if (visitType) qb.andWhere('v.visitType = :visitType', { visitType });
       if (search) qb.andWhere('(v.discussion ILIKE :s OR v.companyName ILIKE :s)', { s: `%${search}%` });

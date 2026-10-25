@@ -11,6 +11,7 @@ const Account_1 = require("../models/Account");
 const auth_1 = require("../middleware/auth");
 const errorHandler_1 = require("../middleware/errorHandler");
 const logger_1 = __importDefault(require("../utils/logger"));
+const salesActivity_service_1 = require("../services/salesActivity.service");
 const repo = () => database_1.AppDataSource.getRepository(SalesVisit_1.SalesVisit);
 const followupRepo = () => database_1.AppDataSource.getRepository(FollowupEntry_1.FollowupEntry);
 class SalesVisitController {
@@ -19,7 +20,7 @@ class SalesVisitController {
             if (!(0, auth_1.canPerformAction)(req.user, 'sales_visits', 'read')) {
                 throw new errorHandler_1.AppError(403, 'You do not have permission to view sales visits');
             }
-            const { search, accountId, visitType, fromDate, toDate } = req.query;
+            const { search, accountId, visitType, fromDate, toDate, country, region, salespersonId } = req.query;
             const qb = repo()
                 .createQueryBuilder('v')
                 .leftJoinAndSelect('v.createdBy', 'creator')
@@ -28,10 +29,15 @@ class SalesVisitController {
                 .leftJoinAndSelect('followups.createdBy', 'followupCreator')
                 .orderBy('v.visitDate', 'DESC')
                 .addOrderBy('followups.createdAt', 'DESC');
-            // Self-scope: users with only read:self see their own visits.
-            const scope = (0, auth_1.getOwnerScope)(req.user, 'sales_visits');
-            if (scope)
-                qb.andWhere('v.createdById = :scope', { scope });
+            // Scope: all = every salesperson, team = self plus supervised members, self = own visits only.
+            // The salesperson filter is limited to the same people.
+            const owners = await (0, salesActivity_service_1.ownersForFilter)(req.user, salespersonId);
+            if (owners)
+                qb.andWhere('v.createdById = ANY(:owners)', { owners });
+            if (country)
+                qb.andWhere('TRIM(account.country) = :country', { country });
+            if (region)
+                qb.andWhere('TRIM(account.region) = :region', { region });
             if (accountId)
                 qb.andWhere('v.accountId = :accountId', { accountId });
             if (visitType)

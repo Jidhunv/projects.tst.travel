@@ -105,7 +105,8 @@ function DailyTab({ userId, canCreate, canEdit, canDelete, setError, setSuccess 
     let live = true;
     setProspectLoading(true);
     const t = setTimeout(() => {
-      api.getAccounts(1, 20, prospectQuery ? { search: prospectQuery } : {})
+      // Only complete prospects can be linked to a KPI.
+      api.getAccounts(1, 20, prospectQuery ? { search: prospectQuery, prospectReady: 'true' } : { prospectReady: 'true' })
         .then((r) => { if (live) setOptions(r.data.data || []); })
         .catch((e) => { if (live) setError(errMsg(e, 'Could not search prospects')); })
         .finally(() => { if (live) setProspectLoading(false); });
@@ -182,7 +183,7 @@ function DailyTab({ userId, canCreate, canEdit, canDelete, setError, setSuccess 
                 onChange={(_, v) => setProspect(v)}
                 onInputChange={(_, v, reason) => { if (reason === 'input') setProspectQuery(v); }}
                 noOptionsText={prospectLoading ? 'Searching…' : 'No prospects found'}
-                renderInput={(p) => <TextField {...p} label="Prospect (optional)" />}
+                renderInput={(p) => <TextField {...p} label="Lead (optional)" />}
               />
             </Stack>
             <Stack spacing={2}>
@@ -246,7 +247,7 @@ function DailyTab({ userId, canCreate, canEdit, canDelete, setError, setSuccess 
           <Typography variant="h6" gutterBottom>My entries ({total})</Typography>
           <Box sx={{ overflowX: 'auto' }}>
             <Table size="small">
-              <TableHead><TableRow><TableCell>Date</TableCell><TableCell>KPI</TableCell><TableCell>Answer</TableCell><TableCell>Prospect</TableCell><TableCell align="right" /></TableRow></TableHead>
+              <TableHead><TableRow><TableCell>Date</TableCell><TableCell>KPI</TableCell><TableCell>Answer</TableCell><TableCell>Lead</TableCell><TableCell align="right" /></TableRow></TableHead>
               <TableBody>
                 {rows.map((e) => (
                   <TableRow key={e.id}>

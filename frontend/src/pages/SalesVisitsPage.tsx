@@ -31,7 +31,11 @@ export const SalesVisitsPage: React.FC = () => {
 
   const [rows, setRows] = useState<any[]>([]);
   const [accounts, setAccounts] = useState<any[]>([]);
-  const [filters, setFilters] = useState({ search: '', accountId: '', visitType: '', fromDate: '', toDate: '' });
+  const emptyFilters = { search: '', accountId: '', visitType: '', fromDate: '', toDate: '', country: '', salespersonId: '' };
+  const [filters, setFilters] = useState(emptyFilters);
+  // People, countries and regions the viewer may filter by. Limited by the viewer's sales visit scope.
+  const [filterOptions, setFilterOptions] = useState<{ people: any[]; countries: string[] }>({ people: [], countries: [] });
+  const [filterOptionsError, setFilterOptionsError] = useState('');
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<any>(empty);
@@ -50,6 +54,9 @@ export const SalesVisitsPage: React.FC = () => {
   useEffect(() => {
     load();
     api.getAccounts(1, 200).then((r) => setAccounts(r.data.data || [])).catch(() => {});
+    api.getSalesActivityOptions()
+      .then((r) => setFilterOptions({ people: r.data.data?.people || [], countries: r.data.data?.countries || [] }))
+      .catch((e: any) => setFilterOptionsError(e.response?.data?.error || 'Could not load the salesperson and country lists'));
     /* eslint-disable-next-line */
   }, []);
 
@@ -159,6 +166,7 @@ export const SalesVisitsPage: React.FC = () => {
           <Typography variant="h4">Sales Report (Visits / Calls)</Typography>
           <Stack direction="row" spacing={1}>
             <Button variant="outlined" component={RouterLink} to="/my-kpis">My KPIs</Button>
+            <Button variant="outlined" component={RouterLink} to="/sales-activity">Sales KPIs</Button>
             <Button variant="outlined" onClick={exportCsv}>Export CSV</Button>
             {canCreate && <Button variant="contained" onClick={openNew}>Log Visit / Call</Button>}
           </Stack>
@@ -176,10 +184,27 @@ export const SalesVisitsPage: React.FC = () => {
               <MenuItem value="Visit">Visit</MenuItem>
               <MenuItem value="Call">Call</MenuItem>
             </TextField>
+            <TextField size="small" select sx={{ minWidth: 160 }} label="Country" value={filters.country} onChange={(e) => setFilters({ ...filters, country: e.target.value })}>
+              <MenuItem value="">All</MenuItem>
+              {filterOptions.countries.map((c) => <MenuItem key={c} value={c}>{c}</MenuItem>)}
+            </TextField>
+            <TextField
+              size="small"
+              select
+              sx={{ minWidth: 180 }}
+              label="Salesperson"
+              value={filters.salespersonId}
+              onChange={(e) => setFilters({ ...filters, salespersonId: e.target.value })}
+              error={!!filterOptionsError}
+              helperText={filterOptionsError || undefined}
+            >
+              <MenuItem value="">All I can see</MenuItem>
+              {filterOptions.people.map((p) => <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>)}
+            </TextField>
             <TextField size="small" type="date" label="From" InputLabelProps={{ shrink: true }} value={filters.fromDate} onChange={(e) => setFilters({ ...filters, fromDate: e.target.value })} />
             <TextField size="small" type="date" label="To" InputLabelProps={{ shrink: true }} value={filters.toDate} onChange={(e) => setFilters({ ...filters, toDate: e.target.value })} />
             <Button variant="contained" onClick={load}>Apply</Button>
-            <Button onClick={() => { setFilters({ search: '', accountId: '', visitType: '', fromDate: '', toDate: '' }); setTimeout(load, 0); }}>Clear</Button>
+            <Button onClick={() => { setFilters(emptyFilters); setTimeout(load, 0); }}>Clear</Button>
           </Stack>
         </Paper>
 

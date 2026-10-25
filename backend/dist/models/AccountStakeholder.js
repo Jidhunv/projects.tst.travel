@@ -17,7 +17,7 @@ const Designation_1 = require("./Designation");
 // utils/constants.ts for the fixed set of 8 roles. An account's "onboarding"
 // is complete once it has a row for every role, each with a name and a
 // designation. Enforced before a lead can be created against the account
-// (see lead.controller.ts#createLead).
+// (see prospect.controller.ts#createLead).
 let AccountStakeholder = class AccountStakeholder {
 };
 exports.AccountStakeholder = AccountStakeholder;
@@ -39,17 +39,25 @@ __decorate([
     __metadata("design:type", String)
 ], AccountStakeholder.prototype, "role", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ nullable: true }),
-    __metadata("design:type", String)
+    (0, typeorm_1.Column)({ type: "varchar", length: 255, nullable: true }),
+    __metadata("design:type", Object)
 ], AccountStakeholder.prototype, "name", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', length: 255, nullable: true }),
+    __metadata("design:type", Object)
+], AccountStakeholder.prototype, "email", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', length: 50, nullable: true }),
+    __metadata("design:type", Object)
+], AccountStakeholder.prototype, "phone", void 0);
 __decorate([
     (0, typeorm_1.ManyToOne)(() => Designation_1.Designation),
     (0, typeorm_1.JoinColumn)({ name: 'designationId' }),
     __metadata("design:type", Designation_1.Designation)
 ], AccountStakeholder.prototype, "designation", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ nullable: true }),
-    __metadata("design:type", String)
+    (0, typeorm_1.Column)({ type: "uuid", nullable: true }),
+    __metadata("design:type", Object)
 ], AccountStakeholder.prototype, "designationId", void 0);
 __decorate([
     (0, typeorm_1.CreateDateColumn)(),

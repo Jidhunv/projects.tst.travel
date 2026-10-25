@@ -1,7 +1,11 @@
 import { Account } from '../models/Account';
 import { Contact } from '../models/Contact';
 import { AccountStakeholder } from '../models/AccountStakeholder';
+import { CommitteeMemberInput } from '../utils/buyingCommittee';
 interface AccountFilters {
+    sortBy?: string;
+    sortDir?: string;
+    prospectReady?: boolean;
     status?: string;
     type?: string;
     ownerId?: string;
@@ -24,6 +28,7 @@ export declare class AccountService {
     private stakeholderRepository;
     createAccount(data: {
         name: string;
+        tier?: string;
         industry?: string;
         size?: string;
         website?: string;
@@ -62,11 +67,7 @@ export declare class AccountService {
     deleteContact(accountId: string, contactId: string): Promise<void>;
     setPrimaryContact(accountId: string, contactId: string): Promise<Contact>;
     getStakeholders(accountId: string): Promise<AccountStakeholder[]>;
-    upsertStakeholders(accountId: string, stakeholders: Array<{
-        role: string;
-        name?: string;
-        designationId?: string;
-    }>): Promise<AccountStakeholder[]>;
+    upsertStakeholders(accountId: string, stakeholders: CommitteeMemberInput[]): Promise<AccountStakeholder[]>;
     getOnboardingStatus(accountId: string): Promise<{
         complete: boolean;
         missingRoles: string[];

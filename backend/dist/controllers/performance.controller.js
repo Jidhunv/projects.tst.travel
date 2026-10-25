@@ -16,6 +16,7 @@ const kpi_service_1 = __importDefault(require("../services/kpi.service"));
 const auth_1 = require("../middleware/auth");
 const errorHandler_1 = require("../middleware/errorHandler");
 const pick_1 = __importDefault(require("../utils/pick"));
+const kpiReport_1 = require("../utils/kpiReport");
 const scopeOf = (req, module, action) => {
     const s = (0, auth_1.getScope)(req.user, module, action);
     return s === 'all' ? 'all' : s ? 'self' : null;
@@ -34,6 +35,8 @@ const DAY = 86400000;
 const METRICS = ['won_value', 'opportunity_value'];
 const KPI_TYPES = ['number', 'yes_no', 'text', 'choice'];
 const FREQUENCIES = ['daily', 'weekly', 'monthly'];
+// Types a custom (per-person) KPI can take. Yes/no is the boolean answer.
+const CUSTOM_KPI_TYPES = ['number', 'yes_no', 'text'];
 const MAX_REPORT_DAYS = 92;
 // Validates an answer against its KPI's type and returns the columns to store.
 function parseAnswer(def, body, options = null) {
@@ -339,11 +342,32 @@ class PerformanceController {
     }
     // ---- KPI assignments (a master question given to a staff member) ---------
     parseAssignment(body, partial) {
-        const d = (0, pick_1.default)(body || {}, ['masterId', 'userId', 'frequency', 'targetValue', 'isActive', 'startDate']);
+        const d = (0, pick_1.default)(body || {}, ['masterId', 'userId', 'frequency', 'targetValue', 'isActive', 'startDate', 'weightage', 'name', 'type', 'unit']);
         const bad = (m) => { throw new errorHandler_1.AppError(400, m); };
+        // A KPI comes from the master, or is custom to one person (then it needs a name and a type).
         if (!partial || 'masterId' in d) {
-            if (typeof d.masterId !== 'string' || !d.masterId)
-                bad('Pick a question from the KPI master');
+            if (!d.masterId && typeof d.name !== 'string')
+                bad('Pick a question from the KPI master, or enter a custom KPI name');
+        }
+        if ('name' in d && d.name !== null) {
+            if (typeof d.name !== 'string' || !d.name.trim())
+                bad('KPI name cannot be empty');
+            d.name = d.name.trim();
+            if (d.name.length > 200)
+                bad('KPI name must be 200 characters or fewer');
+        }
+        if ('type' in d && !CUSTOM_KPI_TYPES.includes(d.type))
+            bad(`KPI type must be one of: ${CUSTOM_KPI_TYPES.join(', ')}`);
+        if ('unit' in d && d.unit !== null)
+            d.unit = typeof d.unit === 'string' && d.unit.trim() ? d.unit.trim() : null;
+        if ('weightage' in d) {
+            if (d.weightage === '' || d.weightage === null)
+                d.weightage = null;
+            else {
+                d.weightage = Number(d.weightage);
+                if (!isFinite(d.weightage) || d.weightage < 0 || d.weightage > 100)
+                    bad('Weightage must be a percentage from 0 to 100');
+            }
         }
         if (!partial || 'userId' in d) {
             if (typeof d.userId !== 'string' || !d.userId)
@@ -368,22 +392,43 @@ class PerformanceController {
         try {
             need(req, 'kpi_setup', 'create', 'configure KPIs');
             const d = this.parseAssignment(req.body, false);
-            const master = await database_1.AppDataSource.getRepository(KpiMaster_1.KpiMaster).findOne({ where: { id: d.masterId } });
-            if (!master)
-                throw new errorHandler_1.AppError(400, 'That question is not in the KPI master');
-            if (!master.isActive)
-                throw new errorHandler_1.AppError(400, 'That question is inactive in the KPI master');
             if ((await database_1.AppDataSource.query('SELECT id FROM users WHERE id = $1', [d.userId])).length === 0)
                 throw new errorHandler_1.AppError(400, 'That staff member does not exist');
             const repo = database_1.AppDataSource.getRepository(KpiDefinition_1.KpiDefinition);
-            if (await repo.findOne({ where: { userId: d.userId, masterId: master.id } }))
-                throw new errorHandler_1.AppError(409, 'That staff member already has this KPI');
-            const saved = await repo.save(repo.create({
-                masterId: master.id, userId: d.userId, name: master.name, description: master.description, type: master.type, unit: master.unit,
-                frequency: d.frequency ?? master.defaultFrequency,
-                targetValue: 'targetValue' in d ? d.targetValue : master.defaultTarget,
+            const common = {
+                userId: d.userId,
+                weightage: 'weightage' in d ? d.weightage : null,
                 isActive: d.isActive ?? true, startDate: d.startDate ?? todayStr(), createdById: req.user.id,
-            }));
+            };
+            let saved;
+            if (d.masterId) {
+                const master = await database_1.AppDataSource.getRepository(KpiMaster_1.KpiMaster).findOne({ where: { id: d.masterId } });
+                if (!master)
+                    throw new errorHandler_1.AppError(400, 'That question is not in the KPI master');
+                if (!master.isActive)
+                    throw new errorHandler_1.AppError(400, 'That question is inactive in the KPI master');
+                if (await repo.findOne({ where: { userId: d.userId, masterId: master.id } }))
+                    throw new errorHandler_1.AppError(409, 'That staff member already has this KPI');
+                saved = await repo.save(repo.create({
+                    ...common,
+                    masterId: master.id, name: master.name, description: master.description, type: master.type, unit: master.unit,
+                    frequency: d.frequency ?? master.defaultFrequency,
+                    targetValue: 'targetValue' in d ? d.targetValue : master.defaultTarget,
+                }));
+            }
+            else {
+                // Custom KPI: this person only, with its own name, answer type and unit. Daily by default.
+                if (!d.type)
+                    throw new errorHandler_1.AppError(400, 'Choose the answer type for this KPI: number, yes/no or text');
+                if (await repo.findOne({ where: { userId: d.userId, name: d.name } }))
+                    throw new errorHandler_1.AppError(409, 'That staff member already has a KPI with this name');
+                saved = await repo.save(repo.create({
+                    ...common,
+                    masterId: null, name: d.name, description: null, type: d.type, unit: d.unit ?? null,
+                    frequency: d.frequency ?? 'daily',
+                    targetValue: 'targetValue' in d ? d.targetValue : null,
+                }));
+            }
             res.status(201).json({ success: true, data: saved });
         }
         catch (e) {
@@ -396,8 +441,13 @@ class PerformanceController {
             const repo = database_1.AppDataSource.getRepository(KpiDefinition_1.KpiDefinition);
             if (!(await repo.findOne({ where: { id: req.params.id } })))
                 throw new errorHandler_1.AppError(404, 'KPI not found');
-            // The question itself is owned by the master; only the per-person settings change here.
-            const d = (0, pick_1.default)(this.parseAssignment(req.body, true), ['frequency', 'targetValue', 'isActive', 'startDate']);
+            // A master question is owned by the master; only the per-person settings change here.
+            // A custom KPI (no master) can also change its name, type and unit.
+            const existing = await repo.findOne({ where: { id: req.params.id } });
+            const fields = ['frequency', 'targetValue', 'isActive', 'startDate', 'weightage'];
+            if (!existing.masterId)
+                fields.push('name', 'type', 'unit');
+            const d = (0, pick_1.default)(this.parseAssignment(req.body, true), fields);
             await repo.update(req.params.id, d);
             res.json({ success: true, data: await repo.findOne({ where: { id: req.params.id } }) });
         }
@@ -472,11 +522,18 @@ class PerformanceController {
                 qb.andWhere('e.entryDate <= :to', { to });
             const [rows, total] = await qb.skip((page - 1) * limit).take(limit).getManyAndCount();
             const ids = [...new Set(rows.map((r) => r.accountId).filter(Boolean))];
-            const accounts = ids.length ? await database_1.AppDataSource.getRepository(Account_1.Account).createQueryBuilder('a').select(['a.id', 'a.name']).where('a.id = ANY(:ids)', { ids }).getMany() : [];
+            const accounts = ids.length ? await database_1.AppDataSource.getRepository(Account_1.Account).createQueryBuilder('a').select(['a.id', 'a.name', 'a.prospectedAt']).where('a.id = ANY(:ids)', { ids }).getMany() : [];
             const nameOf = new Map(accounts.map((a) => [a.id, a.name]));
+            // When the linked prospect was completed (UTC), so KPI activity can be read against the prospect's timeline.
+            const prospectedOf = new Map(accounts.map((a) => [a.id, a.prospectedAt]));
             const userRows = await database_1.AppDataSource.query(`SELECT id, "firstName" || ' ' || "lastName" AS name FROM users`);
             const userName = new Map(userRows.map((u) => [u.id, u.name]));
-            const data = rows.map((r) => ({ ...r, accountName: r.accountId ? nameOf.get(r.accountId) || null : null, userName: userName.get(r.userId) || '' }));
+            const data = rows.map((r) => ({
+                ...r,
+                accountName: r.accountId ? nameOf.get(r.accountId) || null : null,
+                accountProspectedAt: r.accountId ? prospectedOf.get(r.accountId) ?? null : null,
+                userName: userName.get(r.userId) || '',
+            }));
             res.json({ success: true, data, meta: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) } });
         }
         catch (e) {
@@ -583,7 +640,18 @@ class PerformanceController {
             if (from > to)
                 throw new errorHandler_1.AppError(400, 'From date cannot be after the To date');
             const only = scope === 'self' ? req.user.id : str(req.query.userId);
-            res.json({ success: true, data: { from, to, rows: await kpi_service_1.default.summary(from, to, only) } });
+            const rows = await kpi_service_1.default.summary(from, to, only);
+            // Each person's weighted score, from the KPIs that carry a weight.
+            const byUser = new Map();
+            for (const r of rows) {
+                if (!byUser.has(r.userId))
+                    byUser.set(r.userId, { userId: r.userId, userName: r.userName, rows: [] });
+                byUser.get(r.userId).rows.push(r);
+            }
+            const users = [...byUser.values()].map((u) => ({
+                userId: u.userId, userName: u.userName, ...(0, kpiReport_1.weightedScore)(u.rows),
+            }));
+            res.json({ success: true, data: { from, to, rows, users } });
         }
         catch (e) {
             next(e);

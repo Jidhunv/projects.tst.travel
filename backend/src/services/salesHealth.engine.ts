@@ -63,8 +63,8 @@ export interface AccountHealth {
 
 const DAY = 86_400_000;
 const SEVERITY_ORDER: Record<Severity, number> = { critical: 0, high: 1, medium: 2, low: 3 };
-const EARLY_STAGES = ['Qualification', 'Demonstration'];
-const STAGE_ORDER = ['Qualification', 'Demonstration', 'Proposal', 'Negotiation'];
+const EARLY_STAGES = ['Customer engagement', 'Demonstration'];
+const STAGE_ORDER = ['Customer engagement', 'Demonstration', 'Proposal', 'Negotiation'];
 
 const daysBetween = (from: Date, to: Date) => Math.floor((to.getTime() - from.getTime()) / DAY);
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;

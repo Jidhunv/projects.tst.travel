@@ -10,6 +10,8 @@ import { generateCsrfToken, verifyCsrfToken } from './middleware/csrf';
 import { sanitizeResponse } from './middleware/sanitizeResponse';
 import logger from './utils/logger';
 import ensurePermissions from './utils/ensurePermissions';
+import { ensureQuestionBank } from './services/questionBank.service';
+import questionMasterRoutes from './routes/questionMaster';
 
 // Import routes (will be created next)
 // import authRoutes from './routes/auth';
@@ -115,12 +117,18 @@ import emailSettingsRoutes from './routes/email-settings';
 import supplierRoutes from './routes/suppliers';
 import teamRoutes from './routes/teams';
 import salesVisitRoutes from './routes/sales-visits';
+import salesActivityRoutes from './routes/salesActivity';
 import expenseRoutes from './routes/expenses';
 import countryRoutes from './routes/countries';
 import performanceRoutes from './routes/performance';
 import issueRoutes from './routes/issues';
 import textRoutes from './routes/text';
 import designationRoutes from './routes/designations';
+import loginActivityRoutes from './routes/loginActivity';
+import securityAlertRoutes from './routes/securityAlerts';
+import loginActivityService from './services/loginActivity.service';
+import companyTypeRoutes from './routes/companyTypes';
+import prospectOptionRoutes from './routes/prospectOptions';
 
 // Database initialization
 AppDataSource.initialize()
@@ -128,6 +136,11 @@ AppDataSource.initialize()
     logger.info('Database connection established');
     // Ensure the permission catalog is up to date for newly added modules.
     await ensurePermissions();
+    await ensureQuestionBank();
+    // Login history older than the retention period is removed at startup and then daily.
+    const purge = () => loginActivityService.purgeExpired().catch((err) => logger.error(`Login activity purge failed: ${err.message}`));
+    purge();
+    setInterval(purge, 24 * 60 * 60 * 1000).unref();
   })
   .catch((error) => {
     logger.error('Database connection error:', error);
@@ -161,12 +174,18 @@ app.use('/api/email-settings', emailSettingsRoutes);
 app.use('/api/suppliers', supplierRoutes);
 app.use('/api/teams', teamRoutes);
 app.use('/api/sales-visits', salesVisitRoutes);
+app.use('/api/sales-activity', salesActivityRoutes);
 app.use('/api/expenses', expenseRoutes);
 app.use('/api/countries', countryRoutes);
 app.use('/api/designations', designationRoutes);
+app.use('/api/login-activity', loginActivityRoutes);
+app.use('/api/security-alerts', securityAlertRoutes);
+app.use('/api/company-types', companyTypeRoutes);
+app.use('/api/prospect-options', prospectOptionRoutes);
 app.use('/api/performance', performanceRoutes);
 app.use('/api/issues', issueRoutes);
 app.use('/api/text', textRoutes);
+app.use('/api/questionnaire-master', questionMasterRoutes);
 
 // Error handling middleware
 app.use(errorHandler);

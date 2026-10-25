@@ -3,9 +3,28 @@ import { Account } from '../models/Account';
 import { Contact } from '../models/Contact';
 import { AccountStakeholder } from '../models/AccountStakeholder';
 import { STAKEHOLDER_ROLES } from '../utils/constants';
+import { normaliseCommittee, CommitteeMemberInput } from '../utils/buyingCommittee';
 import { AppError } from '../middleware/errorHandler';
+import { prospectingProgress } from '../utils/prospecting';
+import { resolveSort, SortMap } from '../utils/listSort';
+
+const ACCOUNT_SORT: SortMap = {
+  name: 'account.name',
+  owner: 'owner.firstName',
+  type: 'account.type',
+  tier: 'account.tier',
+  country: 'account.country',
+  region: 'account.region',
+  createdAt: 'account.createdAt',
+};
+import { activeProspectOptions } from './prospectOptions.service';
+import { accountStage } from '../utils/accountStage';
 
 interface AccountFilters {
+  sortBy?: string;
+  sortDir?: string;
+  // Only accounts whose Prospecting questionnaire is complete (used by the lead and KPI pickers).
+  prospectReady?: boolean;
   status?: string;
   type?: string;
   ownerId?: string;
@@ -38,6 +57,7 @@ export class AccountService {
 
   async createAccount(data: {
     name: string;
+    tier?: string;
     industry?: string;
     size?: string;
     website?: string;
@@ -74,7 +94,8 @@ export class AccountService {
 
     const account = this.accountRepository.create({
       ...data,
-      type: data.type || 'Prospect',
+      type: data.type || 'Account',
+      tier: data.tier || undefined,
       status: 'Prospect',
     });
 
@@ -95,6 +116,7 @@ export class AccountService {
   }
 
   async getAccounts(filters: AccountFilters = {}): Promise<{ data: Account[]; total: number }> {
+    const order = resolveSort(filters.sortBy, filters.sortDir, ACCOUNT_SORT, 'createdAt');
     const { page = 1, limit = 20, search, fromDate, toDate, ...where } = filters;
     const skip = (page - 1) * limit;
 
@@ -163,11 +185,37 @@ export class AccountService {
       query.andWhere('account.createdAt <= :toDate', { toDate: new Date(`${toDate}T23:59:59.999Z`) });
     }
 
-    const [data, total] = await query
-      .orderBy('account.createdAt', 'DESC')
-      .skip(skip)
-      .take(limit)
-      .getManyAndCount();
+    const options = await activeProspectOptions();
+    let rows: Account[];
+    let total: number;
+    if (filters.prospectReady) {
+      // The completeness check reads every answer, so it filters before the page is cut.
+      const ready = (await query.orderBy(order.column, order.dir).getMany())
+        .filter((a) => prospectingProgress(a, a.prospectingAnswers as any, options).complete);
+      total = ready.length;
+      rows = ready.slice(skip, skip + limit);
+    } else {
+      [rows, total] = await query
+        .orderBy(order.column, order.dir)
+        .skip(skip)
+        .take(limit)
+        .getManyAndCount();
+    }
+
+    // Each row carries its prospecting progress, so the list can highlight complete prospects.
+    const withProgress = rows.map((a) => Object.assign(a, { prospecting: prospectingProgress(a, a.prospectingAnswers as any, options) }));
+    // The stage comes from the account's leads, so the questionnaire alone never makes an account a prospect.
+    const leadStatuses = new Map<string, string[]>();
+    if (withProgress.length) {
+      const leads: Array<{ accountId: string; status: string }> = await AppDataSource.query(
+        `SELECT "accountId"::text AS "accountId", status FROM prospects WHERE "accountId"::text = ANY($1::text[])`,
+        [withProgress.map((a) => a.id)]
+      );
+      for (const l of leads) leadStatuses.set(l.accountId, [...(leadStatuses.get(l.accountId) ?? []), l.status]);
+    }
+    const data = withProgress.map((a) =>
+      Object.assign(a, { stage: accountStage(a.type, a.prospecting.complete, leadStatuses.get(a.id) ?? []) })
+    );
 
     return { data, total };
   }
@@ -365,28 +413,46 @@ export class AccountService {
   // Bulk upsert: one entry per role in the payload. Missing roles in the
   // payload are left untouched (partial saves are fine - completeness is
   // evaluated separately by isOnboardingComplete).
+  // A named member must come with an email and a phone (see normaliseCommittee).
+  // A row sent with a blank name clears that role, so a member can be removed.
   async upsertStakeholders(
     accountId: string,
-    stakeholders: Array<{ role: string; name?: string; designationId?: string }>
+    stakeholders: CommitteeMemberInput[]
   ): Promise<AccountStakeholder[]> {
+    const members = normaliseCommittee(stakeholders);
+    const byRole = new Map(members.map((m) => [m.role, m]));
     for (const s of stakeholders) {
-      if (!STAKEHOLDER_ROLES.includes(s.role as any)) {
-        throw new AppError(400, `Invalid stakeholder role: ${s.role}`);
-      }
+      const m = byRole.get(s.role);
       const existing = await this.stakeholderRepository.findOne({
         where: { accountId, role: s.role },
       });
+      if (!m) {
+        if (existing && !(s.name ?? '').trim()) {
+          await this.stakeholderRepository.update(existing.id, {
+            name: null,
+            email: null,
+            phone: null,
+            designationId: null,
+          });
+        }
+        continue;
+      }
       if (existing) {
-        existing.name = s.name ?? existing.name;
-        existing.designationId = s.designationId ?? existing.designationId;
-        await this.stakeholderRepository.save(existing);
+        await this.stakeholderRepository.update(existing.id, {
+          name: m.name,
+          email: m.email,
+          phone: m.phone,
+          designationId: m.designationId ?? existing.designationId ?? null,
+        });
       } else {
         await this.stakeholderRepository.save(
           this.stakeholderRepository.create({
             accountId,
-            role: s.role,
-            name: s.name,
-            designationId: s.designationId,
+            role: m.role,
+            name: m.name,
+            email: m.email,
+            phone: m.phone,
+            designationId: m.designationId,
           })
         );
       }

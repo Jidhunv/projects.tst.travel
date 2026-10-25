@@ -16,19 +16,7 @@ import {
   Chip,
 } from '@mui/material';
 import { api } from '@services/api';
-
-// The 8 fixed buying-committee roles - must match backend
-// utils/constants.ts#STAKEHOLDER_ROLES exactly.
-const STAKEHOLDER_ROLES = [
-  'Champion',
-  'Coach',
-  'Blocker',
-  'Decision Maker',
-  'Influencer',
-  'Economic Buyer',
-  'End User',
-  'Gatekeeper',
-];
+import { STAKEHOLDER_ROLES } from '@components/BuyingCommitteeEditor';
 
 interface BuyingCommitteeViewDialogProps {
   open: boolean;
@@ -59,7 +47,8 @@ export default function BuyingCommitteeViewDialog({ open, onClose, accountId, ac
       .finally(() => setLoading(false));
   }, [open, accountId]);
 
-  const filledCount = rows.filter((r) => r.name && r.designationId).length;
+  // A role counts as mapped once it has a named member (email and phone are required with a name).
+  const filledCount = rows.filter((r) => r.name).length;
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
@@ -77,7 +66,7 @@ export default function BuyingCommitteeViewDialog({ open, onClose, accountId, ac
           <>
             <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
               <Chip
-                label={`${filledCount}/8 mapped`}
+                label={`${filledCount}/8 named`}
                 size="small"
                 color={filledCount === 8 ? 'success' : 'warning'}
               />
@@ -87,6 +76,8 @@ export default function BuyingCommitteeViewDialog({ open, onClose, accountId, ac
                 <TableRow>
                   <TableCell>Role</TableCell>
                   <TableCell>Name</TableCell>
+                  <TableCell>Email</TableCell>
+                  <TableCell>Phone</TableCell>
                   <TableCell>Designation</TableCell>
                 </TableRow>
               </TableHead>
@@ -95,6 +86,8 @@ export default function BuyingCommitteeViewDialog({ open, onClose, accountId, ac
                   <TableRow key={r.role}>
                     <TableCell sx={{ fontWeight: 600 }}>{r.role}</TableCell>
                     <TableCell>{r.name || '-'}</TableCell>
+                    <TableCell>{r.email || '-'}</TableCell>
+                    <TableCell>{r.phone || '-'}</TableCell>
                     <TableCell>{r.designation?.name || '-'}</TableCell>
                   </TableRow>
                 ))}

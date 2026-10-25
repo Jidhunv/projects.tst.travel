@@ -177,7 +177,7 @@ class IssueService {
     if (f.search?.trim()) { const s = p(`%${f.search.trim()}%`); conds.push(`(i.title ILIKE ${s} OR t.title ILIKE ${s} OR t."ticketNumber" ILIKE ${s})`); }
     if (f.scopeUserId) { const u = p(f.scopeUserId); conds.push(`(i."assigneeId" = ${u} OR i."createdById" = ${u})`); }
     const w = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
-    const base = `FROM ticket_issues i JOIN tickets t ON t.id = i."ticketId" JOIN accounts a ON a.id = t."accountId"
+    const base = `FROM ticket_issues i JOIN tickets t ON t.id = i."ticketId" JOIN leads a ON a.id = t."accountId"
                   LEFT JOIN users u ON u.id = i."assigneeId" ${w}`;
     const [{ n }] = await AppDataSource.query(`SELECT COUNT(*) n ${base}`, args);
     const rows = await AppDataSource.query(
@@ -207,7 +207,7 @@ class IssueService {
               COUNT(i.id) FILTER (WHERE i.stage NOT IN ('Deployed','Cancelled') AND i.priority IN ('Critical','High')) AS "urgentOpen",
               COUNT(i.id) FILTER (WHERE i.stage IN ('User acceptance')) AS "waitingOnCustomer",
               MAX(i."updatedAt") AS "lastUpdate"
-       FROM ticket_issues i JOIN tickets t ON t.id = i."ticketId" JOIN accounts a ON a.id = t."accountId"
+       FROM ticket_issues i JOIN tickets t ON t.id = i."ticketId" JOIN leads a ON a.id = t."accountId"
        ${w} GROUP BY a.id, a.name ORDER BY (COUNT(i.id) FILTER (WHERE i.stage NOT IN ('Deployed','Cancelled'))) DESC, a.name`, args);
     return rows.map((r: any) => {
       const total = num(r.total), closed = num(r.closed);
@@ -247,7 +247,7 @@ class IssueService {
       `SELECT i.id, i."issueNumber", i.title, i.priority, i.stage, i."closedAt", i."createdAt", i."assigneeId",
               t."ticketNumber", t.title AS "ticketTitle", t."slaResponseHours", t."slaResolutionHours", t."accountId",
               a.name AS "accountName", u."firstName" || ' ' || u."lastName" AS "assigneeName"
-       FROM ticket_issues i JOIN tickets t ON t.id = i."ticketId" JOIN accounts a ON a.id = t."accountId"
+       FROM ticket_issues i JOIN tickets t ON t.id = i."ticketId" JOIN leads a ON a.id = t."accountId"
        LEFT JOIN users u ON u.id = i."assigneeId" ${w} ORDER BY i."createdAt" DESC LIMIT 5000`, args);
 
     const hist: any[] = issues.length
