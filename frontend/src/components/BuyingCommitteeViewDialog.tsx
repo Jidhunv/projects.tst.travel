@@ -16,7 +16,14 @@ import {
   Chip,
 } from '@mui/material';
 import { api } from '@services/api';
-import { STAKEHOLDER_ROLES } from '@components/BuyingCommitteeEditor';
+import BuyingCommitteeEditor, {
+  STAKEHOLDER_ROLES,
+  CommitteeForm,
+  committeeError,
+  committeeFormFromRows,
+  committeePayload,
+  emptyCommitteeForm,
+} from '@components/BuyingCommitteeEditor';
 
 interface BuyingCommitteeViewDialogProps {
   open: boolean;
@@ -25,16 +32,21 @@ interface BuyingCommitteeViewDialogProps {
   accountName?: string;
 }
 
-// Read-only view of an account's buying-committee mapping. Editing stays on
-// the Accounts page (Prospects > Buying Committee) - this is just for quickly
-// checking who the stakeholders are while working a lead or opportunity.
+// Buying committee for an account. Opens read-only; "Edit" switches to the editor
+// and "Save" writes the committee back to the account. The same dialog is used from
+// Prospects and Opportunities, so the committee can be amended from either screen.
 export default function BuyingCommitteeViewDialog({ open, onClose, accountId, accountName }: BuyingCommitteeViewDialogProps) {
   const [loading, setLoading] = React.useState(false);
   const [rows, setRows] = React.useState<any[]>([]);
   const [error, setError] = React.useState('');
+  const [editing, setEditing] = React.useState(false);
+  const [form, setForm] = React.useState<CommitteeForm>(emptyCommitteeForm());
+  const [designations, setDesignations] = React.useState<any[]>([]);
+  const [saving, setSaving] = React.useState(false);
+  const [saveError, setSaveError] = React.useState('');
 
-  React.useEffect(() => {
-    if (!open || !accountId) return;
+  const load = React.useCallback(() => {
+    if (!accountId) return;
     setLoading(true);
     setError('');
     api.getAccountStakeholders(accountId)
@@ -42,16 +54,50 @@ export default function BuyingCommitteeViewDialog({ open, onClose, accountId, ac
         const data: any[] = res.data.data || [];
         const byRole = new Map(data.map((s) => [s.role, s]));
         setRows(STAKEHOLDER_ROLES.map((role) => byRole.get(role) || { role }));
+        setForm(committeeFormFromRows(data));
       })
       .catch((e: any) => setError(e.response?.data?.error || 'Failed to load buying committee'))
       .finally(() => setLoading(false));
-  }, [open, accountId]);
+  }, [accountId]);
+
+  React.useEffect(() => {
+    if (!open) return;
+    setEditing(false);
+    setSaveError('');
+    load();
+  }, [open, load]);
+
+  const startEdit = () => {
+    setSaveError('');
+    setEditing(true);
+    api.getDesignations({ isActive: true })
+      .then((res) => setDesignations(res.data.data || []))
+      .catch(() => setDesignations([]));
+  };
+
+  const save = () => {
+    if (!accountId) return;
+    const problem = committeeError(form);
+    if (problem) {
+      setSaveError(problem);
+      return;
+    }
+    setSaving(true);
+    setSaveError('');
+    api.saveAccountStakeholders(accountId, committeePayload(form))
+      .then(() => {
+        setEditing(false);
+        load();
+      })
+      .catch((e: any) => setSaveError(e.response?.data?.error || 'Failed to save buying committee'))
+      .finally(() => setSaving(false));
+  };
 
   // A role counts as mapped once it has a named member (email and phone are required with a name).
   const filledCount = rows.filter((r) => r.name).length;
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle>
         Buying Committee{accountName ? ` — ${accountName}` : ''}
       </DialogTitle>
@@ -62,6 +108,14 @@ export default function BuyingCommitteeViewDialog({ open, onClose, accountId, ac
           </Box>
         ) : error ? (
           <Typography color="error">{error}</Typography>
+        ) : editing ? (
+          <>
+            <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+              Map a person to each role. A named member needs an email and a phone number.
+            </Typography>
+            <BuyingCommitteeEditor value={form} onChange={setForm} designations={designations} />
+            {saveError && <Typography color="error" sx={{ mt: 2 }}>{saveError}</Typography>}
+          </>
         ) : (
           <>
             <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -97,7 +151,21 @@ export default function BuyingCommitteeViewDialog({ open, onClose, accountId, ac
         )}
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Close</Button>
+        {editing ? (
+          <>
+            <Button onClick={() => setEditing(false)} disabled={saving}>Cancel</Button>
+            <Button variant="contained" onClick={save} disabled={saving}>
+              {saving ? 'Saving…' : 'Save'}
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button onClick={onClose}>Close</Button>
+            {accountId && !loading && !error && (
+              <Button variant="contained" onClick={startEdit}>Edit</Button>
+            )}
+          </>
+        )}
       </DialogActions>
     </Dialog>
   );
