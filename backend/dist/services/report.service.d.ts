@@ -7,9 +7,10 @@ export interface ReportScope {
 }
 interface StageBucket {
     stage: string;
+    source: 'prospect' | 'opportunity';
     count: number;
     totalValue: number;
-    weightedValue: number;
+    weightedValue: number | null;
 }
 interface ConversionTimelineRow {
     accountId: string;

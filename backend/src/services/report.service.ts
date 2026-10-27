@@ -20,11 +20,15 @@ export interface ReportScope {
 
 const NO_SCOPE: ReportScope = { ownerIds: null };
 
+// Prospect (lead) statuses shown in the pipeline, with the label each one is shown under.
+const PROSPECT_PIPELINE: Record<string, string> = { Open: 'Lead', Qualified: 'Qualified', Prospect: 'Prospect' };
+
 interface StageBucket {
   stage: string;
+  source: 'prospect' | 'opportunity';
   count: number;
-  totalValue: number; // sum of opportunity amounts
-  weightedValue: number; // sum of amount * probability / 100 (expected revenue)
+  totalValue: number; // sum of values (prospect value or opportunity amount)
+  weightedValue: number | null; // expected revenue; null for prospects, which carry no probability
 }
 
 // One row per account -> lead -> opportunity chain, showing the timestamp at
@@ -120,22 +124,47 @@ export class ReportService {
     const rows = await query.getRawMany();
     const rowMap = new Map(rows.map((r) => [r.stage, r]));
 
-    // Return all open stages in canonical order, zero-filled where empty.
+    // Leads and prospects still in progress, before the open opportunity stages.
+    const prospectQuery = this.leadRepository
+      .createQueryBuilder('lead')
+      .select('lead.status', 'status')
+      .addSelect('COUNT(lead.id)', 'count')
+      .addSelect('COALESCE(SUM(lead.value), 0)', 'totalValue')
+      .where('lead.status IN (:...statuses)', { statuses: Object.keys(PROSPECT_PIPELINE) })
+      .groupBy('lead.status');
+    this.applyScope(prospectQuery, 'lead', scope, 'createdAt');
+    const prospectRows = new Map((await prospectQuery.getRawMany()).map((r) => [r.status, r]));
+
+    const prospectBuckets: StageBucket[] = Object.entries(PROSPECT_PIPELINE).map(([status, label]) => {
+      const r = prospectRows.get(status);
+      return {
+        stage: label,
+        source: 'prospect',
+        count: r ? parseInt(r.count, 10) : 0,
+        totalValue: r ? parseFloat(r.totalValue) : 0,
+        weightedValue: null,
+      };
+    });
+
+    // Return all open opportunity stages in canonical order, zero-filled where empty.
     const openStages = OPPORTUNITY_STAGES.filter((s) => !s.startsWith('Closed'));
-    const byStage: StageBucket[] = openStages.map((stage) => {
+    const opportunityBuckets: StageBucket[] = openStages.map((stage) => {
       const r = rowMap.get(stage);
       return {
         stage,
+        source: 'opportunity',
         count: r ? parseInt(r.count, 10) : 0,
         totalValue: r ? parseFloat(r.totalValue) : 0,
         weightedValue: r ? parseFloat(r.weightedValue) : 0,
       };
     });
 
+    const byStage = [...prospectBuckets, ...opportunityBuckets];
     return {
       byStage,
       totalOpenValue: byStage.reduce((s, b) => s + b.totalValue, 0),
-      totalWeightedValue: byStage.reduce((s, b) => s + b.weightedValue, 0),
+      // Expected revenue counts opportunities only: prospects have no probability.
+      totalWeightedValue: opportunityBuckets.reduce((s, b) => s + (b.weightedValue ?? 0), 0),
       openCount: byStage.reduce((s, b) => s + b.count, 0),
     };
   }

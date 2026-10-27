@@ -79,38 +79,53 @@ export class LeadController {
       // leaves a half-created lead behind.
       const committee = Array.isArray(buyingCommittee) ? normaliseCommittee(buyingCommittee) : [];
 
-      const lead = await leadService.createLead({
-        accountId,
-        firstName,
-        lastName,
-        email,
-        phoneNumber,
-        company,
-        jobTitle,
-        source,
-        value: value !== undefined ? Number(value) : undefined,
-        expectedCloseDate: expectedCloseDate ? new Date(expectedCloseDate) : undefined,
-        productId,
-        productName,
-        productIds,
-        productNames,
-        remark,
-        businessVolume: businessVolume !== undefined ? Number(businessVolume) : undefined,
-        supplierList: Array.isArray(supplierList) ? supplierList : undefined,
-        region,
-        country,
-        ownerId: req.user!.id,
-      });
+      // One prospect per product: a contact interested in three products becomes three prospects.
+      const ids: string[] = Array.isArray(productIds) && productIds.length ? productIds : productId ? [productId] : [];
+      const names: string[] = Array.isArray(productNames) && productNames.length ? productNames : productName ? [productName] : [];
+      const targets = ids.length
+        ? ids.map((id, i) => ({
+            productId: id,
+            productName: names[i],
+            productIds: [id],
+            productNames: names[i] ? [names[i]] : [],
+          }))
+        : [{ productId: undefined, productName: undefined, productIds: [], productNames: [] }];
+
+      // Every product is checked before anything is saved, so a duplicate leaves nothing half-created.
+      for (const t of targets) await leadService.assertNoDuplicate(email, t.productId);
+
+      const leads = [];
+      for (const t of targets) {
+        leads.push(await leadService.createLead({
+          accountId,
+          firstName,
+          lastName,
+          email,
+          phoneNumber,
+          company,
+          jobTitle,
+          source,
+          value: value !== undefined ? Number(value) : undefined,
+          expectedCloseDate: expectedCloseDate ? new Date(expectedCloseDate) : undefined,
+          remark,
+          businessVolume: businessVolume !== undefined ? Number(businessVolume) : undefined,
+          supplierList: Array.isArray(supplierList) ? supplierList : undefined,
+          region,
+          country,
+          ownerId: req.user!.id,
+          ...t,
+        }));
+      }
 
       if (committee.length > 0) {
         await accountService.upsertStakeholders(accountId, committee);
       }
 
-      logger.info(`Lead created: ${lead.email} by ${req.user!.email}`);
+      logger.info(`${leads.length} prospect(s) created for ${email} by ${req.user!.email}`);
 
       return res.status(201).json({
         success: true,
-        data: lead,
+        data: leads,
       });
     } catch (error) {
       next(error);

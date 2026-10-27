@@ -169,7 +169,7 @@ export default function ReportsPage() {
                   <TableHead>
                     <TableRow>
                       <SortableHeaderCell label="Stage" sortKey="stage" sort={pipelineSort} onSort={setPipelineSort} />
-                      <SortableHeaderCell label="Deals" sortKey="count" align="right" sort={pipelineSort} onSort={setPipelineSort} />
+                      <SortableHeaderCell label="Count" sortKey="count" align="right" sort={pipelineSort} onSort={setPipelineSort} />
                       <SortableHeaderCell label="Value" sortKey="totalValue" align="right" sort={pipelineSort} onSort={setPipelineSort} />
                       <SortableHeaderCell label="Weighted" sortKey="weightedValue" align="right" sort={pipelineSort} onSort={setPipelineSort} />
                     </TableRow>
@@ -180,7 +180,7 @@ export default function ReportsPage() {
                         <TableCell>{s.stage}</TableCell>
                         <TableCell align="right">{s.count}</TableCell>
                         <TableCell align="right">{formatCurrency(s.totalValue)}</TableCell>
-                        <TableCell align="right">{formatCurrency(s.weightedValue)}</TableCell>
+                        <TableCell align="right">{s.weightedValue == null ? '–' : formatCurrency(s.weightedValue)}</TableCell>
                       </TableRow>
                     ))}
                     <TableRow sx={{ '& td': { fontWeight: 700, borderTop: '2px solid #ddd' } }}>

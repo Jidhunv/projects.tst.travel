@@ -1,3 +1,4 @@
+import { IsNull } from 'typeorm';
 import { AppDataSource } from '../config/database';
 import leadHistory from './prospectStatusHistory.service';
 import stageHistory from './stageHistory.service';
@@ -46,6 +47,18 @@ export class LeadService {
   private oppRepository = AppDataSource.getRepository(Opportunity);
   private lineItemRepository = AppDataSource.getRepository(LineItem);
 
+  // A contact can be a prospect once per product. Throws 409 when that prospect already exists.
+  async assertNoDuplicate(email: string, productId?: string | null): Promise<void> {
+    const existing = await this.leadRepository.findOne({
+      where: { email, productId: productId ?? IsNull() },
+    });
+    if (existing) {
+      throw new AppError(409, productId
+        ? `A prospect for this email and product already exists (${existing.productName || 'product'})`
+        : 'A prospect with this email already exists');
+    }
+  }
+
   async createLead(data: {
     accountId: string;
     firstName: string;
@@ -68,13 +81,7 @@ export class LeadService {
     region?: string;
     country?: string;
   }): Promise<Lead> {
-    const existingLead = await this.leadRepository.findOne({
-      where: { email: data.email },
-    });
-
-    if (existingLead) {
-      throw new AppError(409, 'Lead with this email already exists');
-    }
+    await this.assertNoDuplicate(data.email, data.productId);
 
     // Get account to populate tier from it
     const account = await this.accountRepository.findOne({

@@ -11,6 +11,8 @@ const Account_1 = require("../models/Account");
 const constants_1 = require("../utils/constants");
 const logger_1 = __importDefault(require("../utils/logger"));
 const NO_SCOPE = { ownerIds: null };
+// Prospect (lead) statuses shown in the pipeline, with the label each one is shown under.
+const PROSPECT_PIPELINE = { Open: 'Lead', Qualified: 'Qualified', Prospect: 'Prospect' };
 // Timeline sort keys from the screen, mapped to the row field they sort by.
 const TIMELINE_SORT = {
     account: 'accountName',
@@ -76,21 +78,44 @@ class ReportService {
         this.applyScope(query, 'opp', scope, 'createdAt');
         const rows = await query.getRawMany();
         const rowMap = new Map(rows.map((r) => [r.stage, r]));
-        // Return all open stages in canonical order, zero-filled where empty.
+        // Leads and prospects still in progress, before the open opportunity stages.
+        const prospectQuery = this.leadRepository
+            .createQueryBuilder('lead')
+            .select('lead.status', 'status')
+            .addSelect('COUNT(lead.id)', 'count')
+            .addSelect('COALESCE(SUM(lead.value), 0)', 'totalValue')
+            .where('lead.status IN (:...statuses)', { statuses: Object.keys(PROSPECT_PIPELINE) })
+            .groupBy('lead.status');
+        this.applyScope(prospectQuery, 'lead', scope, 'createdAt');
+        const prospectRows = new Map((await prospectQuery.getRawMany()).map((r) => [r.status, r]));
+        const prospectBuckets = Object.entries(PROSPECT_PIPELINE).map(([status, label]) => {
+            const r = prospectRows.get(status);
+            return {
+                stage: label,
+                source: 'prospect',
+                count: r ? parseInt(r.count, 10) : 0,
+                totalValue: r ? parseFloat(r.totalValue) : 0,
+                weightedValue: null,
+            };
+        });
+        // Return all open opportunity stages in canonical order, zero-filled where empty.
         const openStages = constants_1.OPPORTUNITY_STAGES.filter((s) => !s.startsWith('Closed'));
-        const byStage = openStages.map((stage) => {
+        const opportunityBuckets = openStages.map((stage) => {
             const r = rowMap.get(stage);
             return {
                 stage,
+                source: 'opportunity',
                 count: r ? parseInt(r.count, 10) : 0,
                 totalValue: r ? parseFloat(r.totalValue) : 0,
                 weightedValue: r ? parseFloat(r.weightedValue) : 0,
             };
         });
+        const byStage = [...prospectBuckets, ...opportunityBuckets];
         return {
             byStage,
             totalOpenValue: byStage.reduce((s, b) => s + b.totalValue, 0),
-            totalWeightedValue: byStage.reduce((s, b) => s + b.weightedValue, 0),
+            // Expected revenue counts opportunities only: prospects have no probability.
+            totalWeightedValue: opportunityBuckets.reduce((s, b) => s + (b.weightedValue ?? 0), 0),
             openCount: byStage.reduce((s, b) => s + b.count, 0),
         };
     }

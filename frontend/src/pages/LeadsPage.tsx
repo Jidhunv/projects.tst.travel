@@ -55,7 +55,7 @@ export default function LeadsPage() {
   const [page, setPage] = React.useState(1);
   const [pageSize, setPageSize] = React.useState(20);
   const [loading, setLoading] = React.useState(false);
-  const [toast, setToast] = React.useState<{ msg: string; sev: 'success' | 'error' } | null>(null);
+  const [toast, setToast] = React.useState<{ msg: string; sev: 'success' | 'warning' | 'error' } | null>(null);
   const [countries, setCountries] = React.useState<Country[]>([]);
 
   const [openCreate, setOpenCreate] = React.useState(false);
@@ -139,6 +139,9 @@ export default function LeadsPage() {
   // Prospecting questionnaire answers for the account being edited.
   const [prospectingAnswers, setProspectingAnswers] = React.useState<ProspectAnswers>({});
   const [prospectOptions, setProspectOptions] = React.useState<ProspectOptionSets>({ businessType: [], employeeBand: [] });
+  // Products identified for this account. Each one becomes its own prospect when converted.
+  const [products, setProducts] = React.useState<any[]>([]);
+  const [productIds, setProductIds] = React.useState<string[]>([]);
   // Options for the multi-select questions come from the Prospect Options master.
   React.useEffect(() => {
     api.getProspectOptions()
@@ -255,6 +258,8 @@ export default function LeadsPage() {
       assigneeIds: full.assigneeIds || [],
     });
     setProspectingAnswers((account as any).prospecting?.answers || {});
+    setProductIds([]);
+    api.getProducts().then((res) => setProducts(res.data.data || [])).catch(() => setProducts([]));
     setTabValue(0);
     setOpenEdit(true);
   };
@@ -293,7 +298,8 @@ export default function LeadsPage() {
         return;
       }
       const [firstName, ...rest] = (formData.contactPerson || '').trim().split(/\s+/);
-      await api.createLead({
+      const chosen = products.filter((p) => productIds.includes(p.id));
+      const res = await api.createLead({
         accountId: editingAccount!.id,
         firstName: firstName || formData.name,
         lastName: rest.join(' ') || '-',
@@ -301,12 +307,19 @@ export default function LeadsPage() {
         company: formData.name,
         phoneNumber: formData.phoneNumber,
         value: 0,
+        productIds: chosen.map((p) => p.id),
+        productNames: chosen.map((p) => p.name),
       });
+      const created = (res.data.data || []).length;
       setOpenEdit(false);
       setEditingAccount(null);
-      setToast({ msg: 'Saved as lead', sev: 'success' });
+      setToast({ msg: created > 1 ? `Saved as ${created} prospects, one per product` : 'Saved as lead', sev: 'success' });
     } catch (error: any) {
-      setToast({ msg: error.response?.data?.error || 'Failed to save as lead', sev: 'error' });
+      // A product that already has a prospect for this contact is refused; the server names it.
+      setToast({
+        msg: error.response?.data?.error || 'Failed to save as lead',
+        sev: error.response?.status === 409 ? 'warning' : 'error',
+      });
     }
   };
 
@@ -721,6 +734,22 @@ export default function LeadsPage() {
                     ownerName: (editingAccount as any)?.owner ? `${(editingAccount as any).owner.firstName} ${(editingAccount as any).owner.lastName}` : '',
                   }}
                 />
+                <TextField
+                  select
+                  fullWidth
+                  label="Products identified"
+                  value={productIds}
+                  onChange={(e) => setProductIds(e.target.value as unknown as string[])}
+                  SelectProps={{
+                    multiple: true,
+                    renderValue: (selected) => (selected as string[]).map((id) => products.find((p) => p.id === id)?.name || id).join(', '),
+                  }}
+                  helperText="One prospect is created for each product. A product that already has a prospect for this contact is refused."
+                >
+                  {products.map((p) => (
+                    <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>
+                  ))}
+                </TextField>
                 <Divider />
               </Box>
             )}

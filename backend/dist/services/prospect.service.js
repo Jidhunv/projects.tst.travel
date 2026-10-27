@@ -4,6 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.LeadService = void 0;
+const typeorm_1 = require("typeorm");
 const database_1 = require("../config/database");
 const prospectStatusHistory_service_1 = __importDefault(require("./prospectStatusHistory.service"));
 const stageHistory_service_1 = __importDefault(require("./stageHistory.service"));
@@ -36,13 +37,19 @@ class LeadService {
         this.oppRepository = database_1.AppDataSource.getRepository(Opportunity_1.Opportunity);
         this.lineItemRepository = database_1.AppDataSource.getRepository(LineItem_1.LineItem);
     }
-    async createLead(data) {
-        const existingLead = await this.leadRepository.findOne({
-            where: { email: data.email },
+    // A contact can be a prospect once per product. Throws 409 when that prospect already exists.
+    async assertNoDuplicate(email, productId) {
+        const existing = await this.leadRepository.findOne({
+            where: { email, productId: productId ?? (0, typeorm_1.IsNull)() },
         });
-        if (existingLead) {
-            throw new errorHandler_1.AppError(409, 'Lead with this email already exists');
+        if (existing) {
+            throw new errorHandler_1.AppError(409, productId
+                ? `A prospect for this email and product already exists (${existing.productName || 'product'})`
+                : 'A prospect with this email already exists');
         }
+    }
+    async createLead(data) {
+        await this.assertNoDuplicate(data.email, data.productId);
         // Get account to populate tier from it
         const account = await this.accountRepository.findOne({
             where: { id: data.accountId },

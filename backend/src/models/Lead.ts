@@ -6,10 +6,14 @@ import {
   UpdateDateColumn,
   ManyToOne,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { User } from './User';
 import { Account } from './Account';
 
+// One prospect per product: the same contact can be a prospect for several products, so
+// the email is unique per product, not on its own.
+@Index(['email', 'productId'], { unique: true })
 @Entity('prospects')
 export class Lead {
   @PrimaryGeneratedColumn('uuid')
@@ -21,7 +25,7 @@ export class Lead {
   @Column()
   lastName: string;
 
-  @Column({ unique: true })
+  @Column()
   email: string;
 
   @Column({ nullable: true })

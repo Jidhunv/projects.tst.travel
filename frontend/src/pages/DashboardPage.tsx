@@ -62,7 +62,7 @@ export default function DashboardPage() {
     {
       title: 'Open Pipeline',
       value: formatCurrencyCompact(mis.pipeline.totalOpenValue),
-      sub: `${mis.pipeline.openCount} open deals`,
+      sub: `${mis.pipeline.openCount} open leads, prospects and deals`,
       color: '#6366f1',
     },
     {

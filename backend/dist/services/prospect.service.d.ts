@@ -20,6 +20,7 @@ export declare class LeadService {
     private accountRepository;
     private oppRepository;
     private lineItemRepository;
+    assertNoDuplicate(email: string, productId?: string | null): Promise<void>;
     createLead(data: {
         accountId: string;
         firstName: string;

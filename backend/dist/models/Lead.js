@@ -13,6 +13,8 @@ exports.Lead = void 0;
 const typeorm_1 = require("typeorm");
 const User_1 = require("./User");
 const Account_1 = require("./Account");
+// One prospect per product: the same contact can be a prospect for several products, so
+// the email is unique per product, not on its own.
 let Lead = class Lead {
 };
 exports.Lead = Lead;
@@ -29,7 +31,7 @@ __decorate([
     __metadata("design:type", String)
 ], Lead.prototype, "lastName", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ unique: true }),
+    (0, typeorm_1.Column)(),
     __metadata("design:type", String)
 ], Lead.prototype, "email", void 0);
 __decorate([
@@ -143,6 +145,7 @@ __decorate([
     __metadata("design:type", Date)
 ], Lead.prototype, "updatedAt", void 0);
 exports.Lead = Lead = __decorate([
+    (0, typeorm_1.Index)(['email', 'productId'], { unique: true }),
     (0, typeorm_1.Entity)('prospects')
 ], Lead);
 //# sourceMappingURL=Lead.js.map

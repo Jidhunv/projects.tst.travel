@@ -319,31 +319,36 @@ export default function ProspectsPage() {
     }
   };
 
+  // The prospect form filled from an existing prospect. Editing keeps its products; duplicating starts with none.
+  const formFromLead = (lead: Lead, productIds: string[]) => ({
+    accountId: (lead as any).accountId || '',
+    firstName: lead.firstName,
+    lastName: lead.lastName,
+    email: lead.email,
+    company: lead.company || '',
+    phoneNumber: lead.phoneNumber || '',
+    value: lead.value.toString(),
+    expectedCloseDate: lead.expectedCloseDate ? lead.expectedCloseDate.toString().split('T')[0] : '',
+    source: lead.source || '',
+    status: lead.status || '',
+    productIds,
+    remark: lead.remark || '',
+    businessVolume: (lead as any).businessVolume != null ? String((lead as any).businessVolume) : '',
+    supplierList: (lead as any).supplierList || [],
+    region: (lead as any).region || '',
+    country: (lead as any).country || '',
+  });
+
+  const productIdsOf = (lead: Lead): string[] =>
+    (lead as any).productIds && (lead as any).productIds.length > 0 ? (lead as any).productIds : lead.productId ? [lead.productId] : [];
+
   const handleOpenEdit = (lead: Lead) => {
     setOpenEdit(lead);
     setSaveError('');
     api.getAccount((lead as any).accountId).then((res) => setLqAnswers((res.data.data?.leadQualification || {}) as LeadQualificationAnswers)).catch(() => setLqAnswers({}));
-    setForm({
-      accountId: (lead as any).accountId || '',
-      firstName: lead.firstName,
-      lastName: lead.lastName,
-      email: lead.email,
-      company: lead.company || '',
-      phoneNumber: lead.phoneNumber || '',
-      value: lead.value.toString(),
-      expectedCloseDate: lead.expectedCloseDate ? lead.expectedCloseDate.toString().split('T')[0] : '',
-      source: lead.source || '',
-      status: lead.status || '',
-      productIds: (lead as any).productIds && (lead as any).productIds.length > 0
-        ? (lead as any).productIds
-        : lead.productId ? [lead.productId] : [],
-      remark: lead.remark || '',
-      businessVolume: (lead as any).businessVolume != null ? String((lead as any).businessVolume) : '',
-      supplierList: (lead as any).supplierList || [],
-      region: (lead as any).region || '',
-      country: (lead as any).country || '',
-    });
+    setForm(formFromLead(lead, productIdsOf(lead)));
   };
+
 
   return (
     <Layout>
