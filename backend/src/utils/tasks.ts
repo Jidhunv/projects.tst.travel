@@ -4,7 +4,7 @@
 export const TASK_STATUSES = ['Open', 'In Progress', 'Completed', 'Cancelled'] as const;
 export const TASK_PRIORITIES = ['Low', 'Medium', 'High'] as const;
 
-const TASK_FIELDS = ['title', 'description', 'priority', 'followupDate', 'assigneeId', 'status', 'actionsTaken'] as const;
+const TASK_FIELDS = ['title', 'description', 'priority', 'categoryId', 'followupDate', 'assigneeId', 'status', 'actionsTaken'] as const;
 const MAX_TITLE = 200;
 const MAX_DESCRIPTION = 4000;
 
@@ -30,6 +30,8 @@ export function pickTaskFields(body: Record<string, unknown> | undefined): TaskF
 export function taskFieldError(fields: TaskFields, creating: boolean): string | null {
   if (creating && !fields.title) return 'A task needs a title';
   if (creating && !fields.assigneeId) return 'Choose who the task is assigned to';
+  if (creating && !fields.categoryId) return 'Choose a category for the task';
+  if (fields.categoryId !== undefined && !fields.categoryId) return 'Choose a category for the task';
   if (fields.title !== undefined && (!fields.title || fields.title.length > MAX_TITLE)) {
     return `The title is required and must be ${MAX_TITLE} characters or fewer`;
   }

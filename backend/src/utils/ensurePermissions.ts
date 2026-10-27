@@ -69,6 +69,8 @@ function buildCatalog(): PermSpec[] {
     ...crud('issue_log', 'client issues'),
     // Task Manager: read:all sees every task; read:self sees only the tasks the user assigned or was assigned
     ...crud('tasks', 'tasks'),
+    // Task category master (the Task Manager dropdown)
+    ...crud('task_categories', 'task categories'),
     // Opportunity stage question master (who may edit questions is decided here in Role Management)
     ...crud('questionnaire', 'opportunity stage questions'),
     // Team scope (hierarchical visibility)

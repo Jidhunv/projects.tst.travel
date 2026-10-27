@@ -1,6 +1,7 @@
 import { AppDataSource } from '../config/database';
 import { Task } from '../models/Task';
 import { User } from '../models/User';
+import { TaskCategory } from '../models/TaskCategory';
 
 const repo = () => AppDataSource.getRepository(Task);
 
@@ -18,6 +19,7 @@ class TaskService {
       .createQueryBuilder('t')
       .leftJoinAndSelect('t.owner', 'owner')
       .leftJoinAndSelect('t.assignee', 'assignee')
+      .leftJoinAndSelect('t.category', 'category')
       .orderBy('t.followupDate', 'ASC', 'NULLS LAST')
       .addOrderBy('t.createdAt', 'DESC');
 
@@ -30,7 +32,7 @@ class TaskService {
   }
 
   findById(id: string): Promise<Task | null> {
-    return repo().findOne({ where: { id }, relations: ['owner', 'assignee'] });
+    return repo().findOne({ where: { id }, relations: ['owner', 'assignee', 'category'] });
   }
 
   async create(data: Partial<Task>): Promise<Task> {
@@ -54,6 +56,15 @@ class TaskService {
       select: ['id', 'firstName', 'lastName'],
       order: { firstName: 'ASC' },
     });
+  }
+
+  // Categories a task can be filed under. Inactive ones are kept out of the dropdown.
+  activeCategories(): Promise<TaskCategory[]> {
+    return AppDataSource.getRepository(TaskCategory).find({ where: { isActive: true }, order: { name: 'ASC' } });
+  }
+
+  findActiveCategory(id: string): Promise<TaskCategory | null> {
+    return AppDataSource.getRepository(TaskCategory).findOne({ where: { id, isActive: true } });
   }
 
   findActiveUser(id: string): Promise<User | null> {

@@ -4,6 +4,7 @@ import { pickTaskFields, taskFieldError } from '../../src/utils/tasks';
 const OWNER = 'owner-1';
 const ASSIGNEE = 'assignee-1';
 const OTHER = 'other-1';
+const CATEGORY = 'category-1';
 
 const user = (id: string, permissions: string[], role = 'Task Role'): AuthUser => ({ id, email: `${id}@test.local`, role, permissions });
 
@@ -36,10 +37,16 @@ describe('task fields', () => {
     expect(pickTaskFields({ title: '  Call client  ', followupDate: '', unknown: 'x' })).toEqual({ title: 'Call client', followupDate: null });
   });
 
+  it('takes the category as a field and refuses to clear it', () => {
+    expect(pickTaskFields({ categoryId: CATEGORY })).toEqual({ categoryId: CATEGORY });
+    expect(taskFieldError({ categoryId: '' }, false)).toBe('Choose a category for the task');
+  });
+
   it('requires a title and an assignee when creating', () => {
     expect(taskFieldError({ assigneeId: ASSIGNEE }, true)).toBe('A task needs a title');
     expect(taskFieldError({ title: 'Call' }, true)).toBe('Choose who the task is assigned to');
-    expect(taskFieldError({ title: 'Call', assigneeId: ASSIGNEE }, true)).toBeNull();
+    expect(taskFieldError({ title: 'Call', assigneeId: ASSIGNEE }, true)).toBe('Choose a category for the task');
+    expect(taskFieldError({ title: 'Call', assigneeId: ASSIGNEE, categoryId: CATEGORY }, true)).toBeNull();
   });
 
   it('rejects an unknown status, priority or date format', () => {

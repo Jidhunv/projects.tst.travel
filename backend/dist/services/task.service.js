@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const database_1 = require("../config/database");
 const Task_1 = require("../models/Task");
 const User_1 = require("../models/User");
+const TaskCategory_1 = require("../models/TaskCategory");
 const repo = () => database_1.AppDataSource.getRepository(Task_1.Task);
 class TaskService {
     async list(o) {
@@ -10,6 +11,7 @@ class TaskService {
             .createQueryBuilder('t')
             .leftJoinAndSelect('t.owner', 'owner')
             .leftJoinAndSelect('t.assignee', 'assignee')
+            .leftJoinAndSelect('t.category', 'category')
             .orderBy('t.followupDate', 'ASC', 'NULLS LAST')
             .addOrderBy('t.createdAt', 'DESC');
         if (o.restrictToUser)
@@ -23,7 +25,7 @@ class TaskService {
         return qb.getMany();
     }
     findById(id) {
-        return repo().findOne({ where: { id }, relations: ['owner', 'assignee'] });
+        return repo().findOne({ where: { id }, relations: ['owner', 'assignee', 'category'] });
     }
     async create(data) {
         const task = repo().create(data);
@@ -43,6 +45,13 @@ class TaskService {
             select: ['id', 'firstName', 'lastName'],
             order: { firstName: 'ASC' },
         });
+    }
+    // Categories a task can be filed under. Inactive ones are kept out of the dropdown.
+    activeCategories() {
+        return database_1.AppDataSource.getRepository(TaskCategory_1.TaskCategory).find({ where: { isActive: true }, order: { name: 'ASC' } });
+    }
+    findActiveCategory(id) {
+        return database_1.AppDataSource.getRepository(TaskCategory_1.TaskCategory).findOne({ where: { id, isActive: true } });
     }
     findActiveUser(id) {
         return database_1.AppDataSource.getRepository(User_1.User).findOne({ where: { id, isActive: true } });

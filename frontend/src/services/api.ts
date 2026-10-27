@@ -356,6 +356,12 @@ export const api = {
   deleteCompanyType: (id: string) =>
     apiClient.delete<ApiResponse<void>>(`/company-types/${id}`),
 
+  // Task categories (master data for the Task Manager dropdown)
+  getTaskCategories: (filters?: Record<string, any>) => apiClient.get<ApiResponse<any[]>>('/task-categories', { params: filters }),
+  createTaskCategory: (data: any) => apiClient.post<ApiResponse<any>>('/task-categories', data),
+  updateTaskCategory: (id: string, data: any) => apiClient.patch<ApiResponse<any>>(`/task-categories/${id}`, data),
+  deleteTaskCategory: (id: string) => apiClient.delete<ApiResponse<any>>(`/task-categories/${id}`),
+
   // Designations (master data)
   getDesignations: (filters?: Record<string, any>) =>
     apiClient.get<ApiResponse<any[]>>('/designations', { params: filters }),

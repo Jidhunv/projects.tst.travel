@@ -1,5 +1,6 @@
 import { Task } from '../models/Task';
 import { User } from '../models/User';
+import { TaskCategory } from '../models/TaskCategory';
 export interface TaskListOptions {
     userId: string;
     restrictToUser: boolean;
@@ -13,6 +14,8 @@ declare class TaskService {
     update(id: string, data: Partial<Task>): Promise<void>;
     remove(id: string): Promise<void>;
     activeAssignees(): Promise<Pick<User, 'id' | 'firstName' | 'lastName'>[]>;
+    activeCategories(): Promise<TaskCategory[]>;
+    findActiveCategory(id: string): Promise<TaskCategory | null>;
     findActiveUser(id: string): Promise<User | null>;
 }
 declare const _default: TaskService;

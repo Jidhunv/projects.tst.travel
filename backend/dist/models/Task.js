@@ -12,6 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.Task = void 0;
 const typeorm_1 = require("typeorm");
 const User_1 = require("./User");
+const TaskCategory_1 = require("./TaskCategory");
 // A task one person (owner) assigns to another (assignee). Only those two see it,
 // unless the role has read:all.
 let Task = class Task {
@@ -37,6 +38,15 @@ __decorate([
     (0, typeorm_1.Column)({ default: 'Medium' }),
     __metadata("design:type", String)
 ], Task.prototype, "priority", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)(() => TaskCategory_1.TaskCategory, { nullable: true }),
+    (0, typeorm_1.JoinColumn)({ name: 'categoryId' }),
+    __metadata("design:type", Object)
+], Task.prototype, "category", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'uuid', nullable: true }),
+    __metadata("design:type", Object)
+], Task.prototype, "categoryId", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'date', nullable: true }),
     __metadata("design:type", Object)

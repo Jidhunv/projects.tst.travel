@@ -130,6 +130,7 @@ const countries_1 = __importDefault(require("./routes/countries"));
 const performance_1 = __importDefault(require("./routes/performance"));
 const issues_1 = __importDefault(require("./routes/issues"));
 const tasks_1 = __importDefault(require("./routes/tasks"));
+const taskCategories_1 = __importDefault(require("./routes/taskCategories"));
 const text_1 = __importDefault(require("./routes/text"));
 const designations_1 = __importDefault(require("./routes/designations"));
 const loginActivity_1 = __importDefault(require("./routes/loginActivity"));
@@ -190,6 +191,7 @@ app.use('/api/prospect-options', prospectOptions_1.default);
 app.use('/api/performance', performance_1.default);
 app.use('/api/issues', issues_1.default);
 app.use('/api/tasks', tasks_1.default);
+app.use('/api/task-categories', taskCategories_1.default);
 app.use('/api/text', text_1.default);
 app.use('/api/questionnaire-master', questionMaster_1.default);
 // Error handling middleware

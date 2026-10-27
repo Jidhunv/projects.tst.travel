@@ -7,7 +7,7 @@ exports.pickTaskFields = pickTaskFields;
 exports.taskFieldError = taskFieldError;
 exports.TASK_STATUSES = ['Open', 'In Progress', 'Completed', 'Cancelled'];
 exports.TASK_PRIORITIES = ['Low', 'Medium', 'High'];
-const TASK_FIELDS = ['title', 'description', 'priority', 'followupDate', 'assigneeId', 'status', 'actionsTaken'];
+const TASK_FIELDS = ['title', 'description', 'priority', 'categoryId', 'followupDate', 'assigneeId', 'status', 'actionsTaken'];
 const MAX_TITLE = 200;
 const MAX_DESCRIPTION = 4000;
 // Keeps only the task fields that the request actually sent, trimmed. An empty follow-up date means none.
@@ -32,6 +32,10 @@ function taskFieldError(fields, creating) {
         return 'A task needs a title';
     if (creating && !fields.assigneeId)
         return 'Choose who the task is assigned to';
+    if (creating && !fields.categoryId)
+        return 'Choose a category for the task';
+    if (fields.categoryId !== undefined && !fields.categoryId)
+        return 'Choose a category for the task';
     if (fields.title !== undefined && (!fields.title || fields.title.length > MAX_TITLE)) {
         return `The title is required and must be ${MAX_TITLE} characters or fewer`;
     }

@@ -48,6 +48,7 @@ const SuppliersPage = lazy(() => import('@pages/SuppliersPage'));
 const SalesVisitsPage = lazy(() => import('@pages/SalesVisitsPage'));
 const ExpensesPage = lazy(() => import('@pages/ExpensesPage'));
 const TasksPage = lazy(() => import('@pages/TasksPage'));
+const TaskCategoriesPage = lazy(() => import('@pages/TaskCategoriesPage'));
 const SettingsPage = lazy(() => import('@pages/SettingsPage').then((m) => ({ default: m.SettingsPage })));
 const ForgotPasswordPage = lazy(() => import('@pages/ForgotPasswordPage').then((m) => ({ default: m.ForgotPasswordPage })));
 const ResetPasswordPage = lazy(() => import('@pages/ResetPasswordPage').then((m) => ({ default: m.ResetPasswordPage })));
@@ -437,6 +438,14 @@ function App() {
             element={
               <ProtectedRoute module="tasks">
                 <TasksPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/task-categories"
+            element={
+              <ProtectedRoute module="task_categories">
+                <TaskCategoriesPage />
               </ProtectedRoute>
             }
           />

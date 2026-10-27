@@ -8,6 +8,7 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { User } from './User';
+import { TaskCategory } from './TaskCategory';
 
 // A task one person (owner) assigns to another (assignee). Only those two see it,
 // unless the role has read:all.
@@ -27,6 +28,13 @@ export class Task {
 
   @Column({ default: 'Medium' })
   priority: string; // Low, Medium, High
+
+  @ManyToOne(() => TaskCategory, { nullable: true })
+  @JoinColumn({ name: 'categoryId' })
+  category: TaskCategory | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  categoryId: string | null;
 
   @Column({ type: 'date', nullable: true })
   followupDate: string | null; // the day to check back on the task

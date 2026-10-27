@@ -11,7 +11,7 @@ import useAuth from '@hooks/useAuth';
 // a role with read:all sees every task. The assignee can change the status and the actions taken.
 const STATUSES = ['Open', 'In Progress', 'Completed', 'Cancelled'];
 const PRIORITIES = ['Low', 'Medium', 'High'];
-const EMPTY = { title: '', description: '', priority: 'Medium', followupDate: '', assigneeId: '', status: 'Open', actionsTaken: '' };
+const EMPTY = { title: '', description: '', priority: 'Medium', categoryId: '', followupDate: '', assigneeId: '', status: 'Open', actionsTaken: '' };
 const isClosed = (status: string) => status === 'Completed' || status === 'Cancelled';
 
 const priorityColor: Record<string, 'default' | 'info' | 'error'> = { Low: 'default', Medium: 'info', High: 'error' };
@@ -33,6 +33,7 @@ export const TasksPage: React.FC = () => {
 
   const [rows, setRows] = useState<any[]>([]);
   const [people, setPeople] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
   const [view, setView] = useState<'all' | 'assignedToMe' | 'assignedByMe'>('all');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -63,6 +64,12 @@ export const TasksPage: React.FC = () => {
       .catch((e) => setError(errText(e, 'Could not load the people a task can be assigned to')));
   }, []);
 
+  useEffect(() => {
+    api.getTaskCategories({ isActive: true })
+      .then((res) => setCategories(res.data.data || []))
+      .catch((e) => setError(errText(e, 'Could not load the task categories')));
+  }, []);
+
   const isOwner = (task: any) => task.ownerId === user?.id;
   // Only the assigner edits the details; the assignee changes the status and nothing else.
   const ownerMode = creating || (!!editing && isOwner(editing));
@@ -75,6 +82,7 @@ export const TasksPage: React.FC = () => {
       title: task.title,
       description: task.description || '',
       priority: task.priority,
+      categoryId: task.categoryId || '',
       followupDate: task.followupDate || '',
       assigneeId: task.assigneeId,
       status: task.status,
@@ -91,6 +99,7 @@ export const TasksPage: React.FC = () => {
           title: form.title,
           description: form.description,
           priority: form.priority,
+          categoryId: form.categoryId,
           followupDate: form.followupDate || null,
           assigneeId: form.assigneeId,
         });
@@ -102,6 +111,7 @@ export const TasksPage: React.FC = () => {
               description: form.description,
               priority: form.priority,
               followupDate: form.followupDate || null,
+              categoryId: form.categoryId,
               assigneeId: form.assigneeId,
               status: form.status,
               actionsTaken: form.actionsTaken,
@@ -161,6 +171,7 @@ export const TasksPage: React.FC = () => {
               <TableHead>
                 <TableRow>
                   <TableCell>Task</TableCell>
+                  <TableCell>Category</TableCell>
                   <TableCell>Assigned by</TableCell>
                   <TableCell>Assigned to</TableCell>
                   <TableCell>Follow-up Date</TableCell>
@@ -186,6 +197,7 @@ export const TasksPage: React.FC = () => {
                         <Typography variant="caption" color="textSecondary">{task.description}</Typography>
                       )}
                     </TableCell>
+                    <TableCell>{task.category?.name || '-'}</TableCell>
                     <TableCell>{personName(task.owner)}</TableCell>
                     <TableCell>{personName(task.assignee)}</TableCell>
                     <TableCell sx={{ color: isOverdue(task) ? 'error.main' : 'inherit', fontWeight: isOverdue(task) ? 600 : 400 }}>
@@ -230,6 +242,20 @@ export const TasksPage: React.FC = () => {
               disabled={!ownerMode}
               sx={{ mb: 2 }}
             />
+            <TextField
+              fullWidth
+              select
+              label="Category"
+              value={form.categoryId}
+              onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
+              disabled={!ownerMode}
+              helperText={categories.length === 0 ? 'No categories yet. An admin adds them under Masters > Task Categories.' : undefined}
+              sx={{ mb: 2 }}
+            >
+              {categories.map((c) => (
+                <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>
+              ))}
+            </TextField>
             <TextField
               fullWidth
               select

@@ -71,6 +71,9 @@ class TaskController {
             const problem = (0, tasks_1.taskFieldError)(fields, true);
             if (problem)
                 throw new errorHandler_1.AppError(400, problem);
+            if (!(await task_service_1.default.findActiveCategory(fields.categoryId))) {
+                throw new errorHandler_1.AppError(400, 'Choose an active category for the task');
+            }
             // A task goes from one person to another.
             if (fields.assigneeId === req.user.id)
                 throw new errorHandler_1.AppError(400, 'Assign the task to another person');
@@ -81,6 +84,7 @@ class TaskController {
                 title: fields.title,
                 description: fields.description ?? null,
                 priority: fields.priority ?? 'Medium',
+                categoryId: fields.categoryId,
                 status: 'Open',
                 followupDate: fields.followupDate ?? null,
                 ownerId: req.user.id,
@@ -112,6 +116,9 @@ class TaskController {
                 const problem = (0, tasks_1.taskFieldError)(fields, false);
                 if (problem)
                     throw new errorHandler_1.AppError(400, problem);
+                if (fields.categoryId && fields.categoryId !== task.categoryId && !(await task_service_1.default.findActiveCategory(fields.categoryId))) {
+                    throw new errorHandler_1.AppError(400, 'Choose an active category for the task');
+                }
                 if (fields.assigneeId === req.user.id)
                     throw new errorHandler_1.AppError(400, 'Assign the task to another person');
                 if (fields.assigneeId && fields.assigneeId !== task.assigneeId && !(await task_service_1.default.findActiveUser(fields.assigneeId))) {

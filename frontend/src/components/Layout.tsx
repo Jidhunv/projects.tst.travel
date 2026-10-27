@@ -131,7 +131,7 @@ export default function Layout({ children }: LayoutProps) {
     {
       key: 'accountsManagement',
       type: 'group',
-      title: 'Lead Management',
+      title: 'Account Management',
       icon: <BusinessIcon />,
       show: true,
       items: [
@@ -150,7 +150,6 @@ export default function Layout({ children }: LayoutProps) {
       items: [
         { text: 'Invoices', icon: <InvoiceIcon />, path: '/invoices', show: canViewModule('invoices') },
         { text: 'Expenses', icon: <ExpenseIcon />, path: '/expenses', show: canViewModule('expenses') },
-        { text: 'Tasks', icon: <TaskIcon />, path: '/tasks', show: canViewModule('tasks') },
       ],
     },
     {
@@ -164,6 +163,7 @@ export default function Layout({ children }: LayoutProps) {
         { text: 'Contracts', icon: <ContractIcon />, path: '/contracts', show: canViewModule('contracts') },
         { text: 'Tickets', icon: <TicketIcon />, path: '/tickets', show: canViewModule('tickets') },
         { text: 'Issue Log', icon: <TicketIcon />, path: '/issue-log', show: canViewModule('issue_log') },
+        { text: 'Tasks', icon: <TaskIcon />, path: '/tasks', show: canViewModule('tasks') },
       ],
     },
     {
@@ -178,6 +178,7 @@ export default function Layout({ children }: LayoutProps) {
         { text: 'Suppliers', icon: <SupplierIcon />, path: '/suppliers', show: canViewModule('suppliers') },
         { text: 'Country Master', icon: <CountryIcon />, path: '/countries', show: true },
         { text: 'Designation Master', icon: <CategoryIcon />, path: '/designations', show: true },
+        { text: 'Task Categories', icon: <CategoryIcon />, path: '/task-categories', show: canViewModule('task_categories') },
         { text: 'Company Type Master', icon: <CategoryIcon />, path: '/company-types', show: true },
         { text: 'Lead Options', icon: <CategoryIcon />, path: '/prospect-options', show: true },
         { text: 'Question Master', icon: <TargetIcon />, path: '/questionnaire-master', show: canViewModule('questionnaire') },
