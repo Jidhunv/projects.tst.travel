@@ -67,6 +67,8 @@ function buildCatalog() {
         ...crud('kpi_setup', 'KPI definitions'),
         // Client issue log (issues inside tickets, with stage tracking)
         ...crud('issue_log', 'client issues'),
+        // Task Manager: read:all sees every task; read:self sees only the tasks the user assigned or was assigned
+        ...crud('tasks', 'tasks'),
         // Opportunity stage question master (who may edit questions is decided here in Role Management)
         ...crud('questionnaire', 'opportunity stage questions'),
         // Team scope (hierarchical visibility)

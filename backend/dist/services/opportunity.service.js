@@ -11,6 +11,7 @@ const LineItem_1 = require("../models/LineItem");
 const Account_1 = require("../models/Account");
 const errorHandler_1 = require("../middleware/errorHandler");
 const constants_1 = require("../utils/constants");
+const questionnaire_1 = require("../utils/questionnaire");
 const buyingCommittee_service_1 = require("./buyingCommittee.service");
 const listSort_1 = require("../utils/listSort");
 const OPPORTUNITY_SORT = {
@@ -283,6 +284,8 @@ class OpportunityService {
             'Closed-Lost': 0,
         };
         rawOpp.probability = stageProbability[stage] || rawOpp.probability;
+        // The stage endpoint sets the status too, so a win or loss reads Won/Lost, not Open.
+        rawOpp.status = (0, questionnaire_1.statusForStage)(stage);
         const saved = await this.oppRepository.save(rawOpp);
         if (fromStage !== stage)
             await stageHistory_service_1.default.record(id, stage, actorId ?? null, null, fromStage);

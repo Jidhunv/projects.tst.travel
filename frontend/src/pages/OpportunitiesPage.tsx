@@ -184,7 +184,7 @@ export default function OpportunitiesPage() {
     try {
       // Keep status in sync when a closing stage is chosen from the dropdown.
       const status =
-        form.stage === 'Closed-Won' ? 'Won' :
+        form.stage === 'Closed-Won' || form.stage === 'Handover' ? 'Won' :
         form.stage === 'Closed-Lost' ? 'Lost' : 'Open';
       const productNames = form.productIds.map((id) => products.find((p) => p.id === id)?.name).filter(Boolean);
       await apiClient.patch(`/opportunities/${openEdit.id}`, {

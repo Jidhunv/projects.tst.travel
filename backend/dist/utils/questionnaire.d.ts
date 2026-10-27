@@ -17,6 +17,7 @@ export declare const questionByKey: (key: string) => Question | undefined;
 export declare const HANDOVER = "Handover";
 export declare function prerequisiteStages(target: string): string[];
 export declare function visibleStages(current: string): string[];
+export declare function statusForStage(stage: string): 'Open' | 'Won' | 'Lost';
 export interface DemoAttendee {
     name: string;
     role?: string;

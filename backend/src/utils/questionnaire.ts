@@ -105,7 +105,7 @@ export const HANDOVER = 'Handover';
 
 export function prerequisiteStages(target: string): string[] {
   if (target === WON) return GATED.slice(); // every open stage, then the win record
-  if (target === HANDOVER) return [...GATED, WON]; // the win must be recorded before handover
+  if (target === HANDOVER) return [...GATED, WON, HANDOVER]; // the win and the handover plan must be recorded before handover
   if (target === LOST) return []; // a loss needs its own record only
   const idx = GATED.indexOf(target);
   return idx <= 0 ? [] : GATED.slice(0, idx);
@@ -116,11 +116,19 @@ export function prerequisiteStages(target: string): string[] {
 // available; they only count as a gate when the deal actually closes.
 export function visibleStages(current: string): string[] {
   // A legacy Qualification deal sees only its own stage; other deals never see Qualification.
-  if (current === HANDOVER) return [...GATED, WON, HANDOVER, LOST];
+  // Handover questions are answered from Closed-Won, before the deal moves into Handover.
+  if (current === HANDOVER || current === WON) return [...GATED, WON, HANDOVER, LOST];
   const open = current === 'Customer engagement' ? ['Customer engagement']
     : current === WON || current === LOST ? GATED.slice()
     : GATED.slice(0, Math.max(0, GATED.indexOf(current)) + 1);
   return [...open, WON, LOST];
+}
+
+// The deal status that goes with a stage. Handover follows a win, so it stays Won.
+export function statusForStage(stage: string): 'Open' | 'Won' | 'Lost' {
+  if (stage === WON || stage === HANDOVER) return 'Won';
+  if (stage === LOST) return 'Lost';
+  return 'Open';
 }
 
 // Validates a single answer against its question type. Returns an error message or null.

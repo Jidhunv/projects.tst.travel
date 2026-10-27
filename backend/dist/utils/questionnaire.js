@@ -9,6 +9,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.HANDOVER = exports.questionByKey = exports.questionsFor = exports.LOST = exports.WON = exports.FIRST_FOUR = exports.QUESTIONS = void 0;
 exports.prerequisiteStages = prerequisiteStages;
 exports.visibleStages = visibleStages;
+exports.statusForStage = statusForStage;
 exports.normaliseAttendees = normaliseAttendees;
 exports.normaliseAttendance = normaliseAttendance;
 exports.validateValue = validateValue;
@@ -97,7 +98,7 @@ function prerequisiteStages(target) {
     if (target === exports.WON)
         return GATED.slice(); // every open stage, then the win record
     if (target === exports.HANDOVER)
-        return [...GATED, exports.WON]; // the win must be recorded before handover
+        return [...GATED, exports.WON, exports.HANDOVER]; // the win and the handover plan must be recorded before handover
     if (target === exports.LOST)
         return []; // a loss needs its own record only
     const idx = GATED.indexOf(target);
@@ -108,12 +109,21 @@ function prerequisiteStages(target) {
 // available; they only count as a gate when the deal actually closes.
 function visibleStages(current) {
     // A legacy Qualification deal sees only its own stage; other deals never see Qualification.
-    if (current === exports.HANDOVER)
+    // Handover questions are answered from Closed-Won, before the deal moves into Handover.
+    if (current === exports.HANDOVER || current === exports.WON)
         return [...GATED, exports.WON, exports.HANDOVER, exports.LOST];
     const open = current === 'Customer engagement' ? ['Customer engagement']
         : current === exports.WON || current === exports.LOST ? GATED.slice()
             : GATED.slice(0, Math.max(0, GATED.indexOf(current)) + 1);
     return [...open, exports.WON, exports.LOST];
+}
+// The deal status that goes with a stage. Handover follows a win, so it stays Won.
+function statusForStage(stage) {
+    if (stage === exports.WON || stage === exports.HANDOVER)
+        return 'Won';
+    if (stage === exports.LOST)
+        return 'Lost';
+    return 'Open';
 }
 // The people invited to the demo. Returns null when the list is not valid.
 function normaliseAttendees(input) {

@@ -401,6 +401,12 @@ export const api = {
     apiClient.get<ApiResponse<any[]>>('/expenses', { params: filters }),
   createExpense: (data: any) => apiClient.post<ApiResponse<any>>('/expenses', data),
   updateExpense: (id: string, data: any) => apiClient.patch<ApiResponse<any>>(`/expenses/${id}`, data),
+  // Task Manager: one person assigns a task to another
+  getTasks: (params?: Record<string, any>) => apiClient.get<ApiResponse<any[]>>('/tasks', { params }),
+  getTaskAssignees: () => apiClient.get<ApiResponse<any[]>>('/tasks/assignees'),
+  createTask: (data: any) => apiClient.post<ApiResponse<any>>('/tasks', data),
+  updateTask: (id: string, data: any) => apiClient.patch<ApiResponse<any>>(`/tasks/${id}`, data),
+  deleteTask: (id: string) => apiClient.delete<ApiResponse<any>>(`/tasks/${id}`),
   decideExpense: (id: string, decision: 'Approved' | 'Rejected', notes?: string) =>
     apiClient.post<ApiResponse<any>>(`/expenses/${id}/decision`, { decision, notes }),
   deleteExpense: (id: string) => apiClient.delete<ApiResponse<void>>(`/expenses/${id}`),

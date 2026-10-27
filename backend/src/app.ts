@@ -131,6 +131,7 @@ import expenseRoutes from './routes/expenses';
 import countryRoutes from './routes/countries';
 import performanceRoutes from './routes/performance';
 import issueRoutes from './routes/issues';
+import taskRoutes from './routes/tasks';
 import textRoutes from './routes/text';
 import designationRoutes from './routes/designations';
 import loginActivityRoutes from './routes/loginActivity';
@@ -193,6 +194,7 @@ app.use('/api/company-types', companyTypeRoutes);
 app.use('/api/prospect-options', prospectOptionRoutes);
 app.use('/api/performance', performanceRoutes);
 app.use('/api/issues', issueRoutes);
+app.use('/api/tasks', taskRoutes);
 app.use('/api/text', textRoutes);
 app.use('/api/questionnaire-master', questionMasterRoutes);
 

@@ -4,7 +4,8 @@
 
 A permission is a triple, flattened to a string as `module:action:scope`:
 
-- **module** — `leads`, `accounts`, `opportunities`, `contacts`, `contracts`, `invoices`, `projects`, `tickets`, `expenses`, `suppliers`, `sales_visits`, `products`, `users`, `reports`, `audit_log`, `admin`
+- **module** — `leads`, `accounts`, `opportunities`, `contacts`, `contracts`, `invoices`, `projects`, `tickets`, `tasks`, `expenses`, `suppliers`, `sales_visits`, `products`, `users`, `reports`, `audit_log`, `admin`
+- **Tasks** (`tasks`): read/create/update/delete at `all` or `self`. At `all` a user sees every task. At `self` a user sees only tasks they assigned (owner) or were assigned (assignee). The assignee may only change the task status; only the owner may edit the details, reassign or delete.
 - **action** — usually `read`, `create`, `update`, `delete`; plus `bulk_action` (leads/accounts/opportunities), `approve` (expenses), and the `admin` module's `manage_users`, `manage_roles`, `manage_settings`, `view_audit_log`
 - **scope** — `all` (every record) or `self` (only your own)
 

@@ -1,4 +1,4 @@
-import { QUESTIONS, questionsFor, prerequisiteStages, visibleStages, validateValue, questionByKey, WON, LOST } from '../../src/utils/questionnaire';
+import { QUESTIONS, questionsFor, prerequisiteStages, visibleStages, validateValue, questionByKey, statusForStage, WON, LOST } from '../../src/utils/questionnaire';
 
 describe('question bank', () => {
   it('has unique keys', () => {
@@ -39,7 +39,19 @@ describe('stage gates', () => {
     expect(visibleStages('Customer engagement')).toEqual(['Customer engagement', WON, LOST]);
     expect(visibleStages('Demonstration')).toEqual(['Demonstration', WON, LOST]);
     expect(visibleStages('Proposal')).toEqual(['Demonstration', 'Proposal', WON, LOST]);
-    expect(visibleStages(WON)).toEqual(['Demonstration', 'Proposal', 'Negotiation', WON, LOST]);
+    expect(visibleStages(WON)).toEqual(['Demonstration', 'Proposal', 'Negotiation', WON, 'Handover', LOST]);
+  });
+
+  it('gates entry into Handover on the handover questions as well as the win', () => {
+    expect(prerequisiteStages('Handover')).toEqual(['Demonstration', 'Proposal', 'Negotiation', WON, 'Handover']);
+    expect(questionsFor('Handover').filter((q) => q.mandatory).length).toBeGreaterThan(0);
+  });
+
+  it('keeps the deal status in step with its stage', () => {
+    expect(statusForStage('Demonstration')).toBe('Open');
+    expect(statusForStage(WON)).toBe('Won');
+    expect(statusForStage('Handover')).toBe('Won');
+    expect(statusForStage(LOST)).toBe('Lost');
   });
 });
 

@@ -5,6 +5,7 @@ import { LineItem } from '../models/LineItem';
 import { Account } from '../models/Account';
 import { AppError } from '../middleware/errorHandler';
 import { OPPORTUNITY_STAGES } from '../utils/constants';
+import { statusForStage } from '../utils/questionnaire';
 import { committeeCountsByAccount } from './buyingCommittee.service';
 import { resolveSort, SortMap } from '../utils/listSort';
 
@@ -347,6 +348,8 @@ export class OpportunityService {
     };
 
     rawOpp.probability = stageProbability[stage] || rawOpp.probability;
+    // The stage endpoint sets the status too, so a win or loss reads Won/Lost, not Open.
+    rawOpp.status = statusForStage(stage);
 
     const saved = await this.oppRepository.save(rawOpp);
     if (fromStage !== stage) await stageHistory.record(id, stage, actorId ?? null, null, fromStage);

@@ -38,6 +38,7 @@ import {
   LocalShipping as SupplierIcon,
   EventNote as VisitIcon,
   RequestQuote as ExpenseIcon,
+  Task as TaskIcon,
   DarkMode as DarkModeIcon,
   LightMode as LightModeIcon,
   ExpandLess as ExpandLessIcon,
@@ -149,6 +150,7 @@ export default function Layout({ children }: LayoutProps) {
       items: [
         { text: 'Invoices', icon: <InvoiceIcon />, path: '/invoices', show: canViewModule('invoices') },
         { text: 'Expenses', icon: <ExpenseIcon />, path: '/expenses', show: canViewModule('expenses') },
+        { text: 'Tasks', icon: <TaskIcon />, path: '/tasks', show: canViewModule('tasks') },
       ],
     },
     {
