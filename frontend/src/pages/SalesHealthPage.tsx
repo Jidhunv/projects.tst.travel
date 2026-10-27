@@ -76,7 +76,7 @@ export default function SalesHealthPage() {
       const rows: AccountHealth[] = res.data.data.rows;
       exportToCsv('sales-cycle-health', [
         { header: 'Account', value: (r: AccountHealth) => r.accountName },
-        { header: 'Tier', value: (r: AccountHealth) => r.tier || '' },
+        { header: 'Agency Tier', value: (r: AccountHealth) => r.tier || '' },
         { header: 'Owner', value: (r: AccountHealth) => r.ownerName },
         { header: 'Status', value: (r: AccountHealth) => STATUS[r.status].label },
         { header: 'Score', value: (r: AccountHealth) => r.score },
@@ -125,7 +125,7 @@ export default function SalesHealthPage() {
               {owners.map((o) => <MenuItem key={o.id} value={o.id}>{o.firstName} {o.lastName}</MenuItem>)}
             </TextField>
           )}
-          <TextField size="small" select label="Tier" sx={{ minWidth: 110 }} value={filters.tier} onChange={(e) => updateFilters({ tier: e.target.value })}>
+          <TextField size="small" select label="Agency Tier" sx={{ minWidth: 110 }} value={filters.tier} onChange={(e) => updateFilters({ tier: e.target.value })}>
             <MenuItem value="">All tiers</MenuItem>
             {['T1', 'T2', 'T3', 'T4', 'T5'].map((t) => <MenuItem key={t} value={t}>{t}</MenuItem>)}
           </TextField>

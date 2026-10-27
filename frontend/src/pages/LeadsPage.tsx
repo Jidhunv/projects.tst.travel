@@ -259,26 +259,54 @@ export default function LeadsPage() {
     setOpenEdit(true);
   };
 
-  const handleUpdateAccount = async () => {
+  // Saves the account details only. Returns the prospecting progress from the server.
+  const saveAccountDetails = async () => {
+    const saved = await api.updateAccount(editingAccount!.id, {
+      ...formData,
+      assignedTeamIds: formData.assignedTeamIds,
+      assigneeIds: formData.assigneeIds,
+      prospectingAnswers,
+    });
+    return saved.data.data?.prospecting ?? null;
+  };
+
+  // "Save": keeps the details and closes the dialog. Nothing is converted.
+  const handleSaveAccount = async () => {
     try {
-      const saved = await api.updateAccount(editingAccount!.id, {
-        ...formData,
-        assignedTeamIds: formData.assignedTeamIds,
-        assigneeIds: formData.assigneeIds,
-        prospectingAnswers,
-      });
-      const progress = saved.data.data?.prospecting;
+      await saveAccountDetails();
       fetchAccounts();
-      if (progress?.complete) {
-        setOpenEdit(false);
-        setEditingAccount(null);
-        setToast({ msg: 'Saved as prospect', sev: 'success' });
-      } else {
-        // Saved, but not a prospect yet: keep the dialog open so the missing answers can be filled in.
-        setToast({ msg: `Saved. Not a prospect yet. Missing: ${(progress?.missing || []).join(', ')}`, sev: 'error' });
-      }
+      setOpenEdit(false);
+      setEditingAccount(null);
+      setToast({ msg: 'Account saved', sev: 'success' });
     } catch (error: any) {
-      setToast({ msg: error.response?.data?.error || 'Failed to update account', sev: 'error' });
+      setToast({ msg: error.response?.data?.error || 'Failed to save account', sev: 'error' });
+    }
+  };
+
+  // "Save as lead": saves the details, then creates the lead from the account's contact.
+  const handleSaveAsLead = async () => {
+    try {
+      const progress = await saveAccountDetails();
+      fetchAccounts();
+      if (!progress?.complete) {
+        setToast({ msg: `Saved, but not ready as a lead. Missing: ${(progress?.missing || []).join(', ')}`, sev: 'error' });
+        return;
+      }
+      const [firstName, ...rest] = (formData.contactPerson || '').trim().split(/\s+/);
+      await api.createLead({
+        accountId: editingAccount!.id,
+        firstName: firstName || formData.name,
+        lastName: rest.join(' ') || '-',
+        email: formData.email,
+        company: formData.name,
+        phoneNumber: formData.phoneNumber,
+        value: 0,
+      });
+      setOpenEdit(false);
+      setEditingAccount(null);
+      setToast({ msg: 'Saved as lead', sev: 'success' });
+    } catch (error: any) {
+      setToast({ msg: error.response?.data?.error || 'Failed to save as lead', sev: 'error' });
     }
   };
 
@@ -337,16 +365,20 @@ export default function LeadsPage() {
       label: 'Type',
       render: (r: any) => {
         // The stage follows the account's leads (see backend utils/accountStage.ts).
-        const label: string = r.stage ?? 'Account';
+        const stage: string = r.stage ?? 'Account';
+        // Type shows the account stage.
+        const label: string = stage;
         const color = label === 'Opportunity' ? 'success' : label === 'Prospect' ? 'primary' : label === 'Qualified' ? 'secondary' : label === 'Lead' ? 'info' : label === 'On hold' ? 'warning' : 'default';
-        return <Chip label={label} size="small" color={color as any} variant={label === 'Account' ? 'outlined' : 'filled'} />;
+        const chip = <Chip label={label} size="small" color={color as any} variant={label === 'Account' ? 'outlined' : 'filled'} />;
+        return chip;
       },
     },
     {
       id: 'tier',
       sortKey: 'tier',
-      label: 'Tier',
-      render: (r: Account) => (r as any).tier ? <Chip label={(r as any).tier} size="small" variant="outlined" /> : '-',
+      label: 'Agency Tier',
+      // Tier entered in the questionnaire (prospectingAnswers) counts when the account tier is blank.
+      render: (r: Account) => { const tier = (r as any).tier || (r as any).prospectingAnswers?.tier; return tier ? <Chip label={tier} size="small" variant="outlined" /> : "-"; },
     },
     { id: 'country', label: 'Country', sortKey: 'country' },
     { id: 'phoneNumber', label: 'Phone' },
@@ -365,8 +397,8 @@ export default function LeadsPage() {
         const p = r.prospecting;
         if (!p) return '-';
         return p.complete
-          ? <Chip label="Complete" size="small" color="success" />
-          : <Chip label={`${p.answered}/${p.total} answered`} size="small" variant="outlined" />;
+          ? <Chip label="Qualified" size="small" color="success" />
+          : <Stack direction="row" spacing={0.75} alignItems="center"><Box component="span" sx={{ color: "error.main", fontSize: "1.1rem", fontWeight: 700 }}>{p.total - p.answered}Q</Box><Chip label="Pending" size="small" color="error" /></Stack>;
       },
     },
     {
@@ -489,10 +521,10 @@ export default function LeadsPage() {
                 <MenuItem value="On hold">On hold</MenuItem>
               </TextField>
               <TextField
-                label="Tier"
+                label="Agency Tier"
                 select
-                value={formData.tier}
-                onChange={(e) => setFormData({ ...formData, tier: e.target.value })}
+                value={formData.tier || prospectingAnswers.tier || ''}
+                onChange={(e) => { setFormData({ ...formData, tier: e.target.value }); setProspectingAnswers({ ...prospectingAnswers, tier: e.target.value }); }}
                 fullWidth
               >
                 <MenuItem value="">-- Select Tier --</MenuItem>
@@ -540,8 +572,8 @@ export default function LeadsPage() {
           <DialogTitle>Edit Account: {editingAccount?.name}</DialogTitle>
           <DialogContent>
             <Tabs value={tabValue} onChange={(e, val) => setTabValue(val)} sx={{ borderBottom: 1, borderColor: 'divider', mt: 1 }}>
-              <Tab label="Company Info" />
-              <Tab label="Lead" />
+              <Tab label="Account Info" />
+              <Tab label="Lead Conversion" />
             </Tabs>
 
             {/* Company Info Tab */}
@@ -606,10 +638,10 @@ export default function LeadsPage() {
                   <MenuItem value="On hold">On hold</MenuItem>
                 </TextField>
                 <TextField
-                  label="Tier"
+                  label="Agency Tier"
                   select
-                  value={formData.tier}
-                  onChange={(e) => setFormData({ ...formData, tier: e.target.value })}
+                  value={formData.tier || prospectingAnswers.tier || ''}
+                  onChange={(e) => { setFormData({ ...formData, tier: e.target.value }); setProspectingAnswers({ ...prospectingAnswers, tier: e.target.value }); }}
                   fullWidth
                 >
                   <MenuItem value="">-- Select Tier --</MenuItem>
@@ -673,7 +705,7 @@ export default function LeadsPage() {
               <Box sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <ProspectingQuestionnaire
                   value={prospectingAnswers}
-                  onChange={setProspectingAnswers}
+                  onChange={(next) => { setProspectingAnswers(next); if (next.tier) setFormData((f) => ({ ...f, tier: next.tier as string })); }}
                   options={prospectOptions}
                   basic={{
                     name: formData.name,
@@ -707,11 +739,18 @@ export default function LeadsPage() {
             <Box sx={{ flex: 1 }} />
             <Button onClick={() => setOpenEdit(false)}>Cancel</Button>
             <Button
-              onClick={handleUpdateAccount}
+              onClick={handleSaveAccount}
+              variant="outlined"
+              disabled={!formData.name.trim() || !!duplicateWarning}
+            >
+              Save
+            </Button>
+            <Button
+              onClick={handleSaveAsLead}
               variant="contained"
               disabled={!formData.name.trim() || !!duplicateWarning}
             >
-              Save as a lead
+              Convert as Lead
             </Button>
           </DialogActions>
         </Dialog>

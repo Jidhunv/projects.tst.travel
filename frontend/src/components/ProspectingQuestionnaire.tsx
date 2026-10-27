@@ -87,7 +87,7 @@ const ProspectingQuestionnaire: React.FC<Props> = ({ value, onChange, options, b
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
         <TextField label="Industry" value={value.industry ?? basic.industry ?? ''} fullWidth
           helperText={fromBasic(value.industry, basic.industry)} onChange={(e) => set({ industry: e.target.value })} />
-        <TextField select label="Tier" value={value.tier ?? basic.tier ?? ''} fullWidth
+        <TextField select label="Agency Tier" value={value.tier ?? basic.tier ?? ''} fullWidth
           helperText={basic.tier ? 'From basic info' : 'Required: not set in basic info'}
           onChange={(e) => set({ tier: e.target.value })}>
           <MenuItem value="">-- Select tier --</MenuItem>

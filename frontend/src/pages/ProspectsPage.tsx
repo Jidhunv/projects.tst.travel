@@ -105,6 +105,7 @@ export default function ProspectsPage() {
   // Dialogs
   const [openCreate, setOpenCreate] = useState(false);
   const [openEdit, setOpenEdit] = useState<Lead | null>(null);
+  const [saveError, setSaveError] = useState('');
 
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [regionFilter, setRegionFilter] = useState('');
@@ -295,8 +296,10 @@ export default function ProspectsPage() {
       });
       setOpenEdit(null);
       fetchLeads();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating prospect:', error);
+      // The server refuses a stage move whose questionnaire is incomplete; show why.
+      setSaveError(error?.response?.data?.error || error?.response?.data?.message || error?.message || 'Could not update the prospect');
     }
   };
 
@@ -318,6 +321,7 @@ export default function ProspectsPage() {
 
   const handleOpenEdit = (lead: Lead) => {
     setOpenEdit(lead);
+    setSaveError('');
     api.getAccount((lead as any).accountId).then((res) => setLqAnswers((res.data.data?.leadQualification || {}) as LeadQualificationAnswers)).catch(() => setLqAnswers({}));
     setForm({
       accountId: (lead as any).accountId || '',
@@ -483,7 +487,7 @@ export default function ProspectsPage() {
                   <TableCell>Email</TableCell>
                   <SortableHeaderCell label="Company" sortKey="company" sort={leadSort} onSort={setLeadSort} />
                   <SortableHeaderCell label="Country" sortKey="country" sort={leadSort} onSort={setLeadSort} />
-                  <SortableHeaderCell label="Tier" sortKey="tier" sort={leadSort} onSort={setLeadSort} />
+                  <SortableHeaderCell label="Agency Tier" sortKey="tier" sort={leadSort} onSort={setLeadSort} />
                   <SortableHeaderCell label="Value" sortKey="value" sort={leadSort} onSort={setLeadSort} />
                   <SortableHeaderCell label="Status" sortKey="status" sort={leadSort} onSort={setLeadSort} />
                   <TableCell>Product</TableCell>
@@ -963,6 +967,7 @@ export default function ProspectsPage() {
                 )}
               </Box>
             )}
+            {saveError && <Alert severity="error" sx={{ mt: 2 }} onClose={() => setSaveError('')}>{saveError}</Alert>}
             {!form.accountId && !openEdit && (
               <Box sx={{ p: 2, bgcolor: '#fff3cd', borderRadius: 1, mt: 2 }}>
                 <Typography variant="body2" color="textSecondary">

@@ -5,7 +5,7 @@ import { ProspectOptionSets, ProspectOptionCategory, PROSPECT_OPTION_CATEGORIES 
 // in the master takes effect at once.
 export async function activeProspectOptions(): Promise<ProspectOptionSets> {
   const rows: Array<{ category: ProspectOptionCategory; name: string }> = await AppDataSource.query(
-    `SELECT category, name FROM prospect_options WHERE "isActive" = TRUE ORDER BY name`
+    `SELECT category, name FROM prospect_options WHERE "isActive" = TRUE ORDER BY category, (substring(name from '^[0-9]+'))::int NULLS LAST, name`
   );
   const sets: ProspectOptionSets = { businessType: [], employeeBand: [] };
   for (const r of rows) {

@@ -7,7 +7,7 @@ const prospecting_1 = require("../utils/prospecting");
 // Active options per category. Read on every questionnaire save and list, so a change
 // in the master takes effect at once.
 async function activeProspectOptions() {
-    const rows = await database_1.AppDataSource.query(`SELECT category, name FROM prospect_options WHERE "isActive" = TRUE ORDER BY name`);
+    const rows = await database_1.AppDataSource.query(`SELECT category, name FROM prospect_options WHERE "isActive" = TRUE ORDER BY category, (substring(name from '^[0-9]+'))::int NULLS LAST, name`);
     const sets = { businessType: [], employeeBand: [] };
     for (const r of rows) {
         if (r.category === 'businessType')

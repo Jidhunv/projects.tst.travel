@@ -457,7 +457,7 @@ export default function OpportunitiesPage() {
                   <SortableHeaderCell label="Opportunity Name" sortKey="name" sort={oppSort} onSort={setOppSort} />
                   <TableCell>Owner</TableCell>
                   <SortableHeaderCell label="Country" sortKey="country" sort={oppSort} onSort={setOppSort} />
-                  <TableCell>Tier</TableCell>
+                  <TableCell>Agency Tier</TableCell>
                   <SortableHeaderCell label="Amount" sortKey="amount" align="right" sort={oppSort} onSort={setOppSort} />
                   <SortableHeaderCell label="Stage" sortKey="stage" sort={oppSort} onSort={setOppSort} />
                   <SortableHeaderCell label="Expected Close" sortKey="closeDate" sort={oppSort} onSort={setOppSort} />
@@ -605,6 +605,7 @@ export default function OpportunitiesPage() {
               label="Stage"
               value={form.stage}
               onChange={(e) => setForm({ ...form, stage: e.target.value })}
+              helperText={openEdit ? 'Moving forward needs the mandatory questions of the earlier stages answered (Questionnaire button). The save is refused until they are.' : undefined}
               sx={{ mb: 2 }}
             >
               <MenuItem value="Customer engagement">Customer engagement</MenuItem>
