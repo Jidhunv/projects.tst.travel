@@ -1,5 +1,5 @@
 import { canAccessRecord, AuthUser } from '../../src/middleware/auth';
-import { pickTaskFields, taskFieldError } from '../../src/utils/tasks';
+import { followupError, pickTaskFields, taskFieldError } from '../../src/utils/tasks';
 
 const OWNER = 'owner-1';
 const ASSIGNEE = 'assignee-1';
@@ -58,5 +58,20 @@ describe('task fields', () => {
   it('keeps actions taken and rejects an overlong one', () => {
     expect(pickTaskFields({ actionsTaken: ' Called the client ' })).toEqual({ actionsTaken: 'Called the client' });
     expect(taskFieldError({ actionsTaken: 'x'.repeat(4001) }, false)).toMatch(/Actions taken must be/);
+  });
+});
+
+describe('task follow-ups', () => {
+  it('needs what was discussed', () => {
+    expect(followupError('', null)).toBe('Write what was discussed in this follow-up');
+  });
+
+  it('accepts a note with or without a next follow-up date', () => {
+    expect(followupError('Called the client', null)).toBeNull();
+    expect(followupError('Called the client', '2026-11-10')).toBeNull();
+  });
+
+  it('rejects a next follow-up date that is not a date', () => {
+    expect(followupError('Called', '10/11/2026')).toBe('Enter a valid next follow-up date');
   });
 });

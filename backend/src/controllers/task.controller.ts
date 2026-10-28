@@ -2,7 +2,7 @@ import { Response, NextFunction } from 'express';
 import { AuthRequest, canAccessRecord, canPerformAction, getReadScope, getScope } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
 import taskService from '../services/task.service';
-import { pickTaskFields, taskFieldError, TaskFields } from '../utils/tasks';
+import { followupError, pickTaskFields, taskFieldError, TaskFields } from '../utils/tasks';
 import logger from '../utils/logger';
 
 // Who sees a task: read:all sees every task. A narrower read scope sees only the tasks the user
@@ -144,6 +144,45 @@ class TaskController {
       }
 
       return res.json({ success: true, data: await taskService.findById(task.id) });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // The follow-up conversation. Anyone who can see the task can read it.
+  async listFollowups(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      if (!canPerformAction(req.user, 'tasks', 'read')) {
+        throw new AppError(403, 'You do not have permission to view tasks');
+      }
+      const task = await taskService.findById(req.params.id);
+      if (!task || !canAccessRecord(req.user, 'tasks', task.ownerId, 'read', [task.assigneeId])) {
+        throw new AppError(404, 'Task not found');
+      }
+      return res.json({ success: true, data: await taskService.followups(task.id) });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // Keeps the conversation going: each entry records what was discussed and the next follow-up date.
+  async addFollowup(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      if (!canPerformAction(req.user, 'tasks', 'update')) {
+        throw new AppError(403, 'You do not have permission to update tasks');
+      }
+      const task = await taskService.findById(req.params.id);
+      if (!task || !canAccessRecord(req.user, 'tasks', task.ownerId, 'update', [task.assigneeId])) {
+        throw new AppError(404, 'Task not found');
+      }
+      const note = typeof req.body?.note === 'string' ? req.body.note.trim() : '';
+      const nextFollowupDate = req.body?.nextFollowupDate ? String(req.body.nextFollowupDate) : null;
+      const problem = followupError(note, nextFollowupDate);
+      if (problem) throw new AppError(400, problem);
+
+      await taskService.addFollowup(task.id, note, nextFollowupDate, req.user!.id);
+      logger.info(`Follow-up added to task ${task.id} by ${req.user!.email}`);
+      return res.status(201).json({ success: true, data: await taskService.followups(task.id) });
     } catch (error) {
       next(error);
     }

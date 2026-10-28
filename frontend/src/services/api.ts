@@ -413,6 +413,9 @@ export const api = {
   createTask: (data: any) => apiClient.post<ApiResponse<any>>('/tasks', data),
   updateTask: (id: string, data: any) => apiClient.patch<ApiResponse<any>>(`/tasks/${id}`, data),
   deleteTask: (id: string) => apiClient.delete<ApiResponse<any>>(`/tasks/${id}`),
+  getTaskFollowups: (id: string) => apiClient.get<ApiResponse<any[]>>(`/tasks/${id}/followups`),
+  addTaskFollowup: (id: string, data: { note: string; nextFollowupDate: string | null }) =>
+    apiClient.post<ApiResponse<any[]>>(`/tasks/${id}/followups`, data),
   decideExpense: (id: string, decision: 'Approved' | 'Rejected', notes?: string) =>
     apiClient.post<ApiResponse<any>>(`/expenses/${id}/decision`, { decision, notes }),
   deleteExpense: (id: string) => apiClient.delete<ApiResponse<void>>(`/expenses/${id}`),

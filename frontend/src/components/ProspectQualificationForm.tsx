@@ -35,7 +35,7 @@ const ProspectQualificationForm: React.FC<Props> = ({ value, onChange }) => {
   return (
     <Stack spacing={2}>
       <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-        Qualification questionnaire ({answered} of {required.length} mandatory answered)
+        Customer engagement questionnaire ({answered} of {required.length} mandatory answered)
       </Typography>
       <Typography variant="caption" color="text.secondary">
         Answer the mandatory questions to qualify the lead. Only a qualified lead can be converted to a prospect.
@@ -50,6 +50,7 @@ const ProspectQualificationForm: React.FC<Props> = ({ value, onChange }) => {
           multiline
           minRows={2}
           required={q.mandatory}
+          error={q.mandatory && !(value[q.key] ?? '').trim()}
           InputLabelProps={{ shrink: true }}
         />
       ))}

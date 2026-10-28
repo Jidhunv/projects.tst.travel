@@ -47,9 +47,18 @@ export interface ProspectAnswers {
   duplicates?: string;
 }
 
+// Every Account Info field. All of them must be filled in before an account can become a lead.
+export const ACCOUNT_INFO_FIELDS = [
+  'name', 'industry', 'website', 'phoneNumber', 'alternatePhoneNumber', 'type',
+  'contactPerson', 'city', 'region', 'country', 'email', 'remark', 'tier',
+] as const;
+
 // The subset of an account's fields that the questionnaire reads.
 export interface ProspectAccountFields {
   name?: string | null;
+  alternatePhoneNumber?: string | null;
+  type?: string | null;
+  remark?: string | null;
   website?: string | null;
   country?: string | null;
   region?: string | null;
@@ -205,9 +214,20 @@ export function normaliseProspecting(input: unknown, options: ProspectOptionSets
 // Progress against the mandatory questions. `complete` is true only when every question is valid.
 export function prospectingProgress(account: ProspectAccountFields, stored: ProspectAnswers | null | undefined, options: ProspectOptionSets) {
   const answers = effectiveAnswers(account, stored);
-  const missing = (PROSPECT_QUESTIONS as readonly { key: ProspectKey }[])
+  const unanswered = (PROSPECT_QUESTIONS as readonly { key: ProspectKey }[])
     .filter((q) => !isAnswered(q.key, answers, account, options))
-    .map((q) => q.key);
+    .map((q) => q.key as string);
+  // Account Info fields left blank also hold the account back from becoming a lead.
+  // The tier is shown on Account Info from the account, or else from the questionnaire, so either one counts.
+  const blankInfo = ACCOUNT_INFO_FIELDS.filter((f) =>
+    f === 'tier' ? !String(answers.tier ?? '').trim() : !String(account[f] ?? '').trim());
+  const missing = [...new Set([...unanswered, ...blankInfo])];
   const total = PROSPECT_QUESTIONS.length;
-  return { answers, answered: total - missing.length, total, complete: missing.length === 0, missing };
+  return {
+    answers,
+    answered: total - unanswered.length,
+    total,
+    complete: missing.length === 0,
+    missing,
+  };
 }

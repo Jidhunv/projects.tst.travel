@@ -151,6 +151,45 @@ class TaskController {
             next(error);
         }
     }
+    // The follow-up conversation. Anyone who can see the task can read it.
+    async listFollowups(req, res, next) {
+        try {
+            if (!(0, auth_1.canPerformAction)(req.user, 'tasks', 'read')) {
+                throw new errorHandler_1.AppError(403, 'You do not have permission to view tasks');
+            }
+            const task = await task_service_1.default.findById(req.params.id);
+            if (!task || !(0, auth_1.canAccessRecord)(req.user, 'tasks', task.ownerId, 'read', [task.assigneeId])) {
+                throw new errorHandler_1.AppError(404, 'Task not found');
+            }
+            return res.json({ success: true, data: await task_service_1.default.followups(task.id) });
+        }
+        catch (error) {
+            next(error);
+        }
+    }
+    // Keeps the conversation going: each entry records what was discussed and the next follow-up date.
+    async addFollowup(req, res, next) {
+        try {
+            if (!(0, auth_1.canPerformAction)(req.user, 'tasks', 'update')) {
+                throw new errorHandler_1.AppError(403, 'You do not have permission to update tasks');
+            }
+            const task = await task_service_1.default.findById(req.params.id);
+            if (!task || !(0, auth_1.canAccessRecord)(req.user, 'tasks', task.ownerId, 'update', [task.assigneeId])) {
+                throw new errorHandler_1.AppError(404, 'Task not found');
+            }
+            const note = typeof req.body?.note === 'string' ? req.body.note.trim() : '';
+            const nextFollowupDate = req.body?.nextFollowupDate ? String(req.body.nextFollowupDate) : null;
+            const problem = (0, tasks_1.followupError)(note, nextFollowupDate);
+            if (problem)
+                throw new errorHandler_1.AppError(400, problem);
+            await task_service_1.default.addFollowup(task.id, note, nextFollowupDate, req.user.id);
+            logger_1.default.info(`Follow-up added to task ${task.id} by ${req.user.email}`);
+            return res.status(201).json({ success: true, data: await task_service_1.default.followups(task.id) });
+        }
+        catch (error) {
+            next(error);
+        }
+    }
     async remove(req, res, next) {
         try {
             if (!(0, auth_1.canPerformAction)(req.user, 'tasks', 'delete')) {

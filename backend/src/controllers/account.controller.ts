@@ -179,6 +179,8 @@ export class AccountController {
         fromDate: fromDate as string,
         toDate: toDate as string,
         prospectReady: req.query.prospectReady === 'true',
+        // Filters on the Type column: 'lead' (Lead and later stages) or 'account' (Account and On hold).
+        accountKind: req.query.kind === 'lead' || req.query.kind === 'account' ? req.query.kind : undefined,
       });
 
       return res.json({

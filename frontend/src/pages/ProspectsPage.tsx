@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   Box,
   Table,
@@ -19,6 +19,7 @@ import {
   Chip,
   Card,
   CardContent,
+  Stack,
   Typography,
   Grid,
   OutlinedInput,
@@ -34,15 +35,6 @@ import Layout from '@components/Layout';
 import AssignOwner from '@components/AssignOwner';
 import BuyingCommitteeViewDialog from '@components/BuyingCommitteeViewDialog';
 import ConfirmDialog from '@components/ConfirmDialog';
-import SearchableSelect from '@components/SearchableSelect';
-import { useAccountOptions } from '@hooks/useAccountOptions';
-import BuyingCommitteeEditor, {
-  CommitteeForm,
-  committeeError,
-  committeeFormFromRows,
-  committeePayload,
-  emptyCommitteeForm,
-} from '@components/BuyingCommitteeEditor';
 import NoCommitteeChip from '@components/NoCommitteeChip';
 import ProspectQualificationForm, { LeadQualificationAnswers, leadQualificationMissing } from '@components/ProspectQualificationForm';
 import useAuth from '@hooks/useAuth';
@@ -82,7 +74,7 @@ export default function ProspectsPage() {
   // Filters
   const [search, setSearch] = useState(''); // Actual search value (used for API)
   const [searchLocal, setSearchLocal] = useState(''); // Local state for instant UI feedback
-  const [statusFilter, setStatusFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('active');
   const [sourceFilter, setSourceFilter] = useState('');
   const [ownerFilter, setOwnerFilter] = useState('');
   const [dateFromFilter, setDateFromFilter] = useState('');
@@ -106,19 +98,63 @@ export default function ProspectsPage() {
   const [openCreate, setOpenCreate] = useState(false);
   const [openEdit, setOpenEdit] = useState<Lead | null>(null);
   const [saveError, setSaveError] = useState('');
+  const [engagementOpen, setEngagementOpen] = useState(false);
+  const [engagement, setEngagement] = useState<Record<string, string>>({});
 
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [regionFilter, setRegionFilter] = useState('');
   const [countryFilter, setCountryFilter] = useState('');
   const [leadSort, setLeadSort] = useState<SortState>({ sortBy: 'createdAt', sortDir: 'desc' });
   const [accountContacts, setAccountContacts] = useState<any[]>([]);
-  // Buying committee captured on conversion into a lead. It never blocks creation:
-  // a lead without a named member is highlighted in the lists instead.
-  const [committeeForm, setCommitteeForm] = useState<CommitteeForm>(emptyCommitteeForm());
   // Lead qualification answers for the selected account; all ten are needed before a lead is saved.
   const [lqAnswers, setLqAnswers] = useState<LeadQualificationAnswers>({});
   const lqMissing = leadQualificationMissing(lqAnswers);
-  const committeeMapped = Object.values(committeeForm).some((m) => m.name.trim() !== '');
+
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // Opens the Add Prospect form for an account: its contact, company and committee are filled in,
+  // and the qualification questions are shown for the user to answer.
+  const startConversion = async (accountId: string) => {
+    try {
+      const [acctRes, contactsRes] = await Promise.all([
+        api.getAccount(accountId),
+        api.getAccountContacts(accountId),
+      ]);
+      const acct = acctRes.data.data;
+      const contacts: any[] = contactsRes.data.data || [];
+      const contact = contacts[0];
+      const [firstWord, ...rest] = (acct.contactPerson || '').trim().split(/\s+/);
+      setAccountContacts(contacts);
+      setLqAnswers((acct.leadQualification || {}) as LeadQualificationAnswers);
+      setForm((f: any) => ({
+        ...f,
+        accountId,
+        company: acct.name || '',
+        region: acct.region || '',
+        country: acct.country || '',
+        firstName: contact?.firstName || firstWord || '',
+        lastName: contact?.lastName || rest.join(' ') || '',
+        email: contact?.email || acct.email || '',
+        phoneNumber: contact?.phoneNumber || acct.phoneNumber || '',
+        remark: acct.remark || '',
+        productIds: [],
+      }));
+      setSaveError('');
+      setOpenCreate(true);
+    } catch (e: any) {
+      alert(e.response?.data?.error || 'Could not open the account for conversion');
+    }
+  };
+
+  useEffect(() => {
+    const convertAccountId = (location.state as { convertAccountId?: string } | null)?.convertAccountId;
+    if (!convertAccountId) return;
+    // Clear the state so a refresh does not reopen the form.
+    navigate(location.pathname, { replace: true, state: null });
+    startConversion(convertAccountId);
+    /* eslint-disable-next-line */
+  }, [location.state]);
 
   const [form, setForm] = useState({
     accountId: '',
@@ -172,9 +208,6 @@ export default function ProspectsPage() {
 
   // Accounts drive the required "Select Account" step, so a failed load must be
   // visible and retryable rather than leaving an unexplained empty dropdown.
-  const { accounts: accountOptions, loading: accountsLoading, error: accountsError, reload: loadAccounts, search: searchAccounts } = useAccountOptions(form.accountId, { prospectReady: true });
-  const accounts = accountOptions as Account[];
-
   useEffect(() => {
     // Load data once on mount (in parallel for speed). allSettled, not all: these
     // dropdowns are independent, and one endpoint the current role cannot read
@@ -182,7 +215,6 @@ export default function ProspectsPage() {
     Promise.allSettled([
       apiClient.get('/products'),
       apiClient.get('/suppliers'),
-      loadAccounts(),
     ]).then(([p, s]) => {
       if (p.status === 'fulfilled') setProducts(p.value.data?.data ?? []);
       else console.error('Error loading products:', p.reason);
@@ -190,7 +222,7 @@ export default function ProspectsPage() {
       if (s.status === 'fulfilled') setSuppliers(s.value.data?.data ?? []);
       else console.error('Error loading suppliers:', s.reason);
     });
-  }, [loadAccounts]);
+  }, []);
 
   const handleCreate = async () => {
     try {
@@ -198,19 +230,24 @@ export default function ProspectsPage() {
         alert('Please select an account first');
         return;
       }
-      const committeeProblem = committeeError(committeeForm);
-      if (committeeProblem) {
-        alert(committeeProblem);
+      if (lqMissing.length) {
+        alert(`Answer the customer engagement questions first: ${lqMissing.length} mandatory question(s) still open.`);
         return;
       }
+      const missingDetails = PROSPECT_DETAILS.filter((d) => !d.filled(form)).map((d) => d.label);
+      if (missingDetails.length) {
+        alert(`Fill in every prospect detail first: ${missingDetails.join(', ')}.`);
+        return;
+      }
+      // The answers are kept on the account, so they are asked once and reused for every product.
+      await api.updateAccount(form.accountId, { leadQualification: lqAnswers });
       const productNames = form.productIds.map((id) => products.find((p) => p.id === id)?.name).filter(Boolean);
-      const selectedAccount = accounts.find((a) => a.id === form.accountId);
       await apiClient.post('/leads', {
         accountId: form.accountId,
         firstName: form.firstName,
         lastName: form.lastName,
         email: form.email,
-        company: selectedAccount?.name || form.company,
+        company: form.company,
         phoneNumber: form.phoneNumber,
         value: form.value ? Number(form.value) : 0,
         expectedCloseDate: form.expectedCloseDate || undefined,
@@ -222,10 +259,8 @@ export default function ProspectsPage() {
         supplierList: form.supplierList,
         region: form.region || undefined,
         country: form.country || undefined,
-        buyingCommittee: committeePayload(committeeForm),
       });
       setOpenCreate(false);
-      setCommitteeForm(emptyCommitteeForm());
       setLqAnswers({});
       setForm({
         accountId: '',
@@ -257,25 +292,6 @@ export default function ProspectsPage() {
     try {
       const productNames = form.productIds.map((id) => products.find((p) => p.id === id)?.name).filter(Boolean);
 
-      // Qualifying is a plain status change.
-      if (form.status === 'Qualified' && openEdit.status !== 'Qualified') {
-        await api.updateLeadStatus(openEdit.id, 'Qualified');
-      }
-      // Moving to prospect needs the qualification questionnaire (nine mandatory questions) complete.
-      // The server still requires a Qualified step first, so it is passed through here.
-      if (form.status === 'Prospect' && openEdit.status !== 'Prospect') {
-        if (lqMissing.length) {
-          alert(`Complete the qualification questionnaire before moving to prospect: ${lqMissing.length} mandatory question(s) still open.`);
-          return;
-        }
-        await api.updateAccount(form.accountId, { leadQualification: lqAnswers });
-        if (openEdit.status !== 'Qualified') {
-          await api.updateLeadStatus(openEdit.id, 'Qualified');
-        }
-        await api.updateLeadStatus(openEdit.id, 'Prospect');
-      }
-
-      // Otherwise, update lead normally
       await apiClient.patch(`/leads/${openEdit.id}`, {
         firstName: form.firstName,
         lastName: form.lastName,
@@ -285,7 +301,6 @@ export default function ProspectsPage() {
         value: form.value ? Number(form.value) : 0,
         expectedCloseDate: form.expectedCloseDate || undefined,
         source: form.source || undefined,
-        status: form.status || undefined,
         productIds: form.productIds,
         productNames: productNames,
         remark: form.remark,
@@ -300,6 +315,57 @@ export default function ProspectsPage() {
       console.error('Error updating prospect:', error);
       // The server refuses a stage move whose questionnaire is incomplete; show why.
       setSaveError(error?.response?.data?.error || error?.response?.data?.message || error?.message || 'Could not update the prospect');
+    }
+  };
+
+  // Qualified -> prospect once the qualification questions are answered. An open prospect is qualified on the way.
+  const handleConvertToProspect = async () => {
+    if (!openEdit) return;
+    if (lqMissing.length) {
+      setSaveError(`Answer the customer engagement questions first: ${lqMissing.length} still open.`);
+      return;
+    }
+    try {
+      await api.updateAccount(form.accountId, { leadQualification: lqAnswers });
+      if (openEdit.status !== 'Qualified') await api.updateLeadStatus(openEdit.id, 'Qualified');
+      await api.updateLeadStatus(openEdit.id, 'Prospect');
+      setOpenEdit(null);
+      fetchLeads();
+    } catch (error: any) {
+      setSaveError(error.response?.data?.error || 'Could not convert to prospect');
+    }
+  };
+
+  // Disqualifying keeps the prospect on record, marked Disqualified.
+  const handleDisqualify = async () => {
+    if (!openEdit) return;
+    if (!window.confirm(`Disqualify ${openEdit.company || openEdit.firstName}? It stays on record as disqualified.`)) return;
+    try {
+      await api.updateLeadStatus(openEdit.id, 'Disqualified');
+      setOpenEdit(null);
+      fetchLeads();
+    } catch (error: any) {
+      setSaveError(error.response?.data?.error || 'Could not disqualify the prospect');
+    }
+  };
+
+  // Converts the prospect to an opportunity at Customer engagement, then opens the Opportunities page.
+  const handleConvertToOpportunity = async () => {
+    if (!openEdit) return;
+    const missing = CUSTOMER_ENGAGEMENT.filter((q) => !(engagement[q.key] || '').trim());
+    if (missing.length) {
+      setSaveError(`Answer the Customer engagement questions first: ${missing.map((q) => q.key).join(', ')}`);
+      return;
+    }
+    try {
+      await apiClient.post(`/leads/${openEdit.id}/convert-to-opportunity`, {
+        engagement: Object.fromEntries(CUSTOMER_ENGAGEMENT.map((q) => [q.key, engagement[q.key].trim()])),
+      });
+      setEngagementOpen(false);
+      setOpenEdit(null);
+      navigate('/opportunities');
+    } catch (error: any) {
+      setSaveError(error.response?.data?.error || 'Could not convert to an opportunity');
     }
   };
 
@@ -358,9 +424,6 @@ export default function ProspectsPage() {
             Prospects Management
           </Typography>
           <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-            <Button variant="contained" onClick={() => { setCommitteeForm(emptyCommitteeForm()); setOpenCreate(true); }}>
-              Add Prospect
-            </Button>
             <ToggleButtonGroup
               value={viewMode}
               exclusive
@@ -411,9 +474,12 @@ export default function ProspectsPage() {
                   onChange={(e) => setStatusFilter(e.target.value)}
                   size="small"
                 >
-                  <MenuItem value="">All Status</MenuItem>
+                  <MenuItem value="active">Active prospects</MenuItem>
+                  <MenuItem value="all">All</MenuItem>
                   <MenuItem value="Open">Open</MenuItem>
                   <MenuItem value="Qualified">Qualified</MenuItem>
+                  <MenuItem value="Prospect">Prospect</MenuItem>
+                  <MenuItem value="Converted">Converted</MenuItem>
                   <MenuItem value="Disqualified">Disqualified</MenuItem>
                 </TextField>
               </Grid>
@@ -590,132 +656,14 @@ export default function ProspectsPage() {
         <Dialog open={openCreate || !!openEdit} onClose={() => { setOpenCreate(false); setOpenEdit(null); }} maxWidth="sm" fullWidth>
           <DialogTitle>{openEdit ? 'Edit Prospect' : 'Add New Prospect'}</DialogTitle>
           <DialogContent sx={{ pt: 2 }}>
-            <Box sx={{ mb: 3, p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
-              <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
-                Step 1: Select Account
-              </Typography>
-              <SearchableSelect
-                label="Select Account (Type to search)"
-                value={form.accountId}
-                onSearch={searchAccounts}
-                onChange={async (newAccountId) => {
-                  const selectedAcct = accounts.find((a) => a.id === newAccountId);
-                  let updatedForm: any = {
-                    ...form,
-                    accountId: newAccountId || '',
-                    company: selectedAcct?.name || form.company,
-                    region: form.region || selectedAcct?.region || '',
-                    country: form.country || selectedAcct?.country || '',
-                    firstName: '',
-                    lastName: '',
-                    email: '',
-                    phoneNumber: '',
-                  };
-
-                  // Load contacts for this account
-                  if (newAccountId) {
-                    // Pre-fill the committee with what is already known about this account.
-                    api.getAccount(newAccountId)
-                      .then((res) => setLqAnswers((res.data.data?.leadQualification || {}) as LeadQualificationAnswers))
-                      .catch((err) => { console.error('Error loading lead qualification:', err); setLqAnswers({}); });
-                    api.getAccountStakeholders(newAccountId)
-                      .then((res) => setCommitteeForm(committeeFormFromRows(res.data.data || [])))
-                      .catch((err) => {
-                        console.error('Error loading buying committee:', err);
-                        setCommitteeForm(emptyCommitteeForm());
-                      });
-
-                    try {
-                      const response = await api.getAccountContacts(newAccountId);
-                      const contacts = response.data.data || [];
-                      setAccountContacts(contacts);
-
-                      // Auto-populate with first contact if available
-                      if (contacts.length > 0) {
-                        const firstContact = contacts[0];
-                        updatedForm = {
-                          ...updatedForm,
-                          firstName: firstContact.firstName || '',
-                          lastName: firstContact.lastName || '',
-                          email: firstContact.email || '',
-                          phoneNumber: firstContact.phoneNumber || '',
-                        };
-                      } else if (selectedAcct?.contactPerson) {
-                        // The account has no structured contacts, only a single
-                        // "contact person" string. Split it into first/last name
-                        // (first word -> firstName, remainder -> lastName) so the
-                        // lead's required name fields are still populated, and fall
-                        // back to the account's own email/phone.
-                        const parts = selectedAcct.contactPerson.trim().split(/\s+/);
-                        updatedForm = {
-                          ...updatedForm,
-                          firstName: parts[0] || '',
-                          lastName: parts.slice(1).join(' ') || '',
-                          email: selectedAcct.email || '',
-                          phoneNumber: selectedAcct.phoneNumber || '',
-                        };
-                      }
-                    } catch (error) {
-                      console.error('Error loading contacts:', error);
-                    }
-                  } else {
-                    setAccountContacts([]);
-                    setCommitteeForm(emptyCommitteeForm());
-                  }
-
-                  setForm(updatedForm);
-                }}
-                options={accounts}
-                disabled={!!openEdit}
-                required
-                error={accountsError}
-                loading={accountsLoading}
-                helperText={
-                  accountsError
-                    ? 'Could not load accounts. Use Retry below.'
-                    : accounts.length === 0
-                      ? 'No accounts are ready for a prospect yet. Complete the Prospecting questionnaire on an account first.'
-                      : ' '
-                }
-              />
-              {accountsError && (
-                <Button size="small" variant="text" onClick={loadAccounts} sx={{ mt: 1 }}>
-                  Retry
-                </Button>
-              )}
-              {!accountsError && !accountsLoading && accounts.length === 0 && (
-                <Alert severity="info" sx={{ mt: 1 }} action={<Button color="inherit" size="small" component={RouterLink} to="/leads">Go to Leads</Button>}>
-                  Fill in the Prospecting questionnaire for an account. Once it is complete, the account appears here.
-                </Alert>
-              )}
-              {!openEdit && form.accountId && !committeeMapped && (
-                <Alert severity="warning" sx={{ mt: 2 }}>
-                  This account has no buying committee yet. Add it in Step 3 below, or create the prospect now:
-                  it will be highlighted until a member is named.
-                </Alert>
-              )}
-              {!openEdit && form.accountId && (
-                <Button
-                  size="small"
-                  variant="text"
-                  href="#"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    alert('Create new account from Accounts page first');
-                  }}
-                  sx={{ mt: 1 }}
-                >
-                  Don't see your account? Create it first.
-                </Button>
-              )}
-            </Box>
+            <TextField fullWidth disabled label="Company" value={form.company || ''} sx={{ mb: 3 }} />
 
             {form.accountId && (
               <>
                 <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>
-                  Step 2: Prospect Details
+                  Step 1: Prospect Details
                 </Typography>
-                <TextField
+                <TextField error={!String([form.firstName, form.lastName].filter(Boolean).join(' ')).trim()} required
                   fullWidth
                   label="Contact Person"
                   value={[form.firstName, form.lastName].filter(Boolean).join(' ')}
@@ -734,7 +682,7 @@ export default function ProspectsPage() {
                   sx={{ mb: 2 }}
                   helperText={accountContacts.length > 0 ? 'Auto-populated from account contact' : "From the account's contact person — edit if needed"}
                 />
-                <TextField
+                <TextField error={!String(form.email).trim()} required
                   fullWidth
                   label="Email"
                   type="email"
@@ -743,13 +691,6 @@ export default function ProspectsPage() {
                   disabled={accountContacts.length > 0}
                   sx={{ mb: 2 }}
                   helperText={accountContacts.length > 0 ? 'Auto-populated from account contact' : "From the account — edit if needed"}
-                />
-                <TextField
-                  fullWidth
-                  label="Company"
-                  value={form.company}
-                  disabled
-                  sx={{ mb: 2 }}
                 />
                 {accountContacts.length > 0 && (
                   <TextField
@@ -788,7 +729,7 @@ export default function ProspectsPage() {
                     ))}
                   </TextField>
                 )}
-                <TextField
+                <TextField error={!String(form.phoneNumber).trim()} required
                   fullWidth
                   label="Phone"
                   value={form.phoneNumber}
@@ -797,7 +738,7 @@ export default function ProspectsPage() {
                   sx={{ mb: 2 }}
                   helperText={accountContacts.length > 0 ? 'Auto-populated from account contact' : "From the account — edit if needed"}
                 />
-            <TextField
+            <TextField error={!String(form.value).trim()} required
               fullWidth
               label="Value"
               type="number"
@@ -805,7 +746,7 @@ export default function ProspectsPage() {
               onChange={(e) => setForm({ ...form, value: e.target.value })}
               sx={{ mb: 2 }}
             />
-            <TextField
+            <TextField error={!String(form.expectedCloseDate).trim()} required
               fullWidth
               label="Expected Close Date"
               type="date"
@@ -814,7 +755,7 @@ export default function ProspectsPage() {
               InputLabelProps={{ shrink: true }}
               sx={{ mb: 2 }}
             />
-            <TextField
+            <TextField error={!String(form.source).trim()} required
               fullWidth
               select
               label="Source"
@@ -829,28 +770,12 @@ export default function ProspectsPage() {
               <MenuItem value="website">Website</MenuItem>
               <MenuItem value="event">Event</MenuItem>
             </TextField>
-            <TextField
+            <TextField error={!String(form.productIds[0] || '').trim()} required
               fullWidth
               select
-              label="Status"
-              value={form.status}
-              onChange={(e) => setForm({ ...form, status: e.target.value })}
-              sx={{ mb: 2 }}
-            >
-              <MenuItem value="">Select Status</MenuItem>
-              <MenuItem value="Open">Open</MenuItem>
-              {/* Legacy leads already marked Qualified keep showing it; new leads go straight to the questionnaire. */}
-              {form.status === 'Qualified' && <MenuItem value="Qualified">Qualified</MenuItem>}
-              <MenuItem value="Prospect">Opportunity (complete the qualification questionnaire first)</MenuItem>
-              <MenuItem value="Disqualified">Disqualified</MenuItem>
-            </TextField>
-            <TextField
-              fullWidth
-              select
-              label="Products (Multi-Select)"
-              value={form.productIds}
-              onChange={(e) => setForm({ ...form, productIds: typeof e.target.value === 'string' ? [e.target.value] : e.target.value })}
-              SelectProps={{ multiple: true }}
+              label="Product"
+              value={form.productIds[0] || ''}
+              onChange={(e) => setForm({ ...form, productIds: e.target.value ? [e.target.value] : [] })}
               sx={{ mb: 1 }}
             >
               {products.map((product) => (
@@ -859,27 +784,7 @@ export default function ProspectsPage() {
                 </MenuItem>
               ))}
             </TextField>
-            {form.productIds.length > 0 && (
-              <Box sx={{ mb: 2, p: 1, bgcolor: 'action.hover', borderRadius: 1 }}>
-                <Typography variant="caption" sx={{ display: 'block', mb: 1, fontWeight: 600 }}>
-                  Selected Products:
-                </Typography>
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                  {form.productIds.map((productId) => {
-                    const product = products.find((p) => p.id === productId);
-                    return (
-                      <Chip
-                        key={productId}
-                        label={product?.name || productId}
-                        onDelete={() => setForm({ ...form, productIds: form.productIds.filter((id) => id !== productId) })}
-                        size="small"
-                      />
-                    );
-                  })}
-                </Box>
-              </Box>
-            )}
-            <TextField
+            <TextField error={!String(form.businessVolume).trim()} required
               fullWidth
               label="Business Volume"
               type="number"
@@ -887,7 +792,7 @@ export default function ProspectsPage() {
               onChange={(e) => setForm({ ...form, businessVolume: e.target.value })}
               sx={{ mb: 2 }}
             />
-            <TextField
+            <TextField error={!String(form.supplierList).trim()} required
               fullWidth
               select
               label="Supplier List (Multi-Select)"
@@ -901,21 +806,21 @@ export default function ProspectsPage() {
                 <MenuItem key={s.id} value={s.name}>{s.name}</MenuItem>
               ))}
             </TextField>
-            <TextField
+            <TextField error={!String(form.region).trim()} required
               fullWidth
               label="Region"
               value={form.region}
               onChange={(e) => setForm({ ...form, region: e.target.value })}
               sx={{ mb: 2 }}
             />
-            <TextField
+            <TextField error={!String(form.country).trim()} required
               fullWidth
               label="Country"
               value={form.country}
               onChange={(e) => setForm({ ...form, country: e.target.value })}
               sx={{ mb: 2 }}
             />
-                <TextField
+                <TextField error={!String(form.remark).trim()} required
                   fullWidth
                   label="Remark"
                   multiline
@@ -924,52 +829,17 @@ export default function ProspectsPage() {
                   onChange={(e) => setForm({ ...form, remark: e.target.value })}
                 />
                 {!openEdit && (
-                  <>
-                    <Typography variant="subtitle2" sx={{ mt: 3, mb: 1, fontWeight: 600 }}>
-                      Step 4: Buying Committee
-                    </Typography>
-                    <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mb: 2 }}>
-                      Add the people on this deal. A named member needs an email and a phone number.
-                      Optional, but the prospect is highlighted until a member is named.
-                    </Typography>
-                    <BuyingCommitteeEditor value={committeeForm} onChange={setCommitteeForm} />
-                  </>
+                <Box sx={{ mt: 3 }}>
+                  <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>Step 2: Customer engagement questionnaire</Typography>
+                  <ProspectQualificationForm value={lqAnswers} onChange={setLqAnswers} />
+                </Box>
                 )}
               </>
             )}
-            {openEdit && (['Qualified', 'Prospect'].includes(form.status) || ['Qualified', 'Prospect'].includes(openEdit.status)) && (
+            {openEdit && !['Converted', 'Disqualified'].includes(openEdit.status) && (
               <Box sx={{ mt: 3 }}>
-                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>Qualification questionnaire</Typography>
+                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>Customer engagement questionnaire</Typography>
                 <ProspectQualificationForm value={lqAnswers} onChange={setLqAnswers} />
-                {openEdit.status === 'Qualified' && (
-                  <Button variant="contained" sx={{ mt: 2 }} onClick={async () => {
-                    if (lqMissing.length) {
-                      alert(`Answer the mandatory questions first: ${lqMissing.length} still open.`);
-                      return;
-                    }
-                    try {
-                      await api.updateAccount(form.accountId, { leadQualification: lqAnswers });
-                      await api.updateLeadStatus(openEdit.id, 'Prospect');
-                      alert('Moved to prospect.');
-                      setOpenEdit(null);
-                      fetchLeads();
-                    } catch (error: any) {
-                      alert(error.response?.data?.error || 'Could not move to prospect');
-                    }
-                  }}>Move to prospect</Button>
-                )}
-                {openEdit.status === 'Prospect' && (
-                  <Button variant="contained" sx={{ mt: 2 }} onClick={async () => {
-                    try {
-                      await apiClient.post(`/leads/${openEdit.id}/convert-to-opportunity`, {});
-                      alert('Converted to an opportunity. It starts at Demonstration.');
-                      setOpenEdit(null);
-                      fetchLeads();
-                    } catch (error: any) {
-                      alert(error.response?.data?.error || 'Could not convert to an opportunity');
-                    }
-                  }}>Convert to opportunity</Button>
-                )}
               </Box>
             )}
             {saveError && <Alert severity="error" sx={{ mt: 2 }} onClose={() => setSaveError('')}>{saveError}</Alert>}
@@ -982,20 +852,57 @@ export default function ProspectsPage() {
             )}
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => { setOpenCreate(false); setOpenEdit(null); }}>Cancel</Button>
+            {openEdit ? (
+              <Button onClick={() => { setOpenCreate(false); setOpenEdit(null); }}>Done</Button>
+            ) : (
+              <Button onClick={() => { setOpenCreate(false); setOpenEdit(null); }}>Cancel</Button>
+            )}
+            {openEdit && !['Converted', 'Disqualified'].includes(openEdit.status) && (
+              <Button color="error" onClick={handleDisqualify}>Disqualify</Button>
+            )}
+            {openEdit && ['Open', 'Qualified'].includes(openEdit.status) && (
+              <Button variant="outlined" disabled={lqMissing.length > 0} onClick={handleConvertToProspect}>Convert to prospect</Button>
+            )}
+            {openEdit && openEdit.status === 'Prospect' && (
+              <Button variant="outlined" onClick={() => { setEngagement({}); setEngagementOpen(true); }}>Convert to Opportunity</Button>
+            )}
             <Button
               onClick={openEdit ? handleUpdate : handleCreate}
               variant="contained"
               disabled={!form.accountId}
             >
-              {openEdit ? 'Update' : 'Create'}
+              {openEdit ? 'Save' : 'Create'}
             </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* The Customer engagement questions are answered before a prospect becomes an opportunity. */}
+        <Dialog open={engagementOpen} onClose={() => setEngagementOpen(false)} maxWidth="sm" fullWidth>
+          <DialogTitle>Customer engagement</DialogTitle>
+          <DialogContent sx={{ pt: 2 }}>
+            <Stack spacing={2} sx={{ mt: 1 }}>
+              {CUSTOMER_ENGAGEMENT.map((q) => (
+                <TextField error={!String(engagement[q.key] || '').trim()} required
+                  key={q.key}
+                  fullWidth
+                  multiline
+                  minRows={2}
+                  label={q.label}
+                  value={engagement[q.key] || ''}
+                  onChange={(e) => setEngagement({ ...engagement, [q.key]: e.target.value })}
+                />
+              ))}
+            </Stack>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setEngagementOpen(false)}>Cancel</Button>
+            <Button variant="contained" onClick={handleConvertToOpportunity}>Convert</Button>
           </DialogActions>
         </Dialog>
 
         <ConfirmDialog
           open={confirmDelete.open}
-          title="Delete Qualification"
+          title="Delete Prospect"
           message="Are you sure you want to delete this prospect? This cannot be undone."
           confirmText="Delete"
           cancelText="Cancel"
@@ -1007,6 +914,32 @@ export default function ProspectsPage() {
     </Layout>
   );
 }
+
+// Every prospect detail is mandatory before a prospect is created. The label is what the user sees when it is blank.
+const PROSPECT_DETAILS: { label: string; filled: (f: any) => boolean }[] = [
+  { label: 'Contact first name', filled: (f) => !!f.firstName?.trim() },
+  { label: 'Contact last name', filled: (f) => !!f.lastName?.trim() },
+  { label: 'Email', filled: (f) => !!f.email?.trim() },
+  { label: 'Company', filled: (f) => !!f.company?.trim() },
+  { label: 'Phone', filled: (f) => !!f.phoneNumber?.trim() },
+  { label: 'Value', filled: (f) => Number(f.value) > 0 },
+  { label: 'Expected close date', filled: (f) => !!f.expectedCloseDate },
+  { label: 'Source', filled: (f) => !!f.source },
+  { label: 'Product', filled: (f) => f.productIds.length > 0 },
+  { label: 'Business volume', filled: (f) => f.businessVolume !== '' && f.businessVolume != null },
+  { label: 'Supplier list', filled: (f) => f.supplierList.length > 0 },
+  { label: 'Region', filled: (f) => !!f.region?.trim() },
+  { label: 'Country', filled: (f) => !!f.country?.trim() },
+  { label: 'Remark', filled: (f) => !!f.remark?.trim() },
+];
+
+// The Customer engagement questions asked before a prospect becomes an opportunity.
+const CUSTOMER_ENGAGEMENT = [
+  { key: 'ENG-01', label: 'What specific customer requirement, change or concern was discussed in this interaction?' },
+  { key: 'ENG-02', label: 'Who did you meet, and what is their role in the buying process?' },
+  { key: 'ENG-03', label: 'What new information, feedback or evidence did the customer provide?' },
+  { key: 'ENG-04', label: 'What was agreed as the next action, who is responsible, and when is it due?' },
+];
 
 // Memoized table row to prevent re-renders on parent state changes
 const LeadTableRow = React.memo(

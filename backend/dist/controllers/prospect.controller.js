@@ -14,8 +14,8 @@ const logger_1 = __importDefault(require("../utils/logger"));
 const buyingCommittee_1 = require("../utils/buyingCommittee");
 const prospecting_1 = require("../utils/prospecting");
 const prospectOptions_service_1 = require("../services/prospectOptions.service");
-const questionnaire_service_1 = __importDefault(require("../services/questionnaire.service"));
-const questionnaire_1 = require("../utils/questionnaire");
+// The Customer engagement questions asked when a prospect is converted to an opportunity.
+const ENGAGEMENT_KEYS = ['ENG-01', 'ENG-02', 'ENG-03', 'ENG-04'];
 // System-managed columns (ownerId, assigneeIds, score, accountId, lostReason,
 // createdAt/updatedAt) must never be client-settable; pick() drops them by
 // omission so a raw body cannot reassign a lead or forge its timestamps.
@@ -284,13 +284,15 @@ class LeadController {
             if (!(0, auth_1.canAccessRecord)(req.user, 'leads', lead.ownerId, 'update', lead.assigneeIds)) {
                 throw new errorHandler_1.AppError(403, 'You can only convert your own leads');
             }
-            // Before the demo: who will attend. Checked first, so a conversion without attendees changes nothing.
-            const attendees = (0, questionnaire_1.normaliseAttendees)(req.body?.demoAttendees);
-            if (!attendees) {
-                throw new errorHandler_1.AppError(400, 'Who will attend the demo? Add at least one attendee with a name before converting.');
+            // The Customer engagement questions are answered before the deal is created. Checked first, so a
+            // refused conversion changes nothing.
+            const answers = req.body?.engagement ?? {};
+            const missing = ENGAGEMENT_KEYS.filter((key) => typeof answers[key] !== 'string' || !answers[key].trim());
+            if (missing.length) {
+                throw new errorHandler_1.AppError(400, `Answer the Customer engagement questions first: ${missing.join(', ')}`);
             }
-            const opportunity = await prospect_service_1.default.convertLeadToOpportunity(id, req.user.id);
-            await questionnaire_service_1.default.saveAnswer(opportunity.id, 'DEMO-01', { value: JSON.stringify(attendees), status: 'answered' }, req.user.id);
+            const engagement = Object.fromEntries(ENGAGEMENT_KEYS.map((key) => [key, answers[key].trim()]));
+            const opportunity = await prospect_service_1.default.convertLeadToOpportunity(id, req.user.id, engagement);
             logger_1.default.info(`Lead ${id} converted to opportunity ${opportunity.id} by ${req.user.email}`);
             return res.status(201).json({
                 success: true,

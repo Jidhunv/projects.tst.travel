@@ -4,6 +4,7 @@ const database_1 = require("../config/database");
 const Task_1 = require("../models/Task");
 const User_1 = require("../models/User");
 const TaskCategory_1 = require("../models/TaskCategory");
+const TaskFollowup_1 = require("../models/TaskFollowup");
 const repo = () => database_1.AppDataSource.getRepository(Task_1.Task);
 class TaskService {
     async list(o) {
@@ -37,6 +38,25 @@ class TaskService {
     }
     async remove(id) {
         await repo().delete(id);
+    }
+    // The follow-up conversation of a task, newest first. The creator's name only; no account details.
+    followups(taskId) {
+        return database_1.AppDataSource.getRepository(TaskFollowup_1.TaskFollowup)
+            .createQueryBuilder('f')
+            .leftJoin('f.createdBy', 'creator')
+            .addSelect(['creator.id', 'creator.firstName', 'creator.lastName'])
+            .where('f.taskId = :taskId', { taskId })
+            .orderBy('f.createdAt', 'DESC')
+            .getMany();
+    }
+    // Adds an entry. A next follow-up date also moves the task's follow-up date to it.
+    async addFollowup(taskId, note, nextFollowupDate, userId) {
+        await database_1.AppDataSource.transaction(async (manager) => {
+            const entries = manager.getRepository(TaskFollowup_1.TaskFollowup);
+            await entries.save(entries.create({ taskId, note, nextFollowupDate, createdById: userId }));
+            if (nextFollowupDate)
+                await manager.getRepository(Task_1.Task).update(taskId, { followupDate: nextFollowupDate });
+        });
     }
     // Users a task can be assigned to. Only id and name leave the server, never email or role.
     activeAssignees() {

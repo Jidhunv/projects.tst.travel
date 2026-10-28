@@ -5,25 +5,29 @@ describe('accountStage', () => {
     expect(accountStage('Account', false, [])).toBe('Account');
   });
 
-  it('is a Lead once the lead questionnaire is complete, not a Prospect', () => {
+  it('is a Lead once the lead questionnaire is complete', () => {
     expect(accountStage('Account', true, [])).toBe('Lead');
+  });
+
+  it('stays a Lead however far its prospects have progressed', () => {
     expect(accountStage('Account', true, ['Open'])).toBe('Lead');
+    expect(accountStage('Account', true, ['Qualified'])).toBe('Lead');
+    expect(accountStage('Account', true, ['Prospect'])).toBe('Lead');
+    expect(accountStage('Account', true, ['Converted'])).toBe('Lead');
   });
 
-  it('is Qualified only when a lead has been qualified', () => {
-    expect(accountStage('Account', true, ['Qualified'])).toBe('Qualified');
+  it('stays a Lead once it has a prospect, even if its questionnaire is no longer complete', () => {
+    expect(accountStage('Account', false, ['Open'])).toBe('Lead');
+    expect(accountStage('Account', false, ['Prospect', 'Disqualified'])).toBe('Lead');
   });
 
-  it('is a Prospect only when a lead has been converted to a prospect', () => {
-    expect(accountStage('Account', true, ['Prospect'])).toBe('Prospect');
+  it('goes On hold when every prospect has been disqualified', () => {
+    expect(accountStage('Account', true, ['Disqualified'])).toBe('On hold');
+    expect(accountStage('Account', true, ['Disqualified', 'Disqualified'])).toBe('On hold');
   });
 
-  it('is an Opportunity once a lead has been converted to a deal', () => {
-    expect(accountStage('Account', true, ['Converted'])).toBe('Opportunity');
-  });
-
-  it('shows On hold for accounts put on hold, unless a lead is further along', () => {
+  it('shows On hold for accounts put on hold by hand, unless a prospect exists', () => {
     expect(accountStage('On hold', false, [])).toBe('On hold');
-    expect(accountStage('On hold', false, ['Qualified'])).toBe('Qualified');
+    expect(accountStage('On hold', false, ['Open'])).toBe('Lead');
   });
 });

@@ -6,6 +6,7 @@ interface AccountFilters {
     sortBy?: string;
     sortDir?: string;
     prospectReady?: boolean;
+    accountKind?: 'lead' | 'account';
     status?: string;
     type?: string;
     ownerId?: string;
@@ -49,6 +50,7 @@ export declare class AccountService {
         data: Account[];
         total: number;
     }>;
+    leadStatusesFor(accountIds: string[]): Promise<Map<string, string[]>>;
     updateAccount(id: string, data: Partial<Account>): Promise<Account>;
     getAccountTeamIds(accountId: string): Promise<string[]>;
     setAccountTeams(accountId: string, teamIds: string[]): Promise<void>;

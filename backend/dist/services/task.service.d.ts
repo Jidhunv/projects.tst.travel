@@ -1,6 +1,7 @@
 import { Task } from '../models/Task';
 import { User } from '../models/User';
 import { TaskCategory } from '../models/TaskCategory';
+import { TaskFollowup } from '../models/TaskFollowup';
 export interface TaskListOptions {
     userId: string;
     restrictToUser: boolean;
@@ -13,6 +14,8 @@ declare class TaskService {
     create(data: Partial<Task>): Promise<Task>;
     update(id: string, data: Partial<Task>): Promise<void>;
     remove(id: string): Promise<void>;
+    followups(taskId: string): Promise<TaskFollowup[]>;
+    addFollowup(taskId: string, note: string, nextFollowupDate: string | null, userId: string): Promise<void>;
     activeAssignees(): Promise<Pick<User, 'id' | 'firstName' | 'lastName'>[]>;
     activeCategories(): Promise<TaskCategory[]>;
     findActiveCategory(id: string): Promise<TaskCategory | null>;

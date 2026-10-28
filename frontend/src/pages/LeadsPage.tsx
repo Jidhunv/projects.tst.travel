@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Divider } from '@mui/material';
 import {
   Box,
@@ -46,9 +47,12 @@ interface Country {
 }
 
 
-export default function LeadsPage() {
+// variant 'lead': the qualified accounts (Leads). variant 'account': the accounts not yet qualified (Accounts).
+export default function LeadsPage({ variant = 'lead' }: { variant?: 'lead' | 'account' }) {
   const { hasPermission, user: currentUser } = useAuth();
+  const navigate = useNavigate();
   const canDelete = hasPermission('accounts', 'delete');
+  const canConvert = hasPermission('leads', 'create') && variant === 'lead';
 
   const [accounts, setAccounts] = React.useState<Account[]>([]);
   const [total, setTotal] = React.useState(0);
@@ -164,6 +168,7 @@ export default function LeadsPage() {
       Object.entries(acctFilters).forEach(([k, v]) => { if (v) params[k] = v; });
       params.sortBy = acctSort.sortBy;
       params.sortDir = acctSort.sortDir;
+      params.kind = variant;
       const response = await api.getAccounts(page, pageSize, params);
       if (response.data.success) {
         setAccounts(response.data.data || []);
@@ -174,7 +179,7 @@ export default function LeadsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, acctFilters, acctSort]);
+  }, [page, pageSize, acctFilters, acctSort, variant]);
 
   React.useEffect(() => {
     fetchAccounts();
@@ -323,6 +328,11 @@ export default function LeadsPage() {
     }
   };
 
+  // Goes to Prospects, which asks the qualification questions and the products, then creates the prospects.
+  const handleConvertToProspect = (account: Account) => {
+    navigate('/prospects', { state: { convertAccountId: account.id } });
+  };
+
   const handleDeleteAccount = (account: Account) => {
     setConfirmDelete({ open: true, account });
   };
@@ -409,9 +419,11 @@ export default function LeadsPage() {
       render: (r: any) => {
         const p = r.prospecting;
         if (!p) return '-';
-        return p.complete
+        // Count everything still missing (questions and blank Account Info fields); none left means Qualified.
+        const remaining = p.missing?.length ?? p.total - p.answered;
+        return remaining === 0
           ? <Chip label="Qualified" size="small" color="success" />
-          : <Stack direction="row" spacing={0.75} alignItems="center"><Box component="span" sx={{ color: "error.main", fontSize: "1.1rem", fontWeight: 700 }}>{p.total - p.answered}Q</Box><Chip label="Pending" size="small" color="error" /></Stack>;
+          : <Stack direction="row" spacing={0.75} alignItems="center"><Box component="span" sx={{ color: "error.main", fontSize: "1.1rem", fontWeight: 700 }}>{remaining}Q</Box><Chip label="Pending" size="small" color="error" /></Stack>;
       },
     },
     {
@@ -427,6 +439,11 @@ export default function LeadsPage() {
           <Button size="small" variant="outlined" startIcon={<EditIcon />} onClick={() => handleEditClick(r)}>
             Edit
           </Button>
+          {canConvert && (r as any).prospecting?.complete && (
+            <Button size="small" variant="contained" onClick={() => handleConvertToProspect(r)}>
+              Convert to prospect
+            </Button>
+          )}
           <Button size="small" variant="outlined" onClick={() => openStakeholderDialog(r)}>
             Buying Committee
           </Button>
@@ -458,7 +475,7 @@ export default function LeadsPage() {
           page={page}
           pageSize={pageSize}
           loading={loading}
-          title="Leads"
+          title={variant === 'lead' ? 'Leads' : 'Accounts'}
           sort={acctSort}
           onSortChange={setAcctSort}
           getRowSx={(r: any) => (r.prospecting?.complete ? { bgcolor: (t: any) => alpha(t.palette.success.main, 0.12) } : undefined)}
@@ -593,7 +610,7 @@ export default function LeadsPage() {
             {tabValue === 0 && (
               <Box sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <TextField
-                  label="Account Name"
+                  label="Account Name" required
                   value={formData.name}
                   onChange={(e) => {
                     setFormData({ ...formData, name: e.target.value });
@@ -609,39 +626,39 @@ export default function LeadsPage() {
                   fullWidth
                   disabled
                 />
-                <TextField
-                  label="Industry"
+                <TextField error={!String(formData.industry).trim()}
+                  label="Industry" required
                   value={formData.industry}
                   onChange={(e) => setFormData({ ...formData, industry: e.target.value })}
                   fullWidth
                 />
-                <TextField
-                  label="Website"
+                <TextField error={!String(formData.website).trim()}
+                  label="Website" required
                   value={formData.website}
                   onChange={(e) => setFormData({ ...formData, website: e.target.value })}
                   fullWidth
                 />
-                <TextField
-                  label="Phone Number"
+                <TextField error={!String(formData.phoneNumber).trim()}
+                  label="Phone Number" required
                   value={formData.phoneNumber}
                   onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
                   fullWidth
                 />
-                <TextField
-                  label="Email"
+                <TextField error={!String(formData.email).trim()}
+                  label="Email" required
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   fullWidth
                 />
-                <TextField
-                  label="Alternate Phone Number"
+                <TextField error={!String(formData.alternatePhoneNumber).trim()}
+                  label="Alternate Phone Number" required
                   value={formData.alternatePhoneNumber}
                   onChange={(e) => setFormData({ ...formData, alternatePhoneNumber: e.target.value })}
                   fullWidth
                 />
-                <TextField
-                  label="Type"
+                <TextField error={!String(formData.type).trim()}
+                  label="Type" required
                   select
                   value={formData.type}
                   onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
@@ -650,8 +667,8 @@ export default function LeadsPage() {
                   <MenuItem value="Account">Account</MenuItem>
                   <MenuItem value="On hold">On hold</MenuItem>
                 </TextField>
-                <TextField
-                  label="Agency Tier"
+                <TextField error={!String(formData.tier || prospectingAnswers.tier || '').trim()}
+                  label="Agency Tier" required
                   select
                   value={formData.tier || prospectingAnswers.tier || ''}
                   onChange={(e) => { setFormData({ ...formData, tier: e.target.value }); setProspectingAnswers({ ...prospectingAnswers, tier: e.target.value }); }}
@@ -664,11 +681,11 @@ export default function LeadsPage() {
                   <MenuItem value="T4">Tier 4 (T51-100)</MenuItem>
                   <MenuItem value="T5">Tier 5 (T101-500)</MenuItem>
                 </TextField>
-                <TextField label="Contact Person" value={formData.contactPerson} onChange={(e) => setFormData({ ...formData, contactPerson: e.target.value })} fullWidth />
-                <TextField label="City" value={formData.city} onChange={(e) => setFormData({ ...formData, city: e.target.value })} fullWidth />
-                <TextField label="Region" value={formData.region} onChange={(e) => setFormData({ ...formData, region: e.target.value })} fullWidth />
+                <TextField error={!String(formData.contactPerson).trim()} label="Contact Person" required value={formData.contactPerson} onChange={(e) => setFormData({ ...formData, contactPerson: e.target.value })} fullWidth />
+                <TextField error={!String(formData.city).trim()} label="City" required value={formData.city} onChange={(e) => setFormData({ ...formData, city: e.target.value })} fullWidth />
+                <TextField error={!String(formData.region).trim()} label="Region" required value={formData.region} onChange={(e) => setFormData({ ...formData, region: e.target.value })} fullWidth />
                 <TextField
-                  label="Country"
+                  label="Country" required
                   select
                   value={formData.country}
                   onChange={(e) => setFormData({ ...formData, country: e.target.value })}
@@ -710,6 +727,14 @@ export default function LeadsPage() {
                 >
                   {orgUsers.map((u) => (<MenuItem key={u.id} value={u.id}>{u.firstName} {u.lastName} ({u.email})</MenuItem>))}
                 </TextField>
+                <TextField error={!String(formData.remark).trim()}
+                  label="Remark" required
+                  value={formData.remark}
+                  onChange={(e) => setFormData({ ...formData, remark: e.target.value })}
+                  fullWidth
+                  multiline
+                  minRows={2}
+                />
               </Box>
             )}
 

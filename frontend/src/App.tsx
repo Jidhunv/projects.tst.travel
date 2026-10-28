@@ -184,7 +184,14 @@ function App() {
               </ProtectedRoute>
             }
           />
-          <Route path="/accounts" element={<Navigate to="/leads" replace />} />
+          <Route
+            path="/accounts"
+            element={
+              <ProtectedRoute module="accounts">
+                <LeadsPage variant="account" />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/import-midt"
             element={

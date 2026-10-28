@@ -67,27 +67,27 @@ const ProspectingQuestionnaire: React.FC<Props> = ({ value, onChange, options, b
         </Typography>
       </Box>
 
-      <TextField label="Company name (legal or trading)" value={value.name ?? basic.name ?? ''}
+      <TextField error={!String(value.name ?? basic.name ?? '').trim()} required label="Company name (legal or trading)" value={value.name ?? basic.name ?? ''}
         helperText={fromBasic(value.name, basic.name)} onChange={(e) => set({ name: e.target.value })} fullWidth />
-      <TextField label="Website or verifiable business profile" value={value.website ?? basic.website ?? ''}
+      <TextField error={!String(value.website ?? basic.website ?? '').trim()} required label="Website or verifiable business profile" value={value.website ?? basic.website ?? ''}
         helperText={fromBasic(value.website, basic.website)} onChange={(e) => set({ website: e.target.value })} fullWidth />
 
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-        <TextField label="Country" value={loc.country || basic.country || ''} fullWidth
+        <TextField error={!String(loc.country || basic.country || '').trim()} required label="Country" value={loc.country || basic.country || ''} fullWidth
           helperText={fromBasic(loc.country, basic.country)}
           onChange={(e) => set({ location: { ...loc, country: e.target.value } })} />
-        <TextField label="Region" value={loc.region || basic.region || ''} fullWidth
+        <TextField error={!String(loc.region || basic.region || '').trim()} required label="Region" value={loc.region || basic.region || ''} fullWidth
           helperText={fromBasic(loc.region, basic.region)}
           onChange={(e) => set({ location: { ...loc, region: e.target.value } })} />
-        <TextField label="City" value={loc.city || basic.city || ''} fullWidth
+        <TextField error={!String(loc.city || basic.city || '').trim()} required label="City" value={loc.city || basic.city || ''} fullWidth
           helperText={fromBasic(loc.city, basic.city)}
           onChange={(e) => set({ location: { ...loc, city: e.target.value } })} />
       </Stack>
 
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-        <TextField label="Industry" value={value.industry ?? basic.industry ?? ''} fullWidth
+        <TextField error={!String(value.industry ?? basic.industry ?? '').trim()} required label="Industry" value={value.industry ?? basic.industry ?? ''} fullWidth
           helperText={fromBasic(value.industry, basic.industry)} onChange={(e) => set({ industry: e.target.value })} />
-        <TextField select label="Agency Tier" value={value.tier ?? basic.tier ?? ''} fullWidth
+        <TextField error={!String(value.tier ?? basic.tier ?? '').trim()} required select label="Agency Tier" value={value.tier ?? basic.tier ?? ''} fullWidth
           helperText={basic.tier ? 'From basic info' : 'Required: not set in basic info'}
           onChange={(e) => set({ tier: e.target.value })}>
           <MenuItem value="">-- Select tier --</MenuItem>
@@ -98,51 +98,51 @@ const ProspectingQuestionnaire: React.FC<Props> = ({ value, onChange, options, b
       <Autocomplete multiple options={options.businessType} value={value.businessTypes ?? []}
         onChange={(_, v) => set({ businessTypes: v })}
         renderTags={(v, getTagProps) => v.map((o, i) => <Chip size="small" label={o} {...getTagProps({ index: i })} key={o} />)}
-        renderInput={(p) => <TextField {...p} label="Business type" helperText="Retail, B2B, Corporate, or a combination" />} />
+        renderInput={(p) => <TextField {...p} required error={!(value.businessTypes ?? []).length} label="Business type" helperText="Retail, B2B, Corporate, or a combination" />} />
 
       <Autocomplete multiple options={options.employeeBand} value={value.employeeBands ?? []}
         onChange={(_, v) => set({ employeeBands: v })}
         renderTags={(v, getTagProps) => v.map((o, i) => <Chip size="small" label={o} {...getTagProps({ index: i })} key={o} />)}
-        renderInput={(p) => <TextField {...p} label="Number of employees" helperText="Choose the band(s) that apply" />} />
+        renderInput={(p) => <TextField {...p} required error={!(value.employeeBands ?? []).length} label="Number of employees" helperText="Choose the band(s) that apply" />} />
 
-      <TextField label="Branches" multiline minRows={2} value={(value.branches ?? []).join(LF)}
+      <TextField error={!String((value.branches ?? []).join(LF)).trim()} required label="Branches" multiline minRows={2} value={(value.branches ?? []).join(LF)}
         helperText="One branch per line (city or office name)"
         onChange={(e) => set({ branches: e.target.value.split(LF).map((b) => b.trim()).filter(Boolean) })} />
 
       <Divider />
       <Typography variant="body2" sx={{ fontWeight: 600 }}>Primary business contact</Typography>
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-        <TextField label="Name" value={contact.name ?? basic.contactPerson ?? ''} fullWidth
+        <TextField error={!String(contact.name ?? basic.contactPerson ?? '').trim()} required label="Name" value={contact.name ?? basic.contactPerson ?? ''} fullWidth
           helperText={fromBasic(contact.name, basic.contactPerson)}
           onChange={(e) => set({ contact: { ...contact, name: e.target.value } })} />
-        <TextField label="Designation" value={contact.designation ?? ''} fullWidth
+        <TextField error={!String(contact.designation ?? '').trim()} required label="Designation" value={contact.designation ?? ''} fullWidth
           onChange={(e) => set({ contact: { ...contact, designation: e.target.value } })} />
       </Stack>
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-        <TextField label="Email" type="email" value={contact.email ?? basic.email ?? ''} fullWidth
+        <TextField error={!String(contact.email ?? basic.email ?? '').trim()} label="Email" type="email" value={contact.email ?? basic.email ?? ''} fullWidth
           helperText="Email or phone is required"
           onChange={(e) => set({ contact: { ...contact, email: e.target.value } })} />
-        <TextField label="Phone" value={contact.phone ?? basic.phoneNumber ?? ''} fullWidth
+        <TextField error={!String(contact.phone ?? basic.phoneNumber ?? '').trim()} required label="Phone" value={contact.phone ?? basic.phoneNumber ?? ''} fullWidth
           onChange={(e) => set({ contact: { ...contact, phone: e.target.value } })} />
       </Stack>
 
       <TextField label="Sales owner" value={basic.ownerName ?? ''} fullWidth disabled
         helperText="Set with Assign on the account. Required before the account can be a lead" />
 
-      <TextField select label="Source of this account information" value={value.source ?? ''} fullWidth
+      <TextField error={!String(value.source ?? '').trim()} required select label="Source of this account information" value={value.source ?? ''} fullWidth
         onChange={(e) => set({ source: e.target.value })}>
         <MenuItem value="">-- Select source --</MenuItem>
         {PROSPECT_SOURCES.map((s) => <MenuItem key={s} value={s}>{s}</MenuItem>)}
       </TextField>
 
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-        <TextField label="Last verified on" type="date" InputLabelProps={{ shrink: true }} value={verification.verifiedOn ?? ''} fullWidth
+        <TextField error={!String(verification.verifiedOn ?? '').trim()} required label="Last verified on" type="date" InputLabelProps={{ shrink: true }} value={verification.verifiedOn ?? ''} fullWidth
           onChange={(e) => set({ verification: { ...verification, verifiedOn: e.target.value } })} />
-        <TextField label="Verification source" value={verification.source ?? ''} fullWidth
+        <TextField error={!String(verification.source ?? '').trim()} required label="Verification source" value={verification.source ?? ''} fullWidth
           onChange={(e) => set({ verification: { ...verification, source: e.target.value } })} />
       </Stack>
 
-      <TextField label="Lead notes" value={value.duplicates ?? ''} fullWidth multiline minRows={2}
+      <TextField error={!String(value.duplicates ?? '').trim()} required label="Lead notes" value={value.duplicates ?? ''} fullWidth multiline minRows={2}
         helperText="Notes on this lead, including any duplicate accounts or existing customer relationships. Write 'None' if there are none" onChange={(e) => set({ duplicates: e.target.value })} />
     </Stack>
   );

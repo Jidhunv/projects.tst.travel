@@ -26,6 +26,14 @@ export function pickTaskFields(body: Record<string, unknown> | undefined): TaskF
   return out;
 }
 
+// The follow-up conversation: a note is required. The next follow-up date is optional, but must be a date.
+export function followupError(note: string, nextFollowupDate: string | null): string | null {
+  if (!note) return 'Write what was discussed in this follow-up';
+  if (note.length > MAX_DESCRIPTION) return `The follow-up must be ${MAX_DESCRIPTION} characters or fewer`;
+  if (nextFollowupDate && !/^\d{4}-\d{2}-\d{2}$/.test(nextFollowupDate)) return 'Enter a valid next follow-up date';
+  return null;
+}
+
 // Returns the first problem with the fields, or null. `creating` requires a title and an assignee.
 export function taskFieldError(fields: TaskFields, creating: boolean): string | null {
   if (creating && !fields.title) return 'A task needs a title';

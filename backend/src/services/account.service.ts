@@ -25,6 +25,8 @@ interface AccountFilters {
   sortDir?: string;
   // Only accounts whose Prospecting questionnaire is complete (used by the lead and KPI pickers).
   prospectReady?: boolean;
+  // Filters on the Type column: 'lead' (Lead and later stages) or 'account' (Account and On hold).
+  accountKind?: 'lead' | 'account';
   status?: string;
   type?: string;
   ownerId?: string;
@@ -188,7 +190,18 @@ export class AccountService {
     const options = await activeProspectOptions();
     let rows: Account[];
     let total: number;
-    if (filters.prospectReady) {
+    if (filters.accountKind) {
+      // The Type column comes from the account's leads, so every row is classified before the page is cut.
+      const all = (await query.orderBy(order.column, order.dir).getMany()).map((a) =>
+        Object.assign(a, { prospecting: prospectingProgress(a, a.prospectingAnswers as any, options) }));
+      const statuses = await this.leadStatusesFor(all.map((a) => a.id));
+      const matches = all.filter((a) => {
+        const stage = accountStage(a.type, a.prospecting.complete, statuses.get(a.id) ?? []);
+        return (stage === 'Account') === (filters.accountKind === 'account');
+      });
+      total = matches.length;
+      rows = matches.slice(skip, skip + limit);
+    } else if (filters.prospectReady) {
       // The completeness check reads every answer, so it filters before the page is cut.
       const ready = (await query.orderBy(order.column, order.dir).getMany())
         .filter((a) => prospectingProgress(a, a.prospectingAnswers as any, options).complete);
@@ -205,19 +218,25 @@ export class AccountService {
     // Each row carries its prospecting progress, so the list can highlight complete prospects.
     const withProgress = rows.map((a) => Object.assign(a, { prospecting: prospectingProgress(a, a.prospectingAnswers as any, options) }));
     // The stage comes from the account's leads, so the questionnaire alone never makes an account a prospect.
-    const leadStatuses = new Map<string, string[]>();
-    if (withProgress.length) {
-      const leads: Array<{ accountId: string; status: string }> = await AppDataSource.query(
-        `SELECT "accountId"::text AS "accountId", status FROM prospects WHERE "accountId"::text = ANY($1::text[])`,
-        [withProgress.map((a) => a.id)]
-      );
-      for (const l of leads) leadStatuses.set(l.accountId, [...(leadStatuses.get(l.accountId) ?? []), l.status]);
-    }
+    const leadStatuses = await this.leadStatusesFor(withProgress.map((a) => a.id));
     const data = withProgress.map((a) =>
       Object.assign(a, { stage: accountStage(a.type, a.prospecting.complete, leadStatuses.get(a.id) ?? []) })
     );
 
     return { data, total };
+  }
+
+  // The statuses of each account's leads (prospects), keyed by account id.
+  async leadStatusesFor(accountIds: string[]): Promise<Map<string, string[]>> {
+    const statuses = new Map<string, string[]>();
+    if (accountIds.length) {
+      const leads: Array<{ accountId: string; status: string }> = await AppDataSource.query(
+        `SELECT "accountId"::text AS "accountId", status FROM prospects WHERE "accountId"::text = ANY($1::text[])`,
+        [accountIds]
+      );
+      for (const l of leads) statuses.set(l.accountId, [...(statuses.get(l.accountId) ?? []), l.status]);
+    }
+    return statuses;
   }
 
   async updateAccount(id: string, data: Partial<Account>): Promise<Account> {

@@ -16,7 +16,10 @@ const account: ProspectAccountFields = {
   tier: 'T2',
   contactPerson: 'Asha Rao',
   email: 'asha@acme.example',
-  phoneNumber: '',
+  phoneNumber: '+971 4 000 0000',
+  alternatePhoneNumber: '+971 50 000 0000',
+  type: 'Account',
+  remark: 'Met at the Dubai travel fair',
   ownerId: 'owner-1',
 };
 
@@ -39,7 +42,7 @@ describe('effectiveAnswers', () => {
     expect(a.location).toEqual({ country: 'UAE', region: 'Dubai', city: 'Dubai' });
     expect(a.industry).toBe('Travel');
     expect(a.tier).toBe('T2');
-    expect(a.contact).toEqual({ name: 'Asha Rao', designation: '', email: 'asha@acme.example', phone: '' });
+    expect(a.contact).toEqual({ name: 'Asha Rao', designation: '', email: 'asha@acme.example', phone: '+971 4 000 0000' });
   });
 
   it('lets a typed answer override the basic info', () => {
@@ -59,9 +62,19 @@ describe('prospectingProgress', () => {
     expect(p.missing).toEqual(['tier']);
   });
 
-  it('accepts a tier typed on the prospect page when the basic info has none', () => {
+  it('keeps the account from becoming a lead while any Account Info field is blank', () => {
+    const p = prospectingProgress({ ...account, remark: '' }, typed, options);
+    expect(p.complete).toBe(false);
+    expect(p.missing).toEqual(['remark']);
+  });
+
+  it('counts a tier typed on the questionnaire as the Account Info tier, as the form shows it', () => {
     const p = prospectingProgress({ ...account, tier: null }, { ...typed, tier: 'T4' }, options);
     expect(p.complete).toBe(true);
+  });
+
+  it('is missing the tier only when neither Account Info nor the questionnaire has one', () => {
+    expect(prospectingProgress({ ...account, tier: null }, typed, options).missing).toEqual(['tier']);
   });
 
   it('needs an owner on the account', () => {

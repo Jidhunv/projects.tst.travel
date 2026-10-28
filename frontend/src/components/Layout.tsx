@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   AppBar,
@@ -62,6 +62,26 @@ const COPY_PROTECTED_PATHS = ['/prospects', '/leads', '/opportunities'];
 
 const DRAWER_WIDTH = 240;
 
+const MENU_GROUPS_KEY = 'crm.menuGroups';
+const MENU_GROUPS_CLOSED: Record<string, boolean> = {
+  accountsManagement: false,
+  billing: false,
+  projectManagement: false,
+  masters: false,
+  sales: false,
+  userManagement: false,
+  logs: false,
+};
+
+// The menu groups as they were left, so the open one is still open on the next page.
+const readExpandedGroups = (): Record<string, boolean> => {
+  try {
+    return { ...MENU_GROUPS_CLOSED, ...JSON.parse(sessionStorage.getItem(MENU_GROUPS_KEY) || '{}') };
+  } catch {
+    return MENU_GROUPS_CLOSED;
+  }
+};
+
 interface LayoutProps {
   children: React.ReactNode;
 }
@@ -77,17 +97,12 @@ export default function Layout({ children }: LayoutProps) {
   const { pendingCount } = usePendingFollowups();
   const { isDarkMode, toggleTheme } = useThemeContext();
 
-  // State for collapsible menu groups
-  // Every menu group starts collapsed; a group opens only when clicked.
-  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
-    accountsManagement: false,
-    billing: false,
-    projectManagement: false,
-    masters: false,
-    sales: false,
-    userManagement: false,
-    logs: false,
-  });
+  // State for collapsible menu groups. Every page renders its own Layout, so the open group is kept
+  // for the session; it stays open until another group is opened.
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(readExpandedGroups);
+  useEffect(() => {
+    try { sessionStorage.setItem(MENU_GROUPS_KEY, JSON.stringify(expandedGroups)); } catch { /* storage unavailable: the menu just starts closed */ }
+  }, [expandedGroups]);
 
   const fullName = [user?.firstName, user?.lastName].filter(Boolean).join(' ');
   // Fall back to the email's first letter, then a generic glyph, so the avatar
@@ -110,11 +125,13 @@ export default function Layout({ children }: LayoutProps) {
     navigate('/login');
   };
 
+  // Opening a group closes the others; clicking the open group closes it.
   const toggleGroup = (groupKey: string) => {
-    setExpandedGroups((prev) => ({
-      ...prev,
-      [groupKey]: !prev[groupKey],
-    }));
+    setExpandedGroups((prev) => {
+      const next = Object.fromEntries(Object.keys(prev).map((k) => [k, false])) as Record<string, boolean>;
+      next[groupKey] = !prev[groupKey];
+      return next;
+    });
   };
 
   // Organized menu structure with categories
@@ -135,8 +152,9 @@ export default function Layout({ children }: LayoutProps) {
       icon: <BusinessIcon />,
       show: true,
       items: [
-        { text: 'Leads', icon: <BusinessIcon />, path: '/leads', show: canViewModule('accounts') },
         { text: 'Import Accounts', icon: <CategoryIcon />, path: '/import-midt', show: user?.role?.name === 'Admin' },
+        { text: 'Accounts', icon: <BusinessIcon />, path: '/accounts', show: canViewModule('accounts') },
+        { text: 'Leads', icon: <BusinessIcon />, path: '/leads', show: canViewModule('accounts') },
         { text: 'Prospects', icon: <PeopleIcon />, path: '/prospects', show: canViewModule('leads') },
         { text: 'Opportunities', icon: <OpportunityIcon />, path: '/opportunities', show: canViewModule('opportunities') },
       ],

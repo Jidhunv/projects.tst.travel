@@ -52,7 +52,7 @@ export declare class LeadService {
     updateLeadStatus(id: string, status: string, actorId?: string): Promise<Lead>;
     deleteLead(id: string): Promise<void>;
     convertLeadToAccount(leadId: string): Promise<Account>;
-    convertLeadToOpportunity(leadId: string, actorId?: string): Promise<Opportunity>;
+    convertLeadToOpportunity(leadId: string, actorId: string | undefined, engagement: Record<string, string>): Promise<Opportunity>;
     markLeadLost(leadId: string, lostReason: string, actorId?: string): Promise<Lead>;
     updateLeadScore(id: string, points: number): Promise<Lead>;
     bulkImportLeads(leads: Array<Partial<Lead>>, ownerId: string): Promise<{

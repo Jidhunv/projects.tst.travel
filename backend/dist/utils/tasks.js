@@ -4,6 +4,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TASK_PRIORITIES = exports.TASK_STATUSES = void 0;
 exports.pickTaskFields = pickTaskFields;
+exports.followupError = followupError;
 exports.taskFieldError = taskFieldError;
 exports.TASK_STATUSES = ['Open', 'In Progress', 'Completed', 'Cancelled'];
 exports.TASK_PRIORITIES = ['Low', 'Medium', 'High'];
@@ -25,6 +26,16 @@ function pickTaskFields(body) {
         out[key] = key === 'followupDate' && text === '' ? null : text;
     }
     return out;
+}
+// The follow-up conversation: a note is required. The next follow-up date is optional, but must be a date.
+function followupError(note, nextFollowupDate) {
+    if (!note)
+        return 'Write what was discussed in this follow-up';
+    if (note.length > MAX_DESCRIPTION)
+        return `The follow-up must be ${MAX_DESCRIPTION} characters or fewer`;
+    if (nextFollowupDate && !/^\d{4}-\d{2}-\d{2}$/.test(nextFollowupDate))
+        return 'Enter a valid next follow-up date';
+    return null;
 }
 // Returns the first problem with the fields, or null. `creating` requires a title and an assignee.
 function taskFieldError(fields, creating) {

@@ -19,6 +19,7 @@ const prospecting_1 = require("../utils/prospecting");
 const prospectOptions_service_1 = require("./prospectOptions.service");
 const tracer_1 = require("../utils/tracer");
 const buyingCommittee_service_1 = require("./buyingCommittee.service");
+const questionnaire_service_1 = __importDefault(require("./questionnaire.service"));
 const listSort_1 = require("../utils/listSort");
 const LEAD_SORT = {
     name: 'lead.firstName',
@@ -99,8 +100,13 @@ class LeadService {
                 query.where('(lead.firstName ILIKE :search OR lead.lastName ILIKE :search OR lead.email ILIKE :search OR lead.company ILIKE :search)', { search: `%${search}%` });
             }
             // Add other filters
-            if (where.status) {
-                query.andWhere('lead.status = :status', { status: where.status });
+            // Default view: the active prospects. Converted and disqualified ones show only when the status filter asks for them.
+            const statusFilter = where.status || 'active';
+            if (statusFilter === 'active') {
+                query.andWhere('lead.status IN (:...active)', { active: ['Open', 'Qualified', 'Prospect'] });
+            }
+            else if (statusFilter !== 'all') {
+                query.andWhere('lead.status = :status', { status: statusFilter });
             }
             if (where.source) {
                 query.andWhere('lead.source = :source', { source: where.source });
@@ -176,12 +182,12 @@ class LeadService {
             const account = await this.accountRepository.findOne({ where: { id: lead.accountId } });
             const progress = (0, prospectQualification_1.leadQualificationProgress)(account?.leadQualification);
             if (!progress.complete) {
-                throw new errorHandler_1.AppError(400, `Complete the qualification questionnaire before this lead becomes a prospect (${progress.answered} of ${progress.total} mandatory answered; missing: ${progress.missing.join(', ')}).`);
+                throw new errorHandler_1.AppError(400, `Complete the customer engagement questionnaire before this lead becomes a prospect (${progress.answered} of ${progress.total} mandatory answered; missing: ${progress.missing.join(', ')}).`);
             }
         }
         // Only a qualified lead can be converted to a prospect.
         if (status === 'Prospect' && lead.status !== 'Qualified') {
-            throw new errorHandler_1.AppError(400, 'Only a qualified lead can be converted to a prospect. Complete the qualification questionnaire first.');
+            throw new errorHandler_1.AppError(400, 'Only a qualified lead can be converted to a prospect. Complete the customer engagement questionnaire first.');
         }
         const fromStatus = lead.status;
         lead.status = status;
@@ -222,7 +228,8 @@ class LeadService {
     // Convert a lead directly into a sales opportunity.
     // Creates (or reuses) an account, then an opportunity seeded with the lead's
     // value, expected close date, and product of interest.
-    async convertLeadToOpportunity(leadId, actorId) {
+    // A prospect becomes an opportunity at Customer engagement. The engagement answers are saved to it.
+    async convertLeadToOpportunity(leadId, actorId, engagement) {
         const lead = await this.getLeadById(leadId);
         if (lead.status === 'Converted') {
             throw new errorHandler_1.AppError(409, 'Lead is already converted');
@@ -265,9 +272,9 @@ class LeadService {
         const opp = await this.oppRepository.save(this.oppRepository.create({
             name: dealName,
             amount: lead.value || 0,
-            stage: 'Demonstration',
+            stage: 'Customer engagement',
             status: 'Open',
-            probability: 25,
+            probability: 10,
             forecastedCloseDate: closeDate,
             accountId,
             ownerId: lead.ownerId,
@@ -286,7 +293,7 @@ class LeadService {
             tags: lead.tags,
             convertedFromLeadId: lead.id,
         }));
-        await stageHistory_service_1.default.record(opp.id, 'Demonstration', lead.ownerId, `Converted from lead ${leadId}`);
+        await stageHistory_service_1.default.record(opp.id, 'Customer engagement', lead.ownerId, `Converted from lead ${leadId}`);
         // Carry the lead's products across as line items.
         // Support both single product (legacy) and multiple products (array).
         const productIds = lead.productIds && lead.productIds.length > 0 ? lead.productIds : (lead.productId ? [lead.productId] : []);
@@ -301,6 +308,9 @@ class LeadService {
                     opportunityId: opp.id,
                 }));
             }
+        }
+        for (const [key, value] of Object.entries(engagement)) {
+            await questionnaire_service_1.default.saveAnswer(opp.id, key, { value, status: 'answered' }, actorId ?? lead.ownerId);
         }
         const fromStatus = lead.status;
         lead.accountId = accountId;

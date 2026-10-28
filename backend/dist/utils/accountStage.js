@@ -1,19 +1,17 @@
 "use strict";
-// Where an account sits in the sales flow, shown in the accounts list. It follows the
-// account's leads, so an account is a Prospect only when a lead has actually been
-// converted to a prospect, and never just because its lead questionnaire is complete.
-//   Account -> Lead (lead questionnaire complete) -> Qualified (qualification questionnaire
-//   complete) -> Prospect (converted from a qualified lead) -> Opportunity (converted to a deal)
+// The Type of an account in the lists. It is either Account (not yet a lead), Lead, or On hold.
+// Everything further along the sales flow (qualified, prospect, opportunity) still shows as Lead;
+// the prospects themselves carry the detail.
+//   Account -> Lead (lead questionnaire complete, or any prospect created)
+//   Lead -> On hold when every prospect of the account has been disqualified.
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.accountStage = accountStage;
 function accountStage(type, leadQuestionnaireComplete, leadStatuses) {
-    if (leadStatuses.includes('Converted'))
-        return 'Opportunity';
-    if (leadStatuses.includes('Prospect'))
-        return 'Prospect';
-    if (leadStatuses.includes('Qualified'))
-        return 'Qualified';
-    if (leadQuestionnaireComplete)
+    // Every prospect disqualified: the account is on hold.
+    if (leadStatuses.length > 0 && leadStatuses.every((s) => s === 'Disqualified'))
+        return 'On hold';
+    // Once an account has a prospect it stays a lead, even if its questionnaire is later edited.
+    if (leadQuestionnaireComplete || leadStatuses.length > 0)
         return 'Lead';
     if (type === 'On hold')
         return 'On hold';

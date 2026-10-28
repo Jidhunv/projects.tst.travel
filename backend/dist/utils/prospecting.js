@@ -4,7 +4,7 @@
 // Prospecting tab overrides them. Every question is mandatory: an account becomes a
 // prospect, and only then can it be converted into a lead.
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.PROSPECT_QUESTIONS = exports.PROSPECT_SOURCES = exports.PROSPECT_TIERS = exports.PROSPECT_OPTION_CATEGORIES = void 0;
+exports.ACCOUNT_INFO_FIELDS = exports.PROSPECT_QUESTIONS = exports.PROSPECT_SOURCES = exports.PROSPECT_TIERS = exports.PROSPECT_OPTION_CATEGORIES = void 0;
 exports.effectiveAnswers = effectiveAnswers;
 exports.normaliseProspecting = normaliseProspecting;
 exports.prospectingProgress = prospectingProgress;
@@ -25,6 +25,11 @@ exports.PROSPECT_QUESTIONS = [
     { key: 'source', label: 'Source of this account information' },
     { key: 'verification', label: 'Verification date and source' },
     { key: 'duplicates', label: 'Prospecting notes' },
+];
+// Every Account Info field. All of them must be filled in before an account can become a lead.
+exports.ACCOUNT_INFO_FIELDS = [
+    'name', 'industry', 'website', 'phoneNumber', 'alternatePhoneNumber', 'type',
+    'contactPerson', 'city', 'region', 'country', 'email', 'remark', 'tier',
 ];
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -169,10 +174,20 @@ function normaliseProspecting(input, options) {
 // Progress against the mandatory questions. `complete` is true only when every question is valid.
 function prospectingProgress(account, stored, options) {
     const answers = effectiveAnswers(account, stored);
-    const missing = exports.PROSPECT_QUESTIONS
+    const unanswered = exports.PROSPECT_QUESTIONS
         .filter((q) => !isAnswered(q.key, answers, account, options))
         .map((q) => q.key);
+    // Account Info fields left blank also hold the account back from becoming a lead.
+    // The tier is shown on Account Info from the account, or else from the questionnaire, so either one counts.
+    const blankInfo = exports.ACCOUNT_INFO_FIELDS.filter((f) => f === 'tier' ? !String(answers.tier ?? '').trim() : !String(account[f] ?? '').trim());
+    const missing = [...new Set([...unanswered, ...blankInfo])];
     const total = exports.PROSPECT_QUESTIONS.length;
-    return { answers, answered: total - missing.length, total, complete: missing.length === 0, missing };
+    return {
+        answers,
+        answered: total - unanswered.length,
+        total,
+        complete: missing.length === 0,
+        missing,
+    };
 }
 //# sourceMappingURL=prospecting.js.map

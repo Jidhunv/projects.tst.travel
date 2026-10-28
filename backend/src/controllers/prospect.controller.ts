@@ -9,8 +9,9 @@ import logger from '../utils/logger';
 import { normaliseCommittee } from '../utils/buyingCommittee';
 import { prospectingProgress } from '../utils/prospecting';
 import { activeProspectOptions } from '../services/prospectOptions.service';
-import questionnaireService from '../services/questionnaire.service';
-import { normaliseAttendees } from '../utils/questionnaire';
+
+// The Customer engagement questions asked when a prospect is converted to an opportunity.
+const ENGAGEMENT_KEYS = ['ENG-01', 'ENG-02', 'ENG-03', 'ENG-04'];
 
 // System-managed columns (ownerId, assigneeIds, score, accountId, lostReason,
 // createdAt/updatedAt) must never be client-settable; pick() drops them by
@@ -343,13 +344,15 @@ export class LeadController {
         throw new AppError(403, 'You can only convert your own leads');
       }
 
-      // Before the demo: who will attend. Checked first, so a conversion without attendees changes nothing.
-      const attendees = normaliseAttendees(req.body?.demoAttendees);
-      if (!attendees) {
-        throw new AppError(400, 'Who will attend the demo? Add at least one attendee with a name before converting.');
+      // The Customer engagement questions are answered before the deal is created. Checked first, so a
+      // refused conversion changes nothing.
+      const answers = req.body?.engagement ?? {};
+      const missing = ENGAGEMENT_KEYS.filter((key) => typeof answers[key] !== 'string' || !answers[key].trim());
+      if (missing.length) {
+        throw new AppError(400, `Answer the Customer engagement questions first: ${missing.join(', ')}`);
       }
-      const opportunity = await leadService.convertLeadToOpportunity(id, req.user!.id);
-      await questionnaireService.saveAnswer(opportunity.id, 'DEMO-01', { value: JSON.stringify(attendees), status: 'answered' }, req.user!.id);
+      const engagement = Object.fromEntries(ENGAGEMENT_KEYS.map((key) => [key, answers[key].trim()]));
+      const opportunity = await leadService.convertLeadToOpportunity(id, req.user!.id, engagement);
 
       logger.info(
         `Lead ${id} converted to opportunity ${opportunity.id} by ${req.user!.email}`

@@ -72,8 +72,12 @@ export interface ProspectAnswers {
     verification?: Partial<ProspectVerification>;
     duplicates?: string;
 }
+export declare const ACCOUNT_INFO_FIELDS: readonly ["name", "industry", "website", "phoneNumber", "alternatePhoneNumber", "type", "contactPerson", "city", "region", "country", "email", "remark", "tier"];
 export interface ProspectAccountFields {
     name?: string | null;
+    alternatePhoneNumber?: string | null;
+    type?: string | null;
+    remark?: string | null;
     website?: string | null;
     country?: string | null;
     region?: string | null;
@@ -96,6 +100,6 @@ export declare function prospectingProgress(account: ProspectAccountFields, stor
     answered: number;
     total: 13;
     complete: boolean;
-    missing: ("name" | "owner" | "source" | "tier" | "industry" | "website" | "contact" | "location" | "businessTypes" | "employeeBands" | "branches" | "verification" | "duplicates")[];
+    missing: string[];
 };
 //# sourceMappingURL=prospecting.d.ts.map

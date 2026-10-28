@@ -14,5 +14,7 @@ router.get('/:id', (req, res, next) => task_controller_1.default.get(req, res, n
 router.post('/', (req, res, next) => task_controller_1.default.create(req, res, next));
 router.patch('/:id', (req, res, next) => task_controller_1.default.update(req, res, next));
 router.delete('/:id', (req, res, next) => task_controller_1.default.remove(req, res, next));
+router.get('/:id/followups', (req, res, next) => task_controller_1.default.listFollowups(req, res, next));
+router.post('/:id/followups', (req, res, next) => task_controller_1.default.addFollowup(req, res, next));
 exports.default = router;
 //# sourceMappingURL=tasks.js.map

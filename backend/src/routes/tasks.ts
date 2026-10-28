@@ -11,5 +11,7 @@ router.get('/:id', (req, res, next) => TaskController.get(req, res, next));
 router.post('/', (req, res, next) => TaskController.create(req, res, next));
 router.patch('/:id', (req, res, next) => TaskController.update(req, res, next));
 router.delete('/:id', (req, res, next) => TaskController.remove(req, res, next));
+router.get('/:id/followups', (req, res, next) => TaskController.listFollowups(req, res, next));
+router.post('/:id/followups', (req, res, next) => TaskController.addFollowup(req, res, next));
 
 export default router;

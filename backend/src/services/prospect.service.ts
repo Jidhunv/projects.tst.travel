@@ -13,6 +13,7 @@ import { prospectingProgress } from '../utils/prospecting';
 import { activeProspectOptions } from './prospectOptions.service';
 import { startSpan, endSpan } from '../utils/tracer';
 import { committeeCountsByAccount } from './buyingCommittee.service';
+import questionnaireService from './questionnaire.service';
 import { resolveSort, SortMap } from '../utils/listSort';
 
 const LEAD_SORT: SortMap = {
@@ -145,8 +146,12 @@ export class LeadService {
       }
 
       // Add other filters
-      if (where.status) {
-        query.andWhere('lead.status = :status', { status: where.status });
+      // Default view: the active prospects. Converted and disqualified ones show only when the status filter asks for them.
+      const statusFilter = where.status || 'active';
+      if (statusFilter === 'active') {
+        query.andWhere('lead.status IN (:...active)', { active: ['Open', 'Qualified', 'Prospect'] });
+      } else if (statusFilter !== 'all') {
+        query.andWhere('lead.status = :status', { status: statusFilter });
       }
       if (where.source) {
         query.andWhere('lead.source = :source', { source: where.source });
@@ -230,13 +235,13 @@ export class LeadService {
       const account = await this.accountRepository.findOne({ where: { id: lead.accountId } });
       const progress = leadQualificationProgress(account?.leadQualification as any);
       if (!progress.complete) {
-        throw new AppError(400, `Complete the qualification questionnaire before this lead becomes a prospect (${progress.answered} of ${progress.total} mandatory answered; missing: ${progress.missing.join(', ')}).`);
+        throw new AppError(400, `Complete the customer engagement questionnaire before this lead becomes a prospect (${progress.answered} of ${progress.total} mandatory answered; missing: ${progress.missing.join(', ')}).`);
       }
     }
 
     // Only a qualified lead can be converted to a prospect.
     if (status === 'Prospect' && lead.status !== 'Qualified') {
-      throw new AppError(400, 'Only a qualified lead can be converted to a prospect. Complete the qualification questionnaire first.');
+      throw new AppError(400, 'Only a qualified lead can be converted to a prospect. Complete the customer engagement questionnaire first.');
     }
 
     const fromStatus = lead.status;
@@ -286,7 +291,8 @@ export class LeadService {
   // Convert a lead directly into a sales opportunity.
   // Creates (or reuses) an account, then an opportunity seeded with the lead's
   // value, expected close date, and product of interest.
-  async convertLeadToOpportunity(leadId: string, actorId?: string): Promise<Opportunity> {
+  // A prospect becomes an opportunity at Customer engagement. The engagement answers are saved to it.
+  async convertLeadToOpportunity(leadId: string, actorId: string | undefined, engagement: Record<string, string>): Promise<Opportunity> {
     const lead = await this.getLeadById(leadId);
 
     if (lead.status === 'Converted') {
@@ -339,9 +345,9 @@ export class LeadService {
       this.oppRepository.create({
         name: dealName,
         amount: lead.value || 0,
-        stage: 'Demonstration',
+        stage: 'Customer engagement',
         status: 'Open',
-        probability: 25,
+        probability: 10,
         forecastedCloseDate: closeDate,
         accountId,
         ownerId: lead.ownerId,
@@ -361,7 +367,7 @@ export class LeadService {
         convertedFromLeadId: lead.id,
       })
     );
-    await stageHistory.record(opp.id, 'Demonstration', lead.ownerId, `Converted from lead ${leadId}`);
+    await stageHistory.record(opp.id, 'Customer engagement', lead.ownerId, `Converted from lead ${leadId}`);
 
     // Carry the lead's products across as line items.
     // Support both single product (legacy) and multiple products (array).
@@ -380,6 +386,10 @@ export class LeadService {
           })
         );
       }
+    }
+
+    for (const [key, value] of Object.entries(engagement)) {
+      await questionnaireService.saveAnswer(opp.id, key, { value, status: 'answered' }, actorId ?? lead.ownerId);
     }
 
     const fromStatus = lead.status;
