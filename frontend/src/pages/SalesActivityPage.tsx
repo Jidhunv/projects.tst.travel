@@ -230,7 +230,7 @@ export default function SalesActivityPage() {
 
             <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 2 }}>
               Prospects, demos and proposals are counted from the history recorded in this system. Records made before
-              that history was kept are not counted. A demo is counted when its attendance is recorded; a proposal when
+              that history was kept are not counted. A demo is counted each time a deal moves into Demonstration; a proposal when
               it is recorded as sent.
             </Typography>
           </>

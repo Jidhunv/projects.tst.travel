@@ -109,7 +109,7 @@ export default function LeadsPage({ variant = 'lead' }: { variant?: 'lead' | 'ac
     Promise.allSettled([
       api.getCountries(),
       api.getTeams(),
-      api.getUsers(1, 500),
+      api.getStaffDirectory(),
       api.getDesignations({ isActive: true }),
       api.getCompanyTypes({ isActive: true }),
     ]).then(([c, t, u, d, ct]) => {

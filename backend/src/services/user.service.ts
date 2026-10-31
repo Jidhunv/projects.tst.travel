@@ -153,18 +153,32 @@ export class UserService {
     });
   }
 
+  // The staff a picker may show: the people in ids, or everyone when ids is undefined.
+  async staffDirectory(ids?: string[]) {
+    const query = this.userRepository
+      .createQueryBuilder('user')
+      .select(['user.id', 'user.firstName', 'user.lastName', 'user.email'])
+      .where('user.isActive = true')
+      .orderBy('user.firstName', 'ASC');
+    if (ids) query.andWhere('user.id = ANY(:ids)', { ids });
+    return query.getMany();
+  }
+
   async getUsers(filters: {
     page?: number;
     limit?: number;
     search?: string;
     roleId?: string;
     isActive?: boolean;
+    // Only these people (the viewer's visible staff). Undefined means everyone.
+    ids?: string[];
   }) {
     const page = filters.page || 1;
     const limit = filters.limit || 20;
     const skip = (page - 1) * limit;
 
     const query = this.userRepository.createQueryBuilder('user').leftJoinAndSelect('user.role', 'role');
+    if (filters.ids) query.andWhere('user.id = ANY(:ids)', { ids: filters.ids });
 
     if (filters.search) {
       query.andWhere(

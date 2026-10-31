@@ -19,12 +19,14 @@ export declare class UserService {
     updateUser(id: string, data: Partial<User>): Promise<User>;
     deleteUser(id: string): Promise<User>;
     getAllUsers(): Promise<User[]>;
+    staffDirectory(ids?: string[]): Promise<User[]>;
     getUsers(filters: {
         page?: number;
         limit?: number;
         search?: string;
         roleId?: string;
         isActive?: boolean;
+        ids?: string[];
     }): Promise<{
         data: User[];
         total: number;

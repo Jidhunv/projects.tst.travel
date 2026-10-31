@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.AccountController = void 0;
 const account_service_1 = __importDefault(require("../services/account.service"));
 const team_service_1 = __importDefault(require("../services/team.service"));
+const salesActivity_service_1 = require("../services/salesActivity.service");
 const auth_1 = require("../middleware/auth");
 const user_service_1 = __importDefault(require("../services/user.service"));
 const errorHandler_1 = require("../middleware/errorHandler");
@@ -21,6 +22,17 @@ const CompanyType_1 = require("../models/CompanyType");
 // Access check for a single account that understands "team" (group) scope: a
 // team-scoped user may act on accounts owned by a group co-member, plus their
 // own. Returns silently if allowed, throws 403 otherwise. "all" allows anything.
+// Removes the owner and creator records (names, email, phone) when that person is not one the viewer may see.
+function hidePeople(account, visibleIds) {
+    if (!account)
+        return account;
+    const out = { ...account };
+    if (out.owner && !visibleIds.includes(out.ownerId))
+        out.owner = null;
+    if (out.creator && !visibleIds.includes(out.creator.id))
+        out.creator = null;
+    return out;
+}
 async function assertAccountScope(req, account, action) {
     const scope = (0, auth_1.getScope)(req.user, 'accounts', action);
     if (scope === 'all')
@@ -182,9 +194,13 @@ class AccountController {
                 // Filters on the Type column: 'lead' (Lead and later stages) or 'account' (Account and On hold).
                 accountKind: req.query.kind === 'lead' || req.query.kind === 'account' ? req.query.kind : undefined,
             });
+            // An account can be visible to someone by assignment while its owner is outside their view.
+            // Hide that owner's name: only people the viewer may see appear.
+            const visibleOwners = await (0, salesActivity_service_1.ownersForFilter)(req.user, undefined, 'accounts');
+            const shown = visibleOwners ? data.map((a) => hidePeople(a, visibleOwners)) : data;
             return res.json({
                 success: true,
-                data,
+                data: shown,
                 meta: {
                     page: Number(page),
                     limit: Number(limit),
@@ -203,9 +219,12 @@ class AccountController {
             const account = await account_service_1.default.getAccountById(id);
             await assertAccountScope(req, account, 'read');
             const assignedTeamIds = await account_service_1.default.getAccountTeamIds(id);
+            // Hide the owner's name when the viewer cannot see that owner (the account is visible by assignment).
+            const visibleOwners = await (0, salesActivity_service_1.ownersForFilter)(req.user, undefined, 'accounts');
+            const shown = visibleOwners ? hidePeople(account, visibleOwners) : account;
             return res.json({
                 success: true,
-                data: { ...account, assignedTeamIds },
+                data: { ...shown, assignedTeamIds },
             });
         }
         catch (error) {

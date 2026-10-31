@@ -4,6 +4,18 @@ import teamService from '../services/team.service';
 import { AppDataSource } from '../config/database';
 import { User } from '../models/User';
 import { AuthRequest } from '../middleware/auth';
+import { ownersForFilter } from '../services/salesActivity.service';
+
+// The staff the viewer may see: undefined for Admin (everyone), otherwise the people in their sales scope,
+// or only themselves when they have no sales access.
+async function visibleStaffIds(user: AuthRequest['user']): Promise<string[] | undefined> {
+  if (user?.role === 'Admin') return undefined;
+  try {
+    return (await ownersForFilter(user, undefined, 'sales_visits')) ?? undefined;
+  } catch {
+    return user ? [user.id] : [];
+  }
+}
 import { AppError } from '../middleware/errorHandler';
 import pick from '../utils/pick';
 import logger from '../utils/logger';
@@ -71,9 +83,22 @@ export class UserController {
     }
   }
 
+  // Staff a picker may show to the viewer, for any signed-in user: names and emails of visible people only.
+  async getDirectory(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const data = await userService.staffDirectory(await visibleStaffIds(req.user));
+      return res.json({ success: true, data });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async getUsers(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { page = 1, limit = 20, search, roleId, isActive } = req.query;
+
+      // Staff names are shown only for people the viewer can see. Admin sees everyone.
+      const ids = await visibleStaffIds(req.user);
 
       const { data, total } = await userService.getUsers({
         page: Number(page),
@@ -81,6 +106,7 @@ export class UserController {
         search: search as string,
         roleId: roleId as string,
         isActive: isActive === 'true' ? true : isActive === 'false' ? false : undefined,
+        ids,
       });
 
       // Batch-load membership + supervision for the page in two queries.

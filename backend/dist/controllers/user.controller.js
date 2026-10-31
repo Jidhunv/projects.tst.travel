@@ -41,6 +41,19 @@ const user_service_1 = __importDefault(require("../services/user.service"));
 const team_service_1 = __importDefault(require("../services/team.service"));
 const database_1 = require("../config/database");
 const User_1 = require("../models/User");
+const salesActivity_service_1 = require("../services/salesActivity.service");
+// The staff the viewer may see: undefined for Admin (everyone), otherwise the people in their sales scope,
+// or only themselves when they have no sales access.
+async function visibleStaffIds(user) {
+    if (user?.role === 'Admin')
+        return undefined;
+    try {
+        return (await (0, salesActivity_service_1.ownersForFilter)(user, undefined, 'sales_visits')) ?? undefined;
+    }
+    catch {
+        return user ? [user.id] : [];
+    }
+}
 const errorHandler_1 = require("../middleware/errorHandler");
 const pick_1 = __importDefault(require("../utils/pick"));
 const logger_1 = __importDefault(require("../utils/logger"));
@@ -104,16 +117,29 @@ class UserController {
             next(error);
         }
     }
+    // Staff a picker may show to the viewer, for any signed-in user: names and emails of visible people only.
+    async getDirectory(req, res, next) {
+        try {
+            const data = await user_service_1.default.staffDirectory(await visibleStaffIds(req.user));
+            return res.json({ success: true, data });
+        }
+        catch (error) {
+            next(error);
+        }
+    }
     async getUsers(req, res, next) {
         var _a, _b;
         try {
             const { page = 1, limit = 20, search, roleId, isActive } = req.query;
+            // Staff names are shown only for people the viewer can see. Admin sees everyone.
+            const ids = await visibleStaffIds(req.user);
             const { data, total } = await user_service_1.default.getUsers({
                 page: Number(page),
                 limit: Number(limit),
                 search: search,
                 roleId: roleId,
                 isActive: isActive === 'true' ? true : isActive === 'false' ? false : undefined,
+                ids,
             });
             // Batch-load membership + supervision for the page in two queries.
             const membershipByUser = {};

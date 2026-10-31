@@ -63,7 +63,7 @@ export default function PerformancePage() {
   React.useEffect(() => { load(); }, [load]);
   React.useEffect(() => {
     // The owner picker only appears when the user may list staff.
-    api.getUsers(1, 500).then((r) => setOwners(r.data.data || [])).catch(() => setOwners([]));
+    api.getStaffDirectory().then((r) => setOwners(r.data.data || [])).catch(() => setOwners([]));
   }, []);
 
   const saveTarget = async () => {

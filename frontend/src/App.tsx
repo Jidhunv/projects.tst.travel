@@ -28,6 +28,8 @@ const QuestionMasterPage = lazy(() => import('@pages/QuestionMasterPage'));
 const KpiConfigPage = lazy(() => import('@pages/KpiConfigPage'));
 const SalesHealthPage = lazy(() => import('@pages/SalesHealthPage'));
 const SalesActivityPage = lazy(() => import('@pages/SalesActivityPage'));
+const KpiVerificationPage = lazy(() => import('@pages/KpiVerificationPage'));
+const KpiTargetsPage = lazy(() => import('@pages/KpiTargetsPage'));
 const PerformancePage = lazy(() => import('@pages/PerformancePage'));
 const ContractsPage = lazy(() => import('@pages/ContractsPage').then((m) => ({ default: m.ContractsPage })));
 const ProjectsPage = lazy(() => import('@pages/ProjectsPage').then((m) => ({ default: m.ProjectsPage })));
@@ -285,6 +287,22 @@ function App() {
             element={
               <ProtectedRoute module="sales_visits">
                 <SalesActivityPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/kpi-verification"
+            element={
+              <ProtectedRoute module="kpi_verification">
+                <KpiVerificationPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/kpi-targets"
+            element={
+              <ProtectedRoute module="kpi_targets">
+                <KpiTargetsPage />
               </ProtectedRoute>
             }
           />

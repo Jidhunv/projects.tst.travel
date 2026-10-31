@@ -32,7 +32,7 @@ export const AssignOwner: React.FC<Props> = ({ module, recordId, currentOwnerId,
   useEffect(() => {
     if (open) {
       if (users.length === 0) {
-        api.getUsers(1, 200).then((r) => setUsers(r.data.data || [])).catch(() => {});
+        api.getStaffDirectory().then((r) => setUsers(r.data.data || [])).catch(() => {});
       }
       setIds(
         currentAssigneeIds && currentAssigneeIds.length

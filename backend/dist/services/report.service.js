@@ -289,11 +289,10 @@ class ReportService {
             .createQueryBuilder('account')
             .leftJoinAndSelect('account.owner', 'owner')
             .orderBy('account.createdAt', 'DESC');
-        // Owner or assignee matches any of the salesperson ids in scope.
+        // Reports follow the owner only: an account someone is merely assigned to is not their report line.
         if (scope.ownerIds) {
-            accountQuery.andWhere('(account."ownerId" = ANY(:ownerIds) OR account."assigneeIds" LIKE ANY(:ownerLikes))', {
+            accountQuery.andWhere('account."ownerId" = ANY(:ownerIds)', {
                 ownerIds: scope.ownerIds,
-                ownerLikes: scope.ownerIds.map((id) => `%${id}%`),
             });
         }
         this.applyScope(accountQuery, 'account', { ownerIds: null, country: scope.country, region: scope.region }, '');

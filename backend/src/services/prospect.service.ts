@@ -33,6 +33,8 @@ interface LeadFilters {
   status?: string;
   source?: string;
   ownerId?: string;
+  // Owners the viewer may see, from their privilege. Undefined means every owner.
+  ownerIds?: string[];
   region?: string;
   country?: string;
   page?: number;
@@ -156,11 +158,11 @@ export class LeadService {
       if (where.source) {
         query.andWhere('lead.source = :source', { source: where.source });
       }
-      if (where.ownerId) {
-        // Owner OR one of the additional assignees (multi-assign).
-        query.andWhere('(lead.ownerId = :ownerId OR lead.assigneeIds LIKE :ownerIdLike)', {
-          ownerId: where.ownerId,
-          ownerIdLike: `%${where.ownerId}%`,
+      if (where.ownerIds) {
+        // The owners the viewer may see (from their privilege), OR anyone they are assigned to.
+        query.andWhere('(lead.ownerId = ANY(:ownerIds) OR lead.assigneeIds LIKE ANY(:ownerLikes))', {
+          ownerIds: where.ownerIds,
+          ownerLikes: where.ownerIds.map((id) => `%${id}%`),
         });
       }
       if (where.region) {

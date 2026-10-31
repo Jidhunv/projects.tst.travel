@@ -62,7 +62,7 @@ export default function KpiConfigPage() {
     api.getKpiMaster().then((r) => setMaster(r.data.data || [])).catch((e) => setError(errMsg(e, 'Could not load the KPI master')));
   }, []);
   React.useEffect(() => {
-    api.getUsers(1, 500).then((r) => setUsers(r.data.data || [])).catch((e) => setError(errMsg(e, 'Could not load staff list')));
+    api.getStaffDirectory().then((r) => setUsers(r.data.data || [])).catch((e) => setError(errMsg(e, 'Could not load staff list')));
   }, []);
 
   const save = async () => {

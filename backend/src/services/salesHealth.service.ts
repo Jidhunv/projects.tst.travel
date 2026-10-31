@@ -37,10 +37,8 @@ class SalesHealthService {
       .leftJoinAndSelect('account.owner', 'owner')
       .where("account.type != 'Inactive'");
     if (scopeOwnerId) {
-      accountQuery.andWhere('(account.ownerId = :o OR account.assigneeIds LIKE :ol)', {
-        o: scopeOwnerId,
-        ol: `%${scopeOwnerId}%`,
-      });
+      // Reports follow the owner only, not accounts the person is merely assigned to.
+      accountQuery.andWhere('account.ownerId = :o', { o: scopeOwnerId });
     }
     const accounts = await accountQuery.getMany();
     if (accounts.length === 0) return [];
