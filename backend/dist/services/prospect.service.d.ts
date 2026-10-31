@@ -7,6 +7,7 @@ interface LeadFilters {
     status?: string;
     source?: string;
     ownerId?: string;
+    ownerIds?: string[];
     region?: string;
     country?: string;
     page?: number;

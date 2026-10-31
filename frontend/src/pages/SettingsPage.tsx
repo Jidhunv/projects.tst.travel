@@ -15,6 +15,7 @@ import {
 } from '@mui/material';
 import Layout from '@components/Layout';
 import { apiClient } from '../services/api';
+import KpiWeightageSettings from '@components/KpiWeightageSettings';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -151,6 +152,7 @@ export const SettingsPage: React.FC = () => {
             <Tab label="Email Configuration" />
             <Tab label="Notification Rules" />
             <Tab label="Email Templates" />
+            <Tab label="KPI Weightage" />
           </Tabs>
 
           {/* Email Configuration Tab */}
@@ -333,6 +335,11 @@ export const SettingsPage: React.FC = () => {
                 </Box>
               ))}
             </Stack>
+          </TabPanel>
+
+          {/* KPI Weightage Tab */}
+          <TabPanel value={tabValue} index={3}>
+            <KpiWeightageSettings />
           </TabPanel>
         </Card>
       </Box>

@@ -1,23 +1,17 @@
 -- ============================================================================
--- CRM database schema (create if not exists)
--- Generated from the renamed schema by scripts/make-idempotent-schema.js.
--- Tables: prospects (Prospects page), leads (Leads page, formerly accounts),
--- prospect_status_history (formerly lead_status_history).
+-- CRM database schema: create if not exists.
 --
--- Safe to run on an empty database to build the schema, and safe to run again:
--- existing tables, indexes, constraints, types and functions are left alone.
--- It creates structure only. It never drops, truncates or changes existing data.
--- Existing tables are NOT altered to match this file; use the migration scripts
--- for that. Run with psql -v ON_ERROR_STOP=1.
+-- Builds the whole schema on an empty database, and is safe to run again.
+-- Every table, index, constraint, type and trigger is created only when it is
+-- missing. It never drops, truncates or changes existing data, and it does not
+-- alter existing tables to match this file. Use the migration scripts for that.
+--
+-- Run with:
+--   psql -v ON_ERROR_STOP=1 -f FULL_SCHEMA_2026-10_create_if_not_exists.sql
+-- Errors are not swallowed: a failing statement stops the run and psql reports it.
+--
 -- Left out on purpose: schema_verification_log (verification artefacts).
 -- ============================================================================
---
--- PostgreSQL database dump
---
-
-
--- Dumped from database version 18.3
--- Dumped by pg_dump version 18.3
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -61,12 +55,13 @@ COMMENT ON EXTENSION "uuid-ossp" IS 'generate universally unique identifiers (UU
 
 DO $$
 BEGIN
-  CREATE TYPE public.audit_logs_action_enum AS ENUM (
+  IF NOT EXISTS (SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace WHERE n.nspname = 'public' AND t.typname = 'audit_logs_action_enum') THEN
+    CREATE TYPE public.audit_logs_action_enum AS ENUM (
     'CREATE',
     'UPDATE',
     'DELETE'
 );
-EXCEPTION WHEN duplicate_object THEN NULL;
+  END IF;
 END $$;
 
 --
@@ -75,7 +70,8 @@ END $$;
 
 DO $$
 BEGIN
-  CREATE TYPE public.notifications_type_enum AS ENUM (
+  IF NOT EXISTS (SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace WHERE n.nspname = 'public' AND t.typname = 'notifications_type_enum') THEN
+    CREATE TYPE public.notifications_type_enum AS ENUM (
     'ContractExpiry',
     'InvoiceDue',
     'UATApproval',
@@ -84,7 +80,7 @@ BEGIN
     'TicketUpdate',
     'SecurityAlert'
 );
-EXCEPTION WHEN duplicate_object THEN NULL;
+  END IF;
 END $$;
 
 --
@@ -93,13 +89,14 @@ END $$;
 
 DO $$
 BEGIN
-  CREATE TYPE public.tickets_priority_enum AS ENUM (
+  IF NOT EXISTS (SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace WHERE n.nspname = 'public' AND t.typname = 'tickets_priority_enum') THEN
+    CREATE TYPE public.tickets_priority_enum AS ENUM (
     'Critical',
     'High',
     'Medium',
     'Low'
 );
-EXCEPTION WHEN duplicate_object THEN NULL;
+  END IF;
 END $$;
 
 --
@@ -108,14 +105,15 @@ END $$;
 
 DO $$
 BEGIN
-  CREATE TYPE public.tickets_status_enum AS ENUM (
+  IF NOT EXISTS (SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace WHERE n.nspname = 'public' AND t.typname = 'tickets_status_enum') THEN
+    CREATE TYPE public.tickets_status_enum AS ENUM (
     'Open',
     'In Progress',
     'Pending Customer',
     'Resolved',
     'Closed'
 );
-EXCEPTION WHEN duplicate_object THEN NULL;
+  END IF;
 END $$;
 
 --
@@ -1206,9 +1204,9 @@ CREATE TABLE IF NOT EXISTS public.users (
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.products
-    ADD CONSTRAINT "PK_0806c755e0aca124e67c0cf6d7d" PRIMARY KEY (id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'products' AND c.conname = 'PK_0806c755e0aca124e67c0cf6d7d') THEN
+    ALTER TABLE ONLY public.products ADD CONSTRAINT "PK_0806c755e0aca124e67c0cf6d7d" PRIMARY KEY (id);
+  END IF;
 END $$;
 
 --
@@ -1217,9 +1215,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.project_milestones
-    ADD CONSTRAINT "PK_0c561300a12c6ba3ad793dff4b8" PRIMARY KEY (id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'project_milestones' AND c.conname = 'PK_0c561300a12c6ba3ad793dff4b8') THEN
+    ALTER TABLE ONLY public.project_milestones ADD CONSTRAINT "PK_0c561300a12c6ba3ad793dff4b8" PRIMARY KEY (id);
+  END IF;
 END $$;
 
 --
@@ -1228,9 +1226,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.payments
-    ADD CONSTRAINT "PK_197ab7af18c93fbb0c9b28b4a59" PRIMARY KEY (id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'payments' AND c.conname = 'PK_197ab7af18c93fbb0c9b28b4a59') THEN
+    ALTER TABLE ONLY public.payments ADD CONSTRAINT "PK_197ab7af18c93fbb0c9b28b4a59" PRIMARY KEY (id);
+  END IF;
 END $$;
 
 --
@@ -1239,9 +1237,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.audit_logs
-    ADD CONSTRAINT "PK_1bb179d048bbc581caa3b013439" PRIMARY KEY (id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'audit_logs' AND c.conname = 'PK_1bb179d048bbc581caa3b013439') THEN
+    ALTER TABLE ONLY public.audit_logs ADD CONSTRAINT "PK_1bb179d048bbc581caa3b013439" PRIMARY KEY (id);
+  END IF;
 END $$;
 
 --
@@ -1250,9 +1248,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.contracts
-    ADD CONSTRAINT "PK_2c7b8f3a7b1acdd49497d83d0fb" PRIMARY KEY (id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'contracts' AND c.conname = 'PK_2c7b8f3a7b1acdd49497d83d0fb') THEN
+    ALTER TABLE ONLY public.contracts ADD CONSTRAINT "PK_2c7b8f3a7b1acdd49497d83d0fb" PRIMARY KEY (id);
+  END IF;
 END $$;
 
 --
@@ -1261,9 +1259,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.tickets
-    ADD CONSTRAINT "PK_343bc942ae261cf7a1377f48fd0" PRIMARY KEY (id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'tickets' AND c.conname = 'PK_343bc942ae261cf7a1377f48fd0') THEN
+    ALTER TABLE ONLY public.tickets ADD CONSTRAINT "PK_343bc942ae261cf7a1377f48fd0" PRIMARY KEY (id);
+  END IF;
 END $$;
 
 --
@@ -1272,9 +1270,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.opportunities
-    ADD CONSTRAINT "PK_4bd9cd12ddc0ff48a5a97ddebce" PRIMARY KEY (id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'opportunities' AND c.conname = 'PK_4bd9cd12ddc0ff48a5a97ddebce') THEN
+    ALTER TABLE ONLY public.opportunities ADD CONSTRAINT "PK_4bd9cd12ddc0ff48a5a97ddebce" PRIMARY KEY (id);
+  END IF;
 END $$;
 
 --
@@ -1283,9 +1281,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.leads
-    ADD CONSTRAINT "PK_5a7a02c20412299d198e097a8fe" PRIMARY KEY (id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'leads' AND c.conname = 'PK_5a7a02c20412299d198e097a8fe') THEN
+    ALTER TABLE ONLY public.leads ADD CONSTRAINT "PK_5a7a02c20412299d198e097a8fe" PRIMARY KEY (id);
+  END IF;
 END $$;
 
 --
@@ -1294,9 +1292,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.projects
-    ADD CONSTRAINT "PK_6271df0a7aed1d6c0691ce6ac50" PRIMARY KEY (id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'projects' AND c.conname = 'PK_6271df0a7aed1d6c0691ce6ac50') THEN
+    ALTER TABLE ONLY public.projects ADD CONSTRAINT "PK_6271df0a7aed1d6c0691ce6ac50" PRIMARY KEY (id);
+  END IF;
 END $$;
 
 --
@@ -1305,9 +1303,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.invoices
-    ADD CONSTRAINT "PK_668cef7c22a427fd822cc1be3ce" PRIMARY KEY (id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'invoices' AND c.conname = 'PK_668cef7c22a427fd822cc1be3ce') THEN
+    ALTER TABLE ONLY public.invoices ADD CONSTRAINT "PK_668cef7c22a427fd822cc1be3ce" PRIMARY KEY (id);
+  END IF;
 END $$;
 
 --
@@ -1316,9 +1314,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.notifications
-    ADD CONSTRAINT "PK_6a72c3c0f683f6462415e653c3a" PRIMARY KEY (id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'notifications' AND c.conname = 'PK_6a72c3c0f683f6462415e653c3a') THEN
+    ALTER TABLE ONLY public.notifications ADD CONSTRAINT "PK_6a72c3c0f683f6462415e653c3a" PRIMARY KEY (id);
+  END IF;
 END $$;
 
 --
@@ -1327,9 +1325,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.line_items
-    ADD CONSTRAINT "PK_6d227c876e374542dc9bb44dfb4" PRIMARY KEY (id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'line_items' AND c.conname = 'PK_6d227c876e374542dc9bb44dfb4') THEN
+    ALTER TABLE ONLY public.line_items ADD CONSTRAINT "PK_6d227c876e374542dc9bb44dfb4" PRIMARY KEY (id);
+  END IF;
 END $$;
 
 --
@@ -1338,9 +1336,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.sales_visits
-    ADD CONSTRAINT "PK_74af0ac5b6b4d85beb204871f1f" PRIMARY KEY (id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'sales_visits' AND c.conname = 'PK_74af0ac5b6b4d85beb204871f1f') THEN
+    ALTER TABLE ONLY public.sales_visits ADD CONSTRAINT "PK_74af0ac5b6b4d85beb204871f1f" PRIMARY KEY (id);
+  END IF;
 END $$;
 
 --
@@ -1349,9 +1347,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.activities
-    ADD CONSTRAINT "PK_7f4004429f731ffb9c88eb486a8" PRIMARY KEY (id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'activities' AND c.conname = 'PK_7f4004429f731ffb9c88eb486a8') THEN
+    ALTER TABLE ONLY public.activities ADD CONSTRAINT "PK_7f4004429f731ffb9c88eb486a8" PRIMARY KEY (id);
+  END IF;
 END $$;
 
 --
@@ -1360,9 +1358,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.permissions
-    ADD CONSTRAINT "PK_920331560282b8bd21bb02290df" PRIMARY KEY (id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'permissions' AND c.conname = 'PK_920331560282b8bd21bb02290df') THEN
+    ALTER TABLE ONLY public.permissions ADD CONSTRAINT "PK_920331560282b8bd21bb02290df" PRIMARY KEY (id);
+  END IF;
 END $$;
 
 --
@@ -1371,9 +1369,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.expenses
-    ADD CONSTRAINT "PK_94c3ceb17e3140abc9282c20610" PRIMARY KEY (id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'expenses' AND c.conname = 'PK_94c3ceb17e3140abc9282c20610') THEN
+    ALTER TABLE ONLY public.expenses ADD CONSTRAINT "PK_94c3ceb17e3140abc9282c20610" PRIMARY KEY (id);
+  END IF;
 END $$;
 
 --
@@ -1382,9 +1380,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.users
-    ADD CONSTRAINT "PK_a3ffb1c0c8416b9fc6f907b7433" PRIMARY KEY (id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'users' AND c.conname = 'PK_a3ffb1c0c8416b9fc6f907b7433') THEN
+    ALTER TABLE ONLY public.users ADD CONSTRAINT "PK_a3ffb1c0c8416b9fc6f907b7433" PRIMARY KEY (id);
+  END IF;
 END $$;
 
 --
@@ -1393,9 +1391,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.notes
-    ADD CONSTRAINT "PK_af6206538ea96c4e77e9f400c3d" PRIMARY KEY (id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'notes' AND c.conname = 'PK_af6206538ea96c4e77e9f400c3d') THEN
+    ALTER TABLE ONLY public.notes ADD CONSTRAINT "PK_af6206538ea96c4e77e9f400c3d" PRIMARY KEY (id);
+  END IF;
 END $$;
 
 --
@@ -1404,9 +1402,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.suppliers
-    ADD CONSTRAINT "PK_b70ac51766a9e3144f778cfe81e" PRIMARY KEY (id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'suppliers' AND c.conname = 'PK_b70ac51766a9e3144f778cfe81e') THEN
+    ALTER TABLE ONLY public.suppliers ADD CONSTRAINT "PK_b70ac51766a9e3144f778cfe81e" PRIMARY KEY (id);
+  END IF;
 END $$;
 
 --
@@ -1415,9 +1413,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.contacts
-    ADD CONSTRAINT "PK_b99cd40cfd66a99f1571f4f72e6" PRIMARY KEY (id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'contacts' AND c.conname = 'PK_b99cd40cfd66a99f1571f4f72e6') THEN
+    ALTER TABLE ONLY public.contacts ADD CONSTRAINT "PK_b99cd40cfd66a99f1571f4f72e6" PRIMARY KEY (id);
+  END IF;
 END $$;
 
 --
@@ -1426,9 +1424,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.roles
-    ADD CONSTRAINT "PK_c1433d71a4838793a49dcad46ab" PRIMARY KEY (id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'roles' AND c.conname = 'PK_c1433d71a4838793a49dcad46ab') THEN
+    ALTER TABLE ONLY public.roles ADD CONSTRAINT "PK_c1433d71a4838793a49dcad46ab" PRIMARY KEY (id);
+  END IF;
 END $$;
 
 --
@@ -1437,9 +1435,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.prospects
-    ADD CONSTRAINT "PK_cd102ed7a9a4ca7d4d8bfeba406" PRIMARY KEY (id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'prospects' AND c.conname = 'PK_cd102ed7a9a4ca7d4d8bfeba406') THEN
+    ALTER TABLE ONLY public.prospects ADD CONSTRAINT "PK_cd102ed7a9a4ca7d4d8bfeba406" PRIMARY KEY (id);
+  END IF;
 END $$;
 
 --
@@ -1448,9 +1446,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.email_settings
-    ADD CONSTRAINT "PK_d363efbb6aa1c747440c0ec24f4" PRIMARY KEY (id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'email_settings' AND c.conname = 'PK_d363efbb6aa1c747440c0ec24f4') THEN
+    ALTER TABLE ONLY public.email_settings ADD CONSTRAINT "PK_d363efbb6aa1c747440c0ec24f4" PRIMARY KEY (id);
+  END IF;
 END $$;
 
 --
@@ -1459,9 +1457,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.role_permissions
-    ADD CONSTRAINT "PK_d430a02aad006d8a70f3acd7d03" PRIMARY KEY ("roleId", "permissionId");
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'role_permissions' AND c.conname = 'PK_d430a02aad006d8a70f3acd7d03') THEN
+    ALTER TABLE ONLY public.role_permissions ADD CONSTRAINT "PK_d430a02aad006d8a70f3acd7d03" PRIMARY KEY ("roleId", "permissionId");
+  END IF;
 END $$;
 
 --
@@ -1470,9 +1468,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.leads
-    ADD CONSTRAINT "UQ_2db43cdbf7bb862e577b5f540c8" UNIQUE (name);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'leads' AND c.conname = 'UQ_2db43cdbf7bb862e577b5f540c8') THEN
+    ALTER TABLE ONLY public.leads ADD CONSTRAINT "UQ_2db43cdbf7bb862e577b5f540c8" UNIQUE (name);
+  END IF;
 END $$;
 
 --
@@ -1481,9 +1479,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.contracts
-    ADD CONSTRAINT "UQ_375897948211b379ad8726c5e63" UNIQUE ("contractNumber");
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'contracts' AND c.conname = 'UQ_375897948211b379ad8726c5e63') THEN
+    ALTER TABLE ONLY public.contracts ADD CONSTRAINT "UQ_375897948211b379ad8726c5e63" UNIQUE ("contractNumber");
+  END IF;
 END $$;
 
 --
@@ -1492,9 +1490,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.suppliers
-    ADD CONSTRAINT "UQ_5b5720d9645cee7396595a16c93" UNIQUE (name);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'suppliers' AND c.conname = 'UQ_5b5720d9645cee7396595a16c93') THEN
+    ALTER TABLE ONLY public.suppliers ADD CONSTRAINT "UQ_5b5720d9645cee7396595a16c93" UNIQUE (name);
+  END IF;
 END $$;
 
 --
@@ -1503,9 +1501,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.roles
-    ADD CONSTRAINT "UQ_648e3f5447f725579d7d4ffdfb7" UNIQUE (name);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'roles' AND c.conname = 'UQ_648e3f5447f725579d7d4ffdfb7') THEN
+    ALTER TABLE ONLY public.roles ADD CONSTRAINT "UQ_648e3f5447f725579d7d4ffdfb7" UNIQUE (name);
+  END IF;
 END $$;
 
 --
@@ -1514,9 +1512,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.contacts
-    ADD CONSTRAINT "UQ_752866c5247ddd34fd05559537d" UNIQUE (email);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'contacts' AND c.conname = 'UQ_752866c5247ddd34fd05559537d') THEN
+    ALTER TABLE ONLY public.contacts ADD CONSTRAINT "UQ_752866c5247ddd34fd05559537d" UNIQUE (email);
+  END IF;
 END $$;
 
 --
@@ -1525,20 +1523,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.users
-    ADD CONSTRAINT "UQ_97672ac88f789774dd47f7c8be3" UNIQUE (email);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
-END $$;
-
---
--- Name: prospects UQ_b3eea7add0e16594dba102716c5; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-BEGIN
-  ALTER TABLE ONLY public.prospects
-    ADD CONSTRAINT "UQ_b3eea7add0e16594dba102716c5" UNIQUE (email);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'users' AND c.conname = 'UQ_97672ac88f789774dd47f7c8be3') THEN
+    ALTER TABLE ONLY public.users ADD CONSTRAINT "UQ_97672ac88f789774dd47f7c8be3" UNIQUE (email);
+  END IF;
 END $$;
 
 --
@@ -1547,9 +1534,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.invoices
-    ADD CONSTRAINT "UQ_bf8e0f9dd4558ef209ec111782d" UNIQUE ("invoiceNumber");
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'invoices' AND c.conname = 'UQ_bf8e0f9dd4558ef209ec111782d') THEN
+    ALTER TABLE ONLY public.invoices ADD CONSTRAINT "UQ_bf8e0f9dd4558ef209ec111782d" UNIQUE ("invoiceNumber");
+  END IF;
 END $$;
 
 --
@@ -1558,9 +1545,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.products
-    ADD CONSTRAINT "UQ_c44ac33a05b144dd0d9ddcf9327" UNIQUE (sku);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'products' AND c.conname = 'UQ_c44ac33a05b144dd0d9ddcf9327') THEN
+    ALTER TABLE ONLY public.products ADD CONSTRAINT "UQ_c44ac33a05b144dd0d9ddcf9327" UNIQUE (sku);
+  END IF;
 END $$;
 
 --
@@ -1569,9 +1556,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.tickets
-    ADD CONSTRAINT "UQ_e99bd0f51b92896fdaf99ebb715" UNIQUE ("ticketNumber");
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'tickets' AND c.conname = 'UQ_e99bd0f51b92896fdaf99ebb715') THEN
+    ALTER TABLE ONLY public.tickets ADD CONSTRAINT "UQ_e99bd0f51b92896fdaf99ebb715" UNIQUE ("ticketNumber");
+  END IF;
 END $$;
 
 --
@@ -1580,9 +1567,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.account_stakeholders
-    ADD CONSTRAINT "account_stakeholders_accountId_role_key" UNIQUE ("accountId", role);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'account_stakeholders' AND c.conname = 'account_stakeholders_accountId_role_key') THEN
+    ALTER TABLE ONLY public.account_stakeholders ADD CONSTRAINT "account_stakeholders_accountId_role_key" UNIQUE ("accountId", role);
+  END IF;
 END $$;
 
 --
@@ -1591,9 +1578,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.account_stakeholders
-    ADD CONSTRAINT account_stakeholders_pkey PRIMARY KEY (id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'account_stakeholders' AND c.conname = 'account_stakeholders_pkey') THEN
+    ALTER TABLE ONLY public.account_stakeholders ADD CONSTRAINT account_stakeholders_pkey PRIMARY KEY (id);
+  END IF;
 END $$;
 
 --
@@ -1602,9 +1589,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.company_types
-    ADD CONSTRAINT company_types_name_key UNIQUE (name);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'company_types' AND c.conname = 'company_types_name_key') THEN
+    ALTER TABLE ONLY public.company_types ADD CONSTRAINT company_types_name_key UNIQUE (name);
+  END IF;
 END $$;
 
 --
@@ -1613,9 +1600,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.company_types
-    ADD CONSTRAINT company_types_pkey PRIMARY KEY (id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'company_types' AND c.conname = 'company_types_pkey') THEN
+    ALTER TABLE ONLY public.company_types ADD CONSTRAINT company_types_pkey PRIMARY KEY (id);
+  END IF;
 END $$;
 
 --
@@ -1624,9 +1611,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.countries
-    ADD CONSTRAINT countries_code_key UNIQUE (code);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'countries' AND c.conname = 'countries_code_key') THEN
+    ALTER TABLE ONLY public.countries ADD CONSTRAINT countries_code_key UNIQUE (code);
+  END IF;
 END $$;
 
 --
@@ -1635,9 +1622,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.countries
-    ADD CONSTRAINT countries_name_key UNIQUE (name);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'countries' AND c.conname = 'countries_name_key') THEN
+    ALTER TABLE ONLY public.countries ADD CONSTRAINT countries_name_key UNIQUE (name);
+  END IF;
 END $$;
 
 --
@@ -1646,9 +1633,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.countries
-    ADD CONSTRAINT countries_pkey PRIMARY KEY (id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'countries' AND c.conname = 'countries_pkey') THEN
+    ALTER TABLE ONLY public.countries ADD CONSTRAINT countries_pkey PRIMARY KEY (id);
+  END IF;
 END $$;
 
 --
@@ -1657,9 +1644,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.designations
-    ADD CONSTRAINT designations_name_key UNIQUE (name);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'designations' AND c.conname = 'designations_name_key') THEN
+    ALTER TABLE ONLY public.designations ADD CONSTRAINT designations_name_key UNIQUE (name);
+  END IF;
 END $$;
 
 --
@@ -1668,9 +1655,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.designations
-    ADD CONSTRAINT designations_pkey PRIMARY KEY (id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'designations' AND c.conname = 'designations_pkey') THEN
+    ALTER TABLE ONLY public.designations ADD CONSTRAINT designations_pkey PRIMARY KEY (id);
+  END IF;
 END $$;
 
 --
@@ -1679,9 +1666,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.entity_tags
-    ADD CONSTRAINT entity_tags_pkey PRIMARY KEY (entitytype, entityid, tagid);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'entity_tags' AND c.conname = 'entity_tags_pkey') THEN
+    ALTER TABLE ONLY public.entity_tags ADD CONSTRAINT entity_tags_pkey PRIMARY KEY (entitytype, entityid, tagid);
+  END IF;
 END $$;
 
 --
@@ -1690,9 +1677,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.followup_entries
-    ADD CONSTRAINT followup_entries_pkey PRIMARY KEY (id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'followup_entries' AND c.conname = 'followup_entries_pkey') THEN
+    ALTER TABLE ONLY public.followup_entries ADD CONSTRAINT followup_entries_pkey PRIMARY KEY (id);
+  END IF;
 END $$;
 
 --
@@ -1701,9 +1688,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.kpi_audit_trail
-    ADD CONSTRAINT kpi_audit_trail_pkey PRIMARY KEY (id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'kpi_audit_trail' AND c.conname = 'kpi_audit_trail_pkey') THEN
+    ALTER TABLE ONLY public.kpi_audit_trail ADD CONSTRAINT kpi_audit_trail_pkey PRIMARY KEY (id);
+  END IF;
 END $$;
 
 --
@@ -1712,9 +1699,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.kpi_definitions
-    ADD CONSTRAINT kpi_definitions_pkey PRIMARY KEY (id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'kpi_definitions' AND c.conname = 'kpi_definitions_pkey') THEN
+    ALTER TABLE ONLY public.kpi_definitions ADD CONSTRAINT kpi_definitions_pkey PRIMARY KEY (id);
+  END IF;
 END $$;
 
 --
@@ -1723,9 +1710,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.kpi_entries
-    ADD CONSTRAINT kpi_entries_pkey PRIMARY KEY (id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'kpi_entries' AND c.conname = 'kpi_entries_pkey') THEN
+    ALTER TABLE ONLY public.kpi_entries ADD CONSTRAINT kpi_entries_pkey PRIMARY KEY (id);
+  END IF;
 END $$;
 
 --
@@ -1734,9 +1721,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.kpi_master
-    ADD CONSTRAINT kpi_master_pkey PRIMARY KEY (id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'kpi_master' AND c.conname = 'kpi_master_pkey') THEN
+    ALTER TABLE ONLY public.kpi_master ADD CONSTRAINT kpi_master_pkey PRIMARY KEY (id);
+  END IF;
 END $$;
 
 --
@@ -1745,9 +1732,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.kpi_projections
-    ADD CONSTRAINT kpi_projections_pkey PRIMARY KEY (id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'kpi_projections' AND c.conname = 'kpi_projections_pkey') THEN
+    ALTER TABLE ONLY public.kpi_projections ADD CONSTRAINT kpi_projections_pkey PRIMARY KEY (id);
+  END IF;
 END $$;
 
 --
@@ -1756,9 +1743,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.kpi_projections
-    ADD CONSTRAINT "kpi_projections_userId_month_metric_key" UNIQUE ("userId", month, metric);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'kpi_projections' AND c.conname = 'kpi_projections_userId_month_metric_key') THEN
+    ALTER TABLE ONLY public.kpi_projections ADD CONSTRAINT "kpi_projections_userId_month_metric_key" UNIQUE ("userId", month, metric);
+  END IF;
 END $$;
 
 --
@@ -1767,9 +1754,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.prospect_status_history
-    ADD CONSTRAINT lead_status_history_pkey PRIMARY KEY (id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'prospect_status_history' AND c.conname = 'lead_status_history_pkey') THEN
+    ALTER TABLE ONLY public.prospect_status_history ADD CONSTRAINT lead_status_history_pkey PRIMARY KEY (id);
+  END IF;
 END $$;
 
 --
@@ -1778,9 +1765,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.login_activity
-    ADD CONSTRAINT login_activity_pkey PRIMARY KEY (id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'login_activity' AND c.conname = 'login_activity_pkey') THEN
+    ALTER TABLE ONLY public.login_activity ADD CONSTRAINT login_activity_pkey PRIMARY KEY (id);
+  END IF;
 END $$;
 
 --
@@ -1789,9 +1776,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.login_security
-    ADD CONSTRAINT login_security_pkey PRIMARY KEY ("userId");
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'login_security' AND c.conname = 'login_security_pkey') THEN
+    ALTER TABLE ONLY public.login_security ADD CONSTRAINT login_security_pkey PRIMARY KEY ("userId");
+  END IF;
 END $$;
 
 --
@@ -1800,9 +1787,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.opportunity_answer_history
-    ADD CONSTRAINT opportunity_answer_history_pkey PRIMARY KEY (id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'opportunity_answer_history' AND c.conname = 'opportunity_answer_history_pkey') THEN
+    ALTER TABLE ONLY public.opportunity_answer_history ADD CONSTRAINT opportunity_answer_history_pkey PRIMARY KEY (id);
+  END IF;
 END $$;
 
 --
@@ -1811,9 +1798,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.opportunity_answers
-    ADD CONSTRAINT "opportunity_answers_opportunityId_questionKey_key" UNIQUE ("opportunityId", "questionKey");
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'opportunity_answers' AND c.conname = 'opportunity_answers_opportunityId_questionKey_key') THEN
+    ALTER TABLE ONLY public.opportunity_answers ADD CONSTRAINT "opportunity_answers_opportunityId_questionKey_key" UNIQUE ("opportunityId", "questionKey");
+  END IF;
 END $$;
 
 --
@@ -1822,9 +1809,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.opportunity_answers
-    ADD CONSTRAINT opportunity_answers_pkey PRIMARY KEY (id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'opportunity_answers' AND c.conname = 'opportunity_answers_pkey') THEN
+    ALTER TABLE ONLY public.opportunity_answers ADD CONSTRAINT opportunity_answers_pkey PRIMARY KEY (id);
+  END IF;
 END $$;
 
 --
@@ -1833,9 +1820,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.opportunity_stage_history
-    ADD CONSTRAINT opportunity_stage_history_pkey PRIMARY KEY (id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'opportunity_stage_history' AND c.conname = 'opportunity_stage_history_pkey') THEN
+    ALTER TABLE ONLY public.opportunity_stage_history ADD CONSTRAINT opportunity_stage_history_pkey PRIMARY KEY (id);
+  END IF;
 END $$;
 
 --
@@ -1844,9 +1831,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.product_categories
-    ADD CONSTRAINT product_categories_pkey PRIMARY KEY (id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'product_categories' AND c.conname = 'product_categories_pkey') THEN
+    ALTER TABLE ONLY public.product_categories ADD CONSTRAINT product_categories_pkey PRIMARY KEY (id);
+  END IF;
 END $$;
 
 --
@@ -1855,9 +1842,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.prospect_options
-    ADD CONSTRAINT prospect_options_pkey PRIMARY KEY (id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'prospect_options' AND c.conname = 'prospect_options_pkey') THEN
+    ALTER TABLE ONLY public.prospect_options ADD CONSTRAINT prospect_options_pkey PRIMARY KEY (id);
+  END IF;
 END $$;
 
 --
@@ -1866,9 +1853,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.questions
-    ADD CONSTRAINT questions_pkey PRIMARY KEY (id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'questions' AND c.conname = 'questions_pkey') THEN
+    ALTER TABLE ONLY public.questions ADD CONSTRAINT questions_pkey PRIMARY KEY (id);
+  END IF;
 END $$;
 
 --
@@ -1877,9 +1864,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.questions
-    ADD CONSTRAINT "questions_questionKey_key" UNIQUE ("questionKey");
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'questions' AND c.conname = 'questions_questionKey_key') THEN
+    ALTER TABLE ONLY public.questions ADD CONSTRAINT "questions_questionKey_key" UNIQUE ("questionKey");
+  END IF;
 END $$;
 
 --
@@ -1888,9 +1875,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.revoked_tokens
-    ADD CONSTRAINT revoked_tokens_pkey PRIMARY KEY (id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'revoked_tokens' AND c.conname = 'revoked_tokens_pkey') THEN
+    ALTER TABLE ONLY public.revoked_tokens ADD CONSTRAINT revoked_tokens_pkey PRIMARY KEY (id);
+  END IF;
 END $$;
 
 --
@@ -1899,9 +1886,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.sales_targets
-    ADD CONSTRAINT sales_targets_pkey PRIMARY KEY (id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'sales_targets' AND c.conname = 'sales_targets_pkey') THEN
+    ALTER TABLE ONLY public.sales_targets ADD CONSTRAINT sales_targets_pkey PRIMARY KEY (id);
+  END IF;
 END $$;
 
 --
@@ -1914,9 +1901,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.security_alerts
-    ADD CONSTRAINT security_alerts_pkey PRIMARY KEY (id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'security_alerts' AND c.conname = 'security_alerts_pkey') THEN
+    ALTER TABLE ONLY public.security_alerts ADD CONSTRAINT security_alerts_pkey PRIMARY KEY (id);
+  END IF;
 END $$;
 
 --
@@ -1925,9 +1912,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.tags
-    ADD CONSTRAINT tags_name_key UNIQUE (name);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'tags' AND c.conname = 'tags_name_key') THEN
+    ALTER TABLE ONLY public.tags ADD CONSTRAINT tags_name_key UNIQUE (name);
+  END IF;
 END $$;
 
 --
@@ -1936,9 +1923,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.tags
-    ADD CONSTRAINT tags_pkey PRIMARY KEY (id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'tags' AND c.conname = 'tags_pkey') THEN
+    ALTER TABLE ONLY public.tags ADD CONSTRAINT tags_pkey PRIMARY KEY (id);
+  END IF;
 END $$;
 
 --
@@ -1947,9 +1934,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.ticket_issue_history
-    ADD CONSTRAINT ticket_issue_history_pkey PRIMARY KEY (id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'ticket_issue_history' AND c.conname = 'ticket_issue_history_pkey') THEN
+    ALTER TABLE ONLY public.ticket_issue_history ADD CONSTRAINT ticket_issue_history_pkey PRIMARY KEY (id);
+  END IF;
 END $$;
 
 --
@@ -1958,9 +1945,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.ticket_issues
-    ADD CONSTRAINT ticket_issues_pkey PRIMARY KEY (id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'ticket_issues' AND c.conname = 'ticket_issues_pkey') THEN
+    ALTER TABLE ONLY public.ticket_issues ADD CONSTRAINT ticket_issues_pkey PRIMARY KEY (id);
+  END IF;
 END $$;
 
 --
@@ -1969,9 +1956,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.ticket_issues
-    ADD CONSTRAINT "ticket_issues_ticketId_issueNumber_key" UNIQUE ("ticketId", "issueNumber");
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'ticket_issues' AND c.conname = 'ticket_issues_ticketId_issueNumber_key') THEN
+    ALTER TABLE ONLY public.ticket_issues ADD CONSTRAINT "ticket_issues_ticketId_issueNumber_key" UNIQUE ("ticketId", "issueNumber");
+  END IF;
 END $$;
 
 --
@@ -1980,9 +1967,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.prospect_options
-    ADD CONSTRAINT uq_prospect_option UNIQUE (category, name);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'prospect_options' AND c.conname = 'uq_prospect_option') THEN
+    ALTER TABLE ONLY public.prospect_options ADD CONSTRAINT uq_prospect_option UNIQUE (category, name);
+  END IF;
 END $$;
 
 --
@@ -2747,9 +2734,9 @@ CREATE OR REPLACE TRIGGER update_users_updated_at BEFORE UPDATE ON public.users 
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.opportunities
-    ADD CONSTRAINT "FK_0487ff0859e04aecaa9e9a913d0" FOREIGN KEY ("primaryContactId") REFERENCES public.contacts(id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'opportunities' AND c.conname = 'FK_0487ff0859e04aecaa9e9a913d0') THEN
+    ALTER TABLE ONLY public.opportunities ADD CONSTRAINT "FK_0487ff0859e04aecaa9e9a913d0" FOREIGN KEY ("primaryContactId") REFERENCES public.contacts(id);
+  END IF;
 END $$;
 
 --
@@ -2758,9 +2745,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.role_permissions
-    ADD CONSTRAINT "FK_06792d0c62ce6b0203c03643cdd" FOREIGN KEY ("permissionId") REFERENCES public.permissions(id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'role_permissions' AND c.conname = 'FK_06792d0c62ce6b0203c03643cdd') THEN
+    ALTER TABLE ONLY public.role_permissions ADD CONSTRAINT "FK_06792d0c62ce6b0203c03643cdd" FOREIGN KEY ("permissionId") REFERENCES public.permissions(id);
+  END IF;
 END $$;
 
 --
@@ -2769,9 +2756,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.contracts
-    ADD CONSTRAINT "FK_18cbf0097753ef0065d75ec0cb8" FOREIGN KEY ("opportunityId") REFERENCES public.opportunities(id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'contracts' AND c.conname = 'FK_18cbf0097753ef0065d75ec0cb8') THEN
+    ALTER TABLE ONLY public.contracts ADD CONSTRAINT "FK_18cbf0097753ef0065d75ec0cb8" FOREIGN KEY ("opportunityId") REFERENCES public.opportunities(id);
+  END IF;
 END $$;
 
 --
@@ -2780,9 +2767,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.projects
-    ADD CONSTRAINT "FK_1fa4a36bc7ea7727a1ff25be92f" FOREIGN KEY ("projectManagerId") REFERENCES public.users(id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'projects' AND c.conname = 'FK_1fa4a36bc7ea7727a1ff25be92f') THEN
+    ALTER TABLE ONLY public.projects ADD CONSTRAINT "FK_1fa4a36bc7ea7727a1ff25be92f" FOREIGN KEY ("projectManagerId") REFERENCES public.users(id);
+  END IF;
 END $$;
 
 --
@@ -2791,9 +2778,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.invoices
-    ADD CONSTRAINT "FK_20d900c6b7f2de7faa4d214d64d" FOREIGN KEY ("projectId") REFERENCES public.projects(id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'invoices' AND c.conname = 'FK_20d900c6b7f2de7faa4d214d64d') THEN
+    ALTER TABLE ONLY public.invoices ADD CONSTRAINT "FK_20d900c6b7f2de7faa4d214d64d" FOREIGN KEY ("projectId") REFERENCES public.projects(id);
+  END IF;
 END $$;
 
 --
@@ -2802,9 +2789,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.sales_visits
-    ADD CONSTRAINT "FK_2585d1c1190a3c18da32302c59c" FOREIGN KEY ("accountId") REFERENCES public.leads(id) ON DELETE SET NULL;
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'sales_visits' AND c.conname = 'FK_2585d1c1190a3c18da32302c59c') THEN
+    ALTER TABLE ONLY public.sales_visits ADD CONSTRAINT "FK_2585d1c1190a3c18da32302c59c" FOREIGN KEY ("accountId") REFERENCES public.leads(id) ON DELETE SET NULL;
+  END IF;
 END $$;
 
 --
@@ -2813,9 +2800,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.leads
-    ADD CONSTRAINT "FK_2cb7f7a1dc3b84c8cde2b930944" FOREIGN KEY ("ownerId") REFERENCES public.users(id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'leads' AND c.conname = 'FK_2cb7f7a1dc3b84c8cde2b930944') THEN
+    ALTER TABLE ONLY public.leads ADD CONSTRAINT "FK_2cb7f7a1dc3b84c8cde2b930944" FOREIGN KEY ("ownerId") REFERENCES public.users(id);
+  END IF;
 END $$;
 
 --
@@ -2824,9 +2811,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.contracts
-    ADD CONSTRAINT "FK_34aa224c8a6e62621f5c4988522" FOREIGN KEY ("createdById") REFERENCES public.users(id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'contracts' AND c.conname = 'FK_34aa224c8a6e62621f5c4988522') THEN
+    ALTER TABLE ONLY public.contracts ADD CONSTRAINT "FK_34aa224c8a6e62621f5c4988522" FOREIGN KEY ("createdById") REFERENCES public.users(id);
+  END IF;
 END $$;
 
 --
@@ -2835,9 +2822,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.users
-    ADD CONSTRAINT "FK_368e146b785b574f42ae9e53d5e" FOREIGN KEY ("roleId") REFERENCES public.roles(id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'users' AND c.conname = 'FK_368e146b785b574f42ae9e53d5e') THEN
+    ALTER TABLE ONLY public.users ADD CONSTRAINT "FK_368e146b785b574f42ae9e53d5e" FOREIGN KEY ("roleId") REFERENCES public.roles(id);
+  END IF;
 END $$;
 
 --
@@ -2846,9 +2833,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.projects
-    ADD CONSTRAINT "FK_3f20b08797133f636a6af39fc55" FOREIGN KEY ("accountId") REFERENCES public.leads(id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'projects' AND c.conname = 'FK_3f20b08797133f636a6af39fc55') THEN
+    ALTER TABLE ONLY public.projects ADD CONSTRAINT "FK_3f20b08797133f636a6af39fc55" FOREIGN KEY ("accountId") REFERENCES public.leads(id);
+  END IF;
 END $$;
 
 --
@@ -2857,9 +2844,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.invoices
-    ADD CONSTRAINT "FK_42d017ec6c4a79ea33cbe9dbfba" FOREIGN KEY ("contractId") REFERENCES public.contracts(id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'invoices' AND c.conname = 'FK_42d017ec6c4a79ea33cbe9dbfba') THEN
+    ALTER TABLE ONLY public.invoices ADD CONSTRAINT "FK_42d017ec6c4a79ea33cbe9dbfba" FOREIGN KEY ("contractId") REFERENCES public.contracts(id);
+  END IF;
 END $$;
 
 --
@@ -2868,9 +2855,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.payments
-    ADD CONSTRAINT "FK_43d19956aeab008b49e0804c145" FOREIGN KEY ("invoiceId") REFERENCES public.invoices(id) ON DELETE CASCADE;
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'payments' AND c.conname = 'FK_43d19956aeab008b49e0804c145') THEN
+    ALTER TABLE ONLY public.payments ADD CONSTRAINT "FK_43d19956aeab008b49e0804c145" FOREIGN KEY ("invoiceId") REFERENCES public.invoices(id) ON DELETE CASCADE;
+  END IF;
 END $$;
 
 --
@@ -2879,9 +2866,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.tickets
-    ADD CONSTRAINT "FK_4f127f7c92139971ec4cbbe0bd5" FOREIGN KEY ("assigneeId") REFERENCES public.users(id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'tickets' AND c.conname = 'FK_4f127f7c92139971ec4cbbe0bd5') THEN
+    ALTER TABLE ONLY public.tickets ADD CONSTRAINT "FK_4f127f7c92139971ec4cbbe0bd5" FOREIGN KEY ("assigneeId") REFERENCES public.users(id);
+  END IF;
 END $$;
 
 --
@@ -2890,9 +2877,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.invoices
-    ADD CONSTRAINT "FK_517b74001b457b209d95e4352e6" FOREIGN KEY ("accountId") REFERENCES public.leads(id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'invoices' AND c.conname = 'FK_517b74001b457b209d95e4352e6') THEN
+    ALTER TABLE ONLY public.invoices ADD CONSTRAINT "FK_517b74001b457b209d95e4352e6" FOREIGN KEY ("accountId") REFERENCES public.leads(id);
+  END IF;
 END $$;
 
 --
@@ -2901,9 +2888,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.expenses
-    ADD CONSTRAINT "FK_52d3a5654f747793e6048e55bb6" FOREIGN KEY ("approvedById") REFERENCES public.users(id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'expenses' AND c.conname = 'FK_52d3a5654f747793e6048e55bb6') THEN
+    ALTER TABLE ONLY public.expenses ADD CONSTRAINT "FK_52d3a5654f747793e6048e55bb6" FOREIGN KEY ("approvedById") REFERENCES public.users(id);
+  END IF;
 END $$;
 
 --
@@ -2912,9 +2899,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.contacts
-    ADD CONSTRAINT "FK_5363bc1655a7339414523a02fd4" FOREIGN KEY ("accountId") REFERENCES public.leads(id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'contacts' AND c.conname = 'FK_5363bc1655a7339414523a02fd4') THEN
+    ALTER TABLE ONLY public.contacts ADD CONSTRAINT "FK_5363bc1655a7339414523a02fd4" FOREIGN KEY ("accountId") REFERENCES public.leads(id);
+  END IF;
 END $$;
 
 --
@@ -2923,9 +2910,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.line_items
-    ADD CONSTRAINT "FK_53e425e79128eb598687d9cd0e4" FOREIGN KEY ("opportunityId") REFERENCES public.opportunities(id) ON DELETE CASCADE;
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'line_items' AND c.conname = 'FK_53e425e79128eb598687d9cd0e4') THEN
+    ALTER TABLE ONLY public.line_items ADD CONSTRAINT "FK_53e425e79128eb598687d9cd0e4" FOREIGN KEY ("opportunityId") REFERENCES public.opportunities(id) ON DELETE CASCADE;
+  END IF;
 END $$;
 
 --
@@ -2934,9 +2921,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.activities
-    ADD CONSTRAINT "FK_579056df0c92b0f6432e96b2048" FOREIGN KEY ("createdById") REFERENCES public.users(id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'activities' AND c.conname = 'FK_579056df0c92b0f6432e96b2048') THEN
+    ALTER TABLE ONLY public.activities ADD CONSTRAINT "FK_579056df0c92b0f6432e96b2048" FOREIGN KEY ("createdById") REFERENCES public.users(id);
+  END IF;
 END $$;
 
 --
@@ -2945,9 +2932,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.projects
-    ADD CONSTRAINT "FK_5e0067b69b5325d34bf33503252" FOREIGN KEY ("contractId") REFERENCES public.contracts(id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'projects' AND c.conname = 'FK_5e0067b69b5325d34bf33503252') THEN
+    ALTER TABLE ONLY public.projects ADD CONSTRAINT "FK_5e0067b69b5325d34bf33503252" FOREIGN KEY ("contractId") REFERENCES public.contracts(id);
+  END IF;
 END $$;
 
 --
@@ -2956,9 +2943,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.prospects
-    ADD CONSTRAINT "FK_62e3c834894c2c2da4023718aa9" FOREIGN KEY ("accountId") REFERENCES public.leads(id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'prospects' AND c.conname = 'FK_62e3c834894c2c2da4023718aa9') THEN
+    ALTER TABLE ONLY public.prospects ADD CONSTRAINT "FK_62e3c834894c2c2da4023718aa9" FOREIGN KEY ("accountId") REFERENCES public.leads(id);
+  END IF;
 END $$;
 
 --
@@ -2967,9 +2954,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.tickets
-    ADD CONSTRAINT "FK_7b38d2bacd0eff4228449136f71" FOREIGN KEY ("contactId") REFERENCES public.contacts(id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'tickets' AND c.conname = 'FK_7b38d2bacd0eff4228449136f71') THEN
+    ALTER TABLE ONLY public.tickets ADD CONSTRAINT "FK_7b38d2bacd0eff4228449136f71" FOREIGN KEY ("contactId") REFERENCES public.contacts(id);
+  END IF;
 END $$;
 
 --
@@ -2978,9 +2965,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.opportunities
-    ADD CONSTRAINT "FK_95c92b4ade0ed9ba50ba00b312c" FOREIGN KEY ("accountId") REFERENCES public.leads(id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'opportunities' AND c.conname = 'FK_95c92b4ade0ed9ba50ba00b312c') THEN
+    ALTER TABLE ONLY public.opportunities ADD CONSTRAINT "FK_95c92b4ade0ed9ba50ba00b312c" FOREIGN KEY ("accountId") REFERENCES public.leads(id);
+  END IF;
 END $$;
 
 --
@@ -2989,9 +2976,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.project_milestones
-    ADD CONSTRAINT "FK_9fb847267f120c4cdbbb28b408b" FOREIGN KEY ("projectId") REFERENCES public.projects(id) ON DELETE CASCADE;
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'project_milestones' AND c.conname = 'FK_9fb847267f120c4cdbbb28b408b') THEN
+    ALTER TABLE ONLY public.project_milestones ADD CONSTRAINT "FK_9fb847267f120c4cdbbb28b408b" FOREIGN KEY ("projectId") REFERENCES public.projects(id) ON DELETE CASCADE;
+  END IF;
 END $$;
 
 --
@@ -3000,9 +2987,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.email_settings
-    ADD CONSTRAINT "FK_a60045d50ed862b9a515d0c0b8e" FOREIGN KEY ("updatedById") REFERENCES public.users(id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'email_settings' AND c.conname = 'FK_a60045d50ed862b9a515d0c0b8e') THEN
+    ALTER TABLE ONLY public.email_settings ADD CONSTRAINT "FK_a60045d50ed862b9a515d0c0b8e" FOREIGN KEY ("updatedById") REFERENCES public.users(id);
+  END IF;
 END $$;
 
 --
@@ -3011,9 +2998,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.tickets
-    ADD CONSTRAINT "FK_ae9b43f5037786810fcfbb4e632" FOREIGN KEY ("accountId") REFERENCES public.leads(id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'tickets' AND c.conname = 'FK_ae9b43f5037786810fcfbb4e632') THEN
+    ALTER TABLE ONLY public.tickets ADD CONSTRAINT "FK_ae9b43f5037786810fcfbb4e632" FOREIGN KEY ("accountId") REFERENCES public.leads(id);
+  END IF;
 END $$;
 
 --
@@ -3022,9 +3009,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.tickets
-    ADD CONSTRAINT "FK_b1930f86a5e9b5b5be3689fc820" FOREIGN KEY ("reporterId") REFERENCES public.users(id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'tickets' AND c.conname = 'FK_b1930f86a5e9b5b5be3689fc820') THEN
+    ALTER TABLE ONLY public.tickets ADD CONSTRAINT "FK_b1930f86a5e9b5b5be3689fc820" FOREIGN KEY ("reporterId") REFERENCES public.users(id);
+  END IF;
 END $$;
 
 --
@@ -3033,9 +3020,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.role_permissions
-    ADD CONSTRAINT "FK_b4599f8b8f548d35850afa2d12c" FOREIGN KEY ("roleId") REFERENCES public.roles(id) ON UPDATE CASCADE ON DELETE CASCADE;
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'role_permissions' AND c.conname = 'FK_b4599f8b8f548d35850afa2d12c') THEN
+    ALTER TABLE ONLY public.role_permissions ADD CONSTRAINT "FK_b4599f8b8f548d35850afa2d12c" FOREIGN KEY ("roleId") REFERENCES public.roles(id) ON UPDATE CASCADE ON DELETE CASCADE;
+  END IF;
 END $$;
 
 --
@@ -3044,9 +3031,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.expenses
-    ADD CONSTRAINT "FK_c1495dd5777eaeea92b8a21843e" FOREIGN KEY ("ownerId") REFERENCES public.users(id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'expenses' AND c.conname = 'FK_c1495dd5777eaeea92b8a21843e') THEN
+    ALTER TABLE ONLY public.expenses ADD CONSTRAINT "FK_c1495dd5777eaeea92b8a21843e" FOREIGN KEY ("ownerId") REFERENCES public.users(id);
+  END IF;
 END $$;
 
 --
@@ -3055,9 +3042,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.opportunities
-    ADD CONSTRAINT "FK_cc51e62c9dfa9d01661bc4a4e9c" FOREIGN KEY ("ownerId") REFERENCES public.users(id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'opportunities' AND c.conname = 'FK_cc51e62c9dfa9d01661bc4a4e9c') THEN
+    ALTER TABLE ONLY public.opportunities ADD CONSTRAINT "FK_cc51e62c9dfa9d01661bc4a4e9c" FOREIGN KEY ("ownerId") REFERENCES public.users(id);
+  END IF;
 END $$;
 
 --
@@ -3066,9 +3053,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.contracts
-    ADD CONSTRAINT "FK_cea24c405eca7df888febed0dba" FOREIGN KEY ("accountId") REFERENCES public.leads(id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'contracts' AND c.conname = 'FK_cea24c405eca7df888febed0dba') THEN
+    ALTER TABLE ONLY public.contracts ADD CONSTRAINT "FK_cea24c405eca7df888febed0dba" FOREIGN KEY ("accountId") REFERENCES public.leads(id);
+  END IF;
 END $$;
 
 --
@@ -3077,9 +3064,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.project_milestones
-    ADD CONSTRAINT "FK_cf110dea57fce0159c273fca17f" FOREIGN KEY ("responsibleUserId") REFERENCES public.users(id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'project_milestones' AND c.conname = 'FK_cf110dea57fce0159c273fca17f') THEN
+    ALTER TABLE ONLY public.project_milestones ADD CONSTRAINT "FK_cf110dea57fce0159c273fca17f" FOREIGN KEY ("responsibleUserId") REFERENCES public.users(id);
+  END IF;
 END $$;
 
 --
@@ -3088,9 +3075,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.audit_logs
-    ADD CONSTRAINT "FK_cfa83f61e4d27a87fcae1e025ab" FOREIGN KEY ("userId") REFERENCES public.users(id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'audit_logs' AND c.conname = 'FK_cfa83f61e4d27a87fcae1e025ab') THEN
+    ALTER TABLE ONLY public.audit_logs ADD CONSTRAINT "FK_cfa83f61e4d27a87fcae1e025ab" FOREIGN KEY ("userId") REFERENCES public.users(id);
+  END IF;
 END $$;
 
 --
@@ -3099,9 +3086,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.sales_visits
-    ADD CONSTRAINT "FK_d5b7219ca9ac5ac508ffcfe842b" FOREIGN KEY ("createdById") REFERENCES public.users(id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'sales_visits' AND c.conname = 'FK_d5b7219ca9ac5ac508ffcfe842b') THEN
+    ALTER TABLE ONLY public.sales_visits ADD CONSTRAINT "FK_d5b7219ca9ac5ac508ffcfe842b" FOREIGN KEY ("createdById") REFERENCES public.users(id);
+  END IF;
 END $$;
 
 --
@@ -3110,9 +3097,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.prospects
-    ADD CONSTRAINT "FK_d673803d4443e1bfe47d11c45be" FOREIGN KEY ("ownerId") REFERENCES public.users(id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'prospects' AND c.conname = 'FK_d673803d4443e1bfe47d11c45be') THEN
+    ALTER TABLE ONLY public.prospects ADD CONSTRAINT "FK_d673803d4443e1bfe47d11c45be" FOREIGN KEY ("ownerId") REFERENCES public.users(id);
+  END IF;
 END $$;
 
 --
@@ -3121,9 +3108,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.notifications
-    ADD CONSTRAINT "FK_db873ba9a123711a4bff527ccd5" FOREIGN KEY ("recipientId") REFERENCES public.users(id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'notifications' AND c.conname = 'FK_db873ba9a123711a4bff527ccd5') THEN
+    ALTER TABLE ONLY public.notifications ADD CONSTRAINT "FK_db873ba9a123711a4bff527ccd5" FOREIGN KEY ("recipientId") REFERENCES public.users(id);
+  END IF;
 END $$;
 
 --
@@ -3132,9 +3119,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.notes
-    ADD CONSTRAINT "FK_f2a1f6264b833a0b7db37757952" FOREIGN KEY ("createdById") REFERENCES public.users(id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'notes' AND c.conname = 'FK_f2a1f6264b833a0b7db37757952') THEN
+    ALTER TABLE ONLY public.notes ADD CONSTRAINT "FK_f2a1f6264b833a0b7db37757952" FOREIGN KEY ("createdById") REFERENCES public.users(id);
+  END IF;
 END $$;
 
 --
@@ -3143,9 +3130,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.account_stakeholders
-    ADD CONSTRAINT "account_stakeholders_accountId_fkey" FOREIGN KEY ("accountId") REFERENCES public.leads(id) ON DELETE CASCADE;
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'account_stakeholders' AND c.conname = 'account_stakeholders_accountId_fkey') THEN
+    ALTER TABLE ONLY public.account_stakeholders ADD CONSTRAINT "account_stakeholders_accountId_fkey" FOREIGN KEY ("accountId") REFERENCES public.leads(id) ON DELETE CASCADE;
+  END IF;
 END $$;
 
 --
@@ -3154,9 +3141,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.account_stakeholders
-    ADD CONSTRAINT "account_stakeholders_designationId_fkey" FOREIGN KEY ("designationId") REFERENCES public.designations(id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'account_stakeholders' AND c.conname = 'account_stakeholders_designationId_fkey') THEN
+    ALTER TABLE ONLY public.account_stakeholders ADD CONSTRAINT "account_stakeholders_designationId_fkey" FOREIGN KEY ("designationId") REFERENCES public.designations(id);
+  END IF;
 END $$;
 
 --
@@ -3165,9 +3152,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.leads
-    ADD CONSTRAINT "accounts_companyTypeId_fkey" FOREIGN KEY ("companyTypeId") REFERENCES public.company_types(id);
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'leads' AND c.conname = 'accounts_companyTypeId_fkey') THEN
+    ALTER TABLE ONLY public.leads ADD CONSTRAINT "accounts_companyTypeId_fkey" FOREIGN KEY ("companyTypeId") REFERENCES public.company_types(id);
+  END IF;
 END $$;
 
 --
@@ -3176,9 +3163,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.entity_tags
-    ADD CONSTRAINT fk_entity_tag_tag FOREIGN KEY (tagid) REFERENCES public.tags(id) ON DELETE CASCADE;
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'entity_tags' AND c.conname = 'fk_entity_tag_tag') THEN
+    ALTER TABLE ONLY public.entity_tags ADD CONSTRAINT fk_entity_tag_tag FOREIGN KEY (tagid) REFERENCES public.tags(id) ON DELETE CASCADE;
+  END IF;
 END $$;
 
 --
@@ -3187,9 +3174,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.products
-    ADD CONSTRAINT fk_products_category FOREIGN KEY ("categoryId") REFERENCES public.product_categories(id) ON DELETE SET NULL;
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'products' AND c.conname = 'fk_products_category') THEN
+    ALTER TABLE ONLY public.products ADD CONSTRAINT fk_products_category FOREIGN KEY ("categoryId") REFERENCES public.product_categories(id) ON DELETE SET NULL;
+  END IF;
 END $$;
 
 --
@@ -3198,9 +3185,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.kpi_entries
-    ADD CONSTRAINT "kpi_entries_kpiId_fkey" FOREIGN KEY ("kpiId") REFERENCES public.kpi_definitions(id) ON DELETE CASCADE;
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'kpi_entries' AND c.conname = 'kpi_entries_kpiId_fkey') THEN
+    ALTER TABLE ONLY public.kpi_entries ADD CONSTRAINT "kpi_entries_kpiId_fkey" FOREIGN KEY ("kpiId") REFERENCES public.kpi_definitions(id) ON DELETE CASCADE;
+  END IF;
 END $$;
 
 --
@@ -3209,9 +3196,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.prospect_status_history
-    ADD CONSTRAINT "lead_status_history_leadId_fkey" FOREIGN KEY ("prospectId") REFERENCES public.prospects(id) ON DELETE CASCADE;
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'prospect_status_history' AND c.conname = 'lead_status_history_leadId_fkey') THEN
+    ALTER TABLE ONLY public.prospect_status_history ADD CONSTRAINT "lead_status_history_leadId_fkey" FOREIGN KEY ("prospectId") REFERENCES public.prospects(id) ON DELETE CASCADE;
+  END IF;
 END $$;
 
 --
@@ -3220,9 +3207,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.login_activity
-    ADD CONSTRAINT "login_activity_userId_fkey" FOREIGN KEY ("userId") REFERENCES public.users(id) ON DELETE SET NULL;
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'login_activity' AND c.conname = 'login_activity_userId_fkey') THEN
+    ALTER TABLE ONLY public.login_activity ADD CONSTRAINT "login_activity_userId_fkey" FOREIGN KEY ("userId") REFERENCES public.users(id) ON DELETE SET NULL;
+  END IF;
 END $$;
 
 --
@@ -3231,9 +3218,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.opportunity_answer_history
-    ADD CONSTRAINT "opportunity_answer_history_opportunityId_fkey" FOREIGN KEY ("opportunityId") REFERENCES public.opportunities(id) ON DELETE CASCADE;
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'opportunity_answer_history' AND c.conname = 'opportunity_answer_history_opportunityId_fkey') THEN
+    ALTER TABLE ONLY public.opportunity_answer_history ADD CONSTRAINT "opportunity_answer_history_opportunityId_fkey" FOREIGN KEY ("opportunityId") REFERENCES public.opportunities(id) ON DELETE CASCADE;
+  END IF;
 END $$;
 
 --
@@ -3242,9 +3229,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.opportunity_answers
-    ADD CONSTRAINT "opportunity_answers_opportunityId_fkey" FOREIGN KEY ("opportunityId") REFERENCES public.opportunities(id) ON DELETE CASCADE;
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'opportunity_answers' AND c.conname = 'opportunity_answers_opportunityId_fkey') THEN
+    ALTER TABLE ONLY public.opportunity_answers ADD CONSTRAINT "opportunity_answers_opportunityId_fkey" FOREIGN KEY ("opportunityId") REFERENCES public.opportunities(id) ON DELETE CASCADE;
+  END IF;
 END $$;
 
 --
@@ -3253,9 +3240,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.opportunity_stage_history
-    ADD CONSTRAINT "opportunity_stage_history_opportunityId_fkey" FOREIGN KEY ("opportunityId") REFERENCES public.opportunities(id) ON DELETE CASCADE;
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'opportunity_stage_history' AND c.conname = 'opportunity_stage_history_opportunityId_fkey') THEN
+    ALTER TABLE ONLY public.opportunity_stage_history ADD CONSTRAINT "opportunity_stage_history_opportunityId_fkey" FOREIGN KEY ("opportunityId") REFERENCES public.opportunities(id) ON DELETE CASCADE;
+  END IF;
 END $$;
 
 --
@@ -3264,9 +3251,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.security_alerts
-    ADD CONSTRAINT "security_alerts_acknowledgedById_fkey" FOREIGN KEY ("acknowledgedById") REFERENCES public.users(id) ON DELETE SET NULL;
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'security_alerts' AND c.conname = 'security_alerts_acknowledgedById_fkey') THEN
+    ALTER TABLE ONLY public.security_alerts ADD CONSTRAINT "security_alerts_acknowledgedById_fkey" FOREIGN KEY ("acknowledgedById") REFERENCES public.users(id) ON DELETE SET NULL;
+  END IF;
 END $$;
 
 --
@@ -3275,9 +3262,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.security_alerts
-    ADD CONSTRAINT "security_alerts_userId_fkey" FOREIGN KEY ("userId") REFERENCES public.users(id) ON DELETE SET NULL;
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'security_alerts' AND c.conname = 'security_alerts_userId_fkey') THEN
+    ALTER TABLE ONLY public.security_alerts ADD CONSTRAINT "security_alerts_userId_fkey" FOREIGN KEY ("userId") REFERENCES public.users(id) ON DELETE SET NULL;
+  END IF;
 END $$;
 
 --
@@ -3286,9 +3273,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.ticket_issue_history
-    ADD CONSTRAINT "ticket_issue_history_issueId_fkey" FOREIGN KEY ("issueId") REFERENCES public.ticket_issues(id) ON DELETE CASCADE;
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'ticket_issue_history' AND c.conname = 'ticket_issue_history_issueId_fkey') THEN
+    ALTER TABLE ONLY public.ticket_issue_history ADD CONSTRAINT "ticket_issue_history_issueId_fkey" FOREIGN KEY ("issueId") REFERENCES public.ticket_issues(id) ON DELETE CASCADE;
+  END IF;
 END $$;
 
 --
@@ -3297,9 +3284,9 @@ END $$;
 
 DO $$
 BEGIN
-  ALTER TABLE ONLY public.ticket_issues
-    ADD CONSTRAINT "ticket_issues_ticketId_fkey" FOREIGN KEY ("ticketId") REFERENCES public.tickets(id) ON DELETE CASCADE;
-EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_class r ON r.oid = c.conrelid JOIN pg_namespace n ON n.oid = r.relnamespace WHERE n.nspname = 'public' AND r.relname = 'ticket_issues' AND c.conname = 'ticket_issues_ticketId_fkey') THEN
+    ALTER TABLE ONLY public.ticket_issues ADD CONSTRAINT "ticket_issues_ticketId_fkey" FOREIGN KEY ("ticketId") REFERENCES public.tickets(id) ON DELETE CASCADE;
+  END IF;
 END $$;
 
 --
@@ -3370,6 +3357,7 @@ ON CONFLICT (name) DO NOTHING;
 -- Prospect per product (migration 039)
 -- One prospect per product: email is unique per product (email, productId), not on its own.
 -- Idempotent. Also included in FULL_SCHEMA_2026-10_create_if_not_exists.sql.
+-- Prospects are unique per product (migration 039): the old email-only constraint is not created.
 ALTER TABLE public.prospects DROP CONSTRAINT IF EXISTS "UQ_b3eea7add0e16594dba102716c5";
 CREATE UNIQUE INDEX IF NOT EXISTS "UQ_prospects_email_product" ON public.prospects (email, "productId");
 

@@ -65,6 +65,13 @@ function buildCatalog() {
         ...crud('targets', 'sales targets'),
         ...crud('kpis', 'staff KPI entries and projections'),
         ...crud('kpi_setup', 'KPI definitions'),
+        // Daily KPI verification and KPI targets. read: see the sheet or the targets; update: enter supervisor
+        // values, approve days, and set targets; delete: unlock an approved day. Team scope limits whose
+        // people a user sees (their own team), all scope sees every salesperson.
+        ...crud('kpi_verification', 'daily KPI verification'),
+        ...teamScoped('kpi_verification', 'daily KPI verification'),
+        ...crud('kpi_targets', 'KPI targets'),
+        ...teamScoped('kpi_targets', 'KPI targets'),
         // Client issue log (issues inside tickets, with stage tracking)
         ...crud('issue_log', 'client issues'),
         // Task Manager: read:all sees every task; read:self sees only the tasks the user assigned or was assigned
@@ -75,6 +82,11 @@ function buildCatalog() {
         ...crud('questionnaire', 'opportunity stage questions'),
         // Team scope (hierarchical visibility)
         ...teamScoped('accounts', 'accounts'),
+        // Leads and prospects: team scope shows the team's prospects; assigned prospects are visible to the assignee.
+        ...teamScoped('leads', 'leads and prospects'),
+        // Reports and sales KPIs: team scope shows the people a supervisor supervises.
+        ...teamScoped('reports', 'reports'),
+        ...teamScoped('sales_visits', 'sales visits and KPIs'),
     ];
 }
 async function ensurePermissions() {

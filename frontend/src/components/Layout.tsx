@@ -225,6 +225,8 @@ export default function Layout({ children }: LayoutProps) {
       items: [
         { text: 'Targets & Performance', icon: <TargetIcon />, path: '/performance', show: canViewModule('reports') },
         { text: 'Sales KPIs', icon: <TargetIcon />, path: '/sales-activity', show: canViewModule('sales_visits') },
+        { text: 'KPI Verification', icon: <TargetIcon />, path: '/kpi-verification', show: canViewModule('kpi_verification') },
+        { text: 'KPI Targets', icon: <TargetIcon />, path: '/kpi-targets', show: canViewModule('kpi_targets') },
         { text: 'My KPIs', icon: <TargetIcon />, path: '/my-kpis', show: canViewModule('kpis') },
         { text: 'KPI Meeting Report', icon: <ReportsIcon />, path: '/meeting-report', show: canViewModule('kpis') },
       ],

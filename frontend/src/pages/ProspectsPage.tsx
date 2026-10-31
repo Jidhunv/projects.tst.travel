@@ -770,12 +770,17 @@ export default function ProspectsPage() {
               <MenuItem value="website">Website</MenuItem>
               <MenuItem value="event">Event</MenuItem>
             </TextField>
-            <TextField error={!String(form.productIds[0] || '').trim()} required
+            <TextField error={form.productIds.length === 0} required
               fullWidth
               select
-              label="Product"
-              value={form.productIds[0] || ''}
-              onChange={(e) => setForm({ ...form, productIds: e.target.value ? [e.target.value] : [] })}
+              label="Products"
+              value={form.productIds}
+              onChange={(e) => setForm({ ...form, productIds: e.target.value as unknown as string[] })}
+              SelectProps={{
+                multiple: true,
+                renderValue: (selected) => (selected as string[]).map((id) => products.find((p) => p.id === id)?.name || id).join(', '),
+              }}
+              helperText="One prospect is created for each product selected."
               sx={{ mb: 1 }}
             >
               {products.map((product) => (

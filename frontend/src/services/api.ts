@@ -117,6 +117,8 @@ export const api = {
     apiClient.get<ApiResponse<any>>('/users/me'),
 
   // Users list (Admin/Manager only) — used for owner-assignment dropdowns
+  // Staff a picker may show: names and emails of the people the signed-in user can see.
+  getStaffDirectory: () => apiClient.get<ApiResponse<any[]>>('/users/directory'),
   getUsers: (page = 1, limit = 200) =>
     apiClient.get<ApiResponse<any[]>>('/users', { params: { page, limit } }),
 
@@ -401,6 +403,18 @@ export const api = {
   getSalesActivitySummary: (filters?: Record<string, any>) =>
     apiClient.get<ApiResponse<any>>('/sales-activity/summary', { params: filters }),
   getSalesActivityOptions: (params?: Record<string, any>) => apiClient.get<ApiResponse<any>>('/sales-activity/options', { params }),
+
+  // Daily KPI verification: CRM values, supervisor values, approval and weightage
+  getKpiDays: (params: Record<string, any>) => apiClient.get<ApiResponse<any>>('/kpi-verification/days', { params }),
+  saveKpiSupervisorValue: (data: Record<string, any>) => apiClient.put<ApiResponse<any>>('/kpi-verification/values', data),
+  approveKpiDay: (data: Record<string, any>) => apiClient.post<ApiResponse<any>>('/kpi-verification/approve', data),
+  getKpiWeights: () => apiClient.get<ApiResponse<any[]>>('/kpi-verification/weights'),
+  unlockKpiDay: (data: { userId: string; day: string }) => apiClient.post<ApiResponse<any>>('/kpi-verification/unlock', data),
+  getKpiTargets: () => apiClient.get<ApiResponse<any>>('/kpi-verification/targets'),
+  saveKpiTarget: (data: { userId: string; metricKey: string; target: number | null }) =>
+    apiClient.put<ApiResponse<any>>('/kpi-verification/targets', data),
+  saveKpiWeights: (weights: Array<{ metricKey: string; weight: number }>) =>
+    apiClient.put<ApiResponse<any[]>>('/kpi-verification/weights', { weights }),
 
   // Expense management (with approval workflow)
   getExpenses: (filters?: Record<string, any>) =>

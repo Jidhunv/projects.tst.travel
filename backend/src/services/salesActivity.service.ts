@@ -18,6 +18,11 @@ export interface SalesActivityFilters {
 }
 
 const UNASSIGNED = 'unassigned';
+// Pipeline table rows. Open, qualified and prospect statuses all make up the single Lead Prospects row.
+const PROSPECT_STAGE_LABEL: Record<string, string> = { Open: 'Lead Prospects', Qualified: 'Lead Prospects', Prospect: 'Lead Prospects' };
+const PROSPECT_STAGE_ROWS = ['Lead Account', 'Lead Prospects'];
+const STAGE_LABEL: Record<string, string> = { 'Customer engagement': 'Customer Engagement', 'Closed-Won': 'Close Won', 'Closed-Lost': 'Close Lost' };
+const stageLabel = (stage: string) => STAGE_LABEL[stage] ?? stage;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 // Owner ids the viewer may see, or null when every salesperson is visible.
@@ -143,12 +148,21 @@ export async function summary(user: AuthUser | undefined, input: SalesActivityFi
     prospectW.params
   );
 
-  // Demos conducted (attendance recorded, DEMO-06) and proposals sent (PROP-07), answered in the period.
-  const answerW = new Where().add('a."questionKey" = ANY(?::text[])', ['DEMO-06', 'PROP-07']).add('a.status = ?', 'answered').dateRange('a."updatedAt"', f).owners('o."ownerId"', owners).add('TRIM(o.country) = ?', f.country).add('TRIM(o.region) = ?', f.region).build();
+  // Proposals sent (PROP-07), answered in the period.
+  const answerW = new Where().add('a."questionKey" = ?', 'PROP-07').add('a.status = ?', 'answered').dateRange('a."updatedAt"', f).owners('o."ownerId"', owners).add('TRIM(o.country) = ?', f.country).add('TRIM(o.region) = ?', f.region).build();
   const answers = await rows(
     `SELECT COALESCE(o."ownerId"::text, '${UNASSIGNED}') AS owner, a."questionKey" AS key, COUNT(DISTINCT a."opportunityId")::int AS n
        FROM opportunity_answers a JOIN opportunities o ON o.id = a."opportunityId" ${answerW.sql} GROUP BY 1, 2`,
     answerW.params
+  );
+
+  // Demos conducted: every move into Demonstration in the period. The same source as the KPI verification sheet,
+  // so a demo that happens again is counted again.
+  const demoW = new Where().add('h."toStage" = ?', 'Demonstration').dateRange('h."createdAt"', f).owners('o."ownerId"', owners).add('TRIM(o.country) = ?', f.country).add('TRIM(o.region) = ?', f.region).build();
+  const demos = await rows(
+    `SELECT COALESCE(o."ownerId"::text, '${UNASSIGNED}') AS owner, COUNT(*)::int AS n
+       FROM opportunity_stage_history h JOIN opportunities o ON o.id = h."opportunityId" ${demoW.sql} GROUP BY 1`,
+    demoW.params
   );
 
   // Deals that reached Negotiation, Closed-Won or Closed-Lost in the period.
@@ -179,7 +193,7 @@ export async function summary(user: AuthUser | undefined, input: SalesActivityFi
 
   // Names for the people who appear in the results.
   const ownerIds = new Set<string>();
-  for (const r of [...leadsCreated, ...prospects, ...answers, ...reached, ...pipeline, ...visits]) {
+  for (const r of [...leadsCreated, ...prospects, ...answers, ...demos, ...reached, ...pipeline, ...visits]) {
     if (r.owner !== UNASSIGNED) ownerIds.add(r.owner);
   }
   const names = new Map<string, string>();
@@ -193,20 +207,41 @@ export async function summary(user: AuthUser | undefined, input: SalesActivityFi
 
   for (const r of leadsCreated) person(r.owner, names).leadsCreated = r.n;
   for (const r of prospects) person(r.owner, names).prospects = r.n;
-  for (const r of answers) {
-    const p = person(r.owner, names);
-    if (r.key === 'DEMO-06') p.demosConducted = r.n;
-    if (r.key === 'PROP-07') p.proposalsSent = r.n;
-  }
+  for (const r of answers) person(r.owner, names).proposalsSent = r.n;
+  for (const r of demos) person(r.owner, names).demosConducted = r.n;
   for (const r of reached) {
     const p = person(r.owner, names);
     if (r.stage === 'Negotiation') p.reachedNegotiation = r.n;
     if (r.stage === 'Closed-Won') p.closedWon = r.n;
     if (r.stage === 'Closed-Lost') p.closedLost = r.n;
   }
+  // Lead accounts, leads and prospects come first, then the opportunity stages.
   const pipelineByStage = new Map<string, { stage: string; count: number; value: number }>(
-    OPPORTUNITY_STAGES.map((s) => [s, { stage: s, count: 0, value: 0 }])
+    [...PROSPECT_STAGE_ROWS, ...OPPORTUNITY_STAGES.map(stageLabel)].map((s) => [s, { stage: s, count: 0, value: 0 }])
   );
+  // Lead accounts: accounts whose prospecting is complete. Accounts have no value, so only the count.
+  const accountFilter = (sql: string) => (sql ? `${sql} AND` : 'WHERE');
+  const accW = new Where().dateRange('l."createdAt"', f).owners('l."ownerId"', owners).add('TRIM(l.country) = ?', f.country).add('TRIM(l.region) = ?', f.region).build();
+  const [leadAccounts] = await rows(
+    `SELECT COUNT(*)::int AS n FROM leads l ${accountFilter(accW.sql)} l."prospectedAt" IS NOT NULL`,
+    accW.params
+  );
+  // Leads, qualified leads and prospects, from the prospects table, with their value.
+  const prospW = new Where().dateRange('p."createdAt"', f).owners('p."ownerId"', owners).add('TRIM(p.country) = ?', f.country).add('TRIM(p.region) = ?', f.region).build();
+  const prospectStages = await rows(
+    `SELECT p.status AS status, COUNT(*)::int AS n, COALESCE(SUM(p.value), 0)::float AS value
+       FROM prospects p ${accountFilter(prospW.sql)} p.status = ANY(ARRAY['Open', 'Qualified', 'Prospect']::text[])
+      GROUP BY 1`,
+    prospW.params
+  );
+  const leadAccountRow = pipelineByStage.get('Lead Account')!;
+  leadAccountRow.count += leadAccounts?.n ?? 0;
+  for (const r of prospectStages) {
+    const stage = pipelineByStage.get(PROSPECT_STAGE_LABEL[r.status])!;
+    stage.count += r.n;
+    stage.value += r.value;
+  }
+
   for (const r of pipeline) {
     const p = person(r.owner, names);
     const open = r.stage !== 'Closed-Won' && r.stage !== 'Closed-Lost';
@@ -214,10 +249,11 @@ export async function summary(user: AuthUser | undefined, input: SalesActivityFi
       p.openDeals += r.n;
       p.pipelineValue += r.value;
     }
-    const stage = pipelineByStage.get(r.stage) ?? { stage: r.stage, count: 0, value: 0 };
+    const label = stageLabel(r.stage);
+    const stage = pipelineByStage.get(label) ?? { stage: label, count: 0, value: 0 };
     stage.count += r.n;
     stage.value += r.value;
-    pipelineByStage.set(r.stage, stage);
+    pipelineByStage.set(label, stage);
   }
   for (const r of visits) {
     const p = person(r.owner, names);

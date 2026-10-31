@@ -11,6 +11,8 @@ const router = (0, express_1.Router)();
 router.use(auth_1.verifyToken);
 // Public endpoint - users can view their own profile
 router.get('/me', (req, res, next) => user_controller_1.default.getSelf(req, res, next));
+// Staff pickers: names of the people the viewer may see, for any signed-in user
+router.get('/directory', (req, res, next) => user_controller_1.default.getDirectory(req, res, next));
 // All user management is restricted to Admin/Manager
 router.use((0, auth_1.requireRole)(...constants_1.ROLES_CAN_MANAGE_USERS));
 router.post('/', (req, res, next) => user_controller_1.default.createUser(req, res, next));

@@ -16,7 +16,7 @@ export default function StaffFilter({ value, onChange, label = 'Staff' }: Props)
 
   React.useEffect(() => {
     let live = true;
-    api.getUsers(1, 500)
+    api.getStaffDirectory()
       .then((r) => { if (live) setStaff([...(r.data.data || [])].sort((a: any, b: any) => `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`))); })
       .catch(() => { if (live) setStaff([]); });
     return () => { live = false; };

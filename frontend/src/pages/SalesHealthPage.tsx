@@ -64,7 +64,7 @@ export default function SalesHealthPage() {
 
   React.useEffect(() => {
     if (!isAdmin) return;
-    api.getUsers(1, 500)
+    api.getStaffDirectory()
       .then((r) => setOwners(r.data.data || []))
       .catch(() => setOwners([]));
   }, [isAdmin]);

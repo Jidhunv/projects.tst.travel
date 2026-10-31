@@ -14,6 +14,7 @@ const logger_1 = __importDefault(require("../utils/logger"));
 const buyingCommittee_1 = require("../utils/buyingCommittee");
 const prospecting_1 = require("../utils/prospecting");
 const prospectOptions_service_1 = require("../services/prospectOptions.service");
+const salesActivity_service_1 = require("../services/salesActivity.service");
 // The Customer engagement questions asked when a prospect is converted to an opportunity.
 const ENGAGEMENT_KEYS = ['ENG-01', 'ENG-02', 'ENG-03', 'ENG-04'];
 // System-managed columns (ownerId, assigneeIds, score, accountId, lostReason,
@@ -108,16 +109,14 @@ class LeadController {
     async getLeads(req, res, next) {
         try {
             const { page = 1, limit = 20, status, source, ownerId, search, fromDate, toDate, region, country, sortBy, sortDir } = req.query;
-            // Sales Reps are restricted to their own leads; Admin/Manager see all.
-            const scope = (0, auth_1.getOwnerScope)(req.user, 'leads');
-            // If restricted user (scope = user.id), use that. If admin (scope = undefined), use ownerId filter if provided, else undefined.
-            const effectiveOwnerId = scope || (ownerId && ownerId !== '' ? ownerId : undefined);
+            // Which prospects: the owners the role's leads scope allows (self, team or all), plus anyone assigned.
+            const visibleOwners = await (0, salesActivity_service_1.ownersForFilter)(req.user, ownerId && ownerId !== '' ? ownerId : undefined, 'leads');
             const { data, total } = await prospect_service_1.default.getLeads({
                 page: Number(page),
                 limit: Number(limit),
                 status: status,
                 source: source,
-                ownerId: effectiveOwnerId,
+                ownerIds: visibleOwners ?? undefined,
                 search: search,
                 sortBy: sortBy,
                 sortDir: sortDir,

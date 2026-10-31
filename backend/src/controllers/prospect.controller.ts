@@ -9,6 +9,7 @@ import logger from '../utils/logger';
 import { normaliseCommittee } from '../utils/buyingCommittee';
 import { prospectingProgress } from '../utils/prospecting';
 import { activeProspectOptions } from '../services/prospectOptions.service';
+import { ownersForFilter } from '../services/salesActivity.service';
 
 // The Customer engagement questions asked when a prospect is converted to an opportunity.
 const ENGAGEMENT_KEYS = ['ENG-01', 'ENG-02', 'ENG-03', 'ENG-04'];
@@ -137,10 +138,8 @@ export class LeadController {
     try {
       const { page = 1, limit = 20, status, source, ownerId, search, fromDate, toDate, region, country, sortBy, sortDir } = req.query;
 
-      // Sales Reps are restricted to their own leads; Admin/Manager see all.
-      const scope = getOwnerScope(req.user, 'leads');
-      // If restricted user (scope = user.id), use that. If admin (scope = undefined), use ownerId filter if provided, else undefined.
-      const effectiveOwnerId = scope || (ownerId && ownerId !== '' ? (ownerId as string) : undefined);
+      // Which prospects: the owners the role's leads scope allows (self, team or all), plus anyone assigned.
+      const visibleOwners = await ownersForFilter(req.user, ownerId && ownerId !== '' ? (ownerId as string) : undefined, 'leads');
 
       const { data, total } = await leadService.getLeads(
         {
@@ -148,7 +147,7 @@ export class LeadController {
           limit: Number(limit),
           status: status as string,
           source: source as string,
-          ownerId: effectiveOwnerId,
+          ownerIds: visibleOwners ?? undefined,
           search: search as string,
           sortBy: sortBy as string | undefined,
           sortDir: sortDir as string | undefined,

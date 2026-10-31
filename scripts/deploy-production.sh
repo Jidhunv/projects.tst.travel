@@ -13,10 +13,14 @@
 #          production data scripts and then the table rename, in that order.
 #        - Then it runs the create-if-not-exists schema. This only adds what is
 #          missing; it never drops or changes existing data.
+#        - Then the production data scripts, which are safe to run again.
 #   4. Checks that the expected tables exist.
 #   5. Builds the backend and the frontend.
 #   6. Restarts the backend with RESTART_CMD (default: pm2 restart crm-backend).
 #   7. Checks the health endpoint.
+#
+# Every SQL file runs with ON_ERROR_STOP=1. A failing statement stops the deploy
+# and psql prints the statement and the error.
 #
 # Environment options:
 #   DRY_RUN=1        print each step without changing anything
@@ -31,6 +35,7 @@ ROOT="$(pwd)"
 DRY_RUN="${DRY_RUN:-0}"
 PORT="${PORT:-3001}"
 RESTART_CMD="${RESTART_CMD:-pm2 restart crm-backend}"
+SCHEMA_FILE="backend/migrations/FULL_SCHEMA_2026-10_create_if_not_exists.sql"
 
 say() { printf '\n== %s\n' "$*"; }
 run() {
@@ -75,6 +80,12 @@ table_exists() {
   [ "$n" = "1" ]
 }
 
+# Runs one SQL file. The path is checked first so a missing file cannot pass silently.
+run_sql() {
+  [ -f "$1" ] || { echo "SQL file not found: $1" >&2; exit 1; }
+  run "\"\${PSQL[@]}\" -f '$1'"
+}
+
 say "Database state"
 if [ "$DRY_RUN" = "1" ]; then
   echo "[dry-run] would check for the old table name 'accounts'"
@@ -86,27 +97,26 @@ fi
 # Order matters:
 #   - Old table names: the fix script uses them, so it runs first, then the table rename.
 #   - Then the schema script (create if not exists) adds anything missing.
-#   - Then the stage, question and handover scripts, which run on every deploy. They
-#     use only the opportunities and questions tables and are safe to run again.
+#   - Then the production data scripts. They are safe to run on every deploy.
 if [ "$OLD_STATE" = "1" ]; then
   echo "Old table names found: running the fix script, then the table rename."
-  run "\"\${PSQL[@]}\" -f backend/migrations/PRODUCTION_FIX_2026-10-25_safe.sql"
-  run "\"\${PSQL[@]}\" -f backend/migrations/RENAME_TABLES_PROSPECTS_LEADS_2026-10-25.sql"
+  run_sql backend/migrations/PRODUCTION_FIX_2026-10-25_safe.sql
+  run_sql backend/migrations/RENAME_TABLES_PROSPECTS_LEADS_2026-10-25.sql
 else
   echo "New table names (or a new database): no table rename needed."
 fi
 
 say "Schema (create if not exists)"
-run "\"\${PSQL[@]}\" -f backend/migrations/FULL_SCHEMA_2026-10_create_if_not_exists.sql"
+run_sql "$SCHEMA_FILE"
 
 say "Production data scripts (safe to run again)"
-run "\"\${PSQL[@]}\" -f backend/migrations/PRODUCTION_RENAME_QUALIFICATION_TO_CUSTOMER_ENGAGEMENT.sql"
-run "\"\${PSQL[@]}\" -f backend/migrations/PRODUCTION_QUESTIONS_REPLACE_2026-10-25.sql"
-run "\"\${PSQL[@]}\" -f backend/migrations/PRODUCTION_HANDOVER_2026-10-25.sql"
+run_sql backend/migrations/PRODUCTION_RENAME_QUALIFICATION_TO_CUSTOMER_ENGAGEMENT.sql
+run_sql backend/migrations/PRODUCTION_QUESTIONS_REPLACE_2026-10-25.sql
+run_sql backend/migrations/PRODUCTION_HANDOVER_2026-10-25.sql
 
 # 4. Check
 say "Checking required tables"
-REQUIRED="prospects leads prospect_status_history opportunities users sales_visits"
+REQUIRED="prospects leads prospect_status_history opportunities users sales_visits tasks task_categories task_followups"
 if [ "$DRY_RUN" != "1" ]; then
   for t in $REQUIRED; do
     table_exists "$t" || { echo "Missing table: $t" >&2; exit 1; }
