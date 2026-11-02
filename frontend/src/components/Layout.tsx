@@ -211,7 +211,7 @@ export default function Layout({ children }: LayoutProps) {
       icon: <ReportsIcon />,
       show: true,
       items: [
-        { text: 'Sales Report', icon: <VisitIcon />, path: '/sales-visits', show: canViewModule('sales_visits'), badge: pendingCount },
+        { text: 'Sales Visit Log', icon: <VisitIcon />, path: '/sales-visits', show: canViewModule('sales_visits'), badge: pendingCount },
         { text: 'Reports', icon: <ReportsIcon />, path: '/reports', show: canViewModule('reports') },
         { text: 'Sales Health', icon: <HealthIcon />, path: '/sales-health', show: canViewModule('reports') },
       ],
