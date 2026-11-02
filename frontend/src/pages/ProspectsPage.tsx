@@ -27,6 +27,7 @@ import {
   ToggleButton,
   ToggleButtonGroup,
   Alert,
+  Snackbar,
 } from '@mui/material';
 import { Search as SearchIcon, ViewAgendaOutlined as ListIcon, ViewWeekOutlined as KanbanIcon } from '@mui/icons-material';
 import StaffFilter from '@components/StaffFilter';
@@ -112,6 +113,8 @@ export default function ProspectsPage() {
 
   const location = useLocation();
   const navigate = useNavigate();
+  // Message shown after a lead is sent here to be converted to a prospect.
+  const [notice, setNotice] = useState('');
 
   // Opens the Add Prospect form for an account: its contact, company and committee are filled in,
   // and the qualification questions are shown for the user to answer.
@@ -125,23 +128,34 @@ export default function ProspectsPage() {
       const contacts: any[] = contactsRes.data.data || [];
       const contact = contacts[0];
       const [firstWord, ...rest] = (acct.contactPerson || '').trim().split(/\s+/);
+      // The account's existing prospects (one per product). The newest one supplies the deal details,
+      // so a second product only needs its product chosen.
+      const existing = await api.getLeads(1, 50, { accountId, status: 'all' }).then((r) => (r.data.data || []) as any[]).catch(() => [] as any[]);
+      const latest = [...existing].sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))[0];
       setAccountContacts(contacts);
       setLqAnswers((acct.leadQualification || {}) as LeadQualificationAnswers);
       setForm((f: any) => ({
         ...f,
         accountId,
         company: acct.name || '',
-        region: acct.region || '',
-        country: acct.country || '',
-        firstName: contact?.firstName || firstWord || '',
-        lastName: contact?.lastName || rest.join(' ') || '',
-        email: contact?.email || acct.email || '',
-        phoneNumber: contact?.phoneNumber || acct.phoneNumber || '',
-        remark: acct.remark || '',
+        region: acct.region || latest?.region || '',
+        country: acct.country || latest?.country || '',
+        firstName: contact?.firstName || firstWord || latest?.firstName || '',
+        lastName: contact?.lastName || rest.join(' ') || latest?.lastName || '',
+        email: contact?.email || acct.email || latest?.email || '',
+        phoneNumber: contact?.phoneNumber || acct.phoneNumber || latest?.phoneNumber || '',
+        remark: acct.remark || latest?.remark || '',
+        value: latest?.value != null ? String(latest.value) : '',
+        expectedCloseDate: latest?.expectedCloseDate ? String(latest.expectedCloseDate).slice(0, 10) : '',
+        source: latest?.source || '',
+        supplierList: Array.isArray(latest?.supplierList) ? latest.supplierList : [],
+        businessVolume: latest?.businessVolume != null ? String(latest.businessVolume) : '',
+        // The product is the one thing to choose for each new prospect.
         productIds: [],
       }));
       setSaveError('');
       setOpenCreate(true);
+      setNotice(`Converting ${acct.name} to a prospect. Choose the product, check the details, then click Convert as prospect.`);
     } catch (e: any) {
       alert(e.response?.data?.error || 'Could not open the account for conversion');
     }
@@ -239,10 +253,23 @@ export default function ProspectsPage() {
         alert(`Fill in every prospect detail first: ${missingDetails.join(', ')}.`);
         return;
       }
+      // If this customer is already a prospect (for another product), the new prospects go straight to Prospect.
+      const existing = await api.getLeads(1, 50, { accountId: form.accountId, status: 'all' }).then((r) => (r.data.data || []) as any[]).catch(() => [] as any[]);
+      // The same product cannot be a prospect twice for this customer.
+      const duplicateProducts = existing.filter((x) => form.productIds.includes(x.productId));
+      if (duplicateProducts.length) {
+        const names = [...new Set(duplicateProducts.map((x) => x.productName || 'this product'))].join(', ');
+        alert(`${form.company || 'This customer'} is already a prospect for ${names}. Choose a different product.`);
+        return;
+      }
+      const alreadyProspect = existing.some((x) => x.status === 'Prospect' || x.status === 'Qualified');
+      if (alreadyProspect && !window.confirm(`${form.company || 'This customer'} is already a prospect. Are you sure you want to create it again as a prospect for this product?`)) {
+        return;
+      }
       // The answers are kept on the account, so they are asked once and reused for every product.
       await api.updateAccount(form.accountId, { leadQualification: lqAnswers });
       const productNames = form.productIds.map((id) => products.find((p) => p.id === id)?.name).filter(Boolean);
-      await apiClient.post('/leads', {
+      const createdRes = await apiClient.post('/leads', {
         accountId: form.accountId,
         firstName: form.firstName,
         lastName: form.lastName,
@@ -260,6 +287,14 @@ export default function ProspectsPage() {
         region: form.region || undefined,
         country: form.country || undefined,
       });
+      if (alreadyProspect) {
+        const created: any[] = Array.isArray(createdRes.data.data) ? createdRes.data.data : [createdRes.data.data];
+        for (const lead of created) {
+          if (!lead?.id) continue;
+          await api.updateLeadStatus(lead.id, 'Qualified');
+          await api.updateLeadStatus(lead.id, 'Prospect');
+        }
+      }
       setOpenCreate(false);
       setLqAnswers({});
       setForm({
@@ -652,6 +687,9 @@ export default function ProspectsPage() {
           </Box>
         )}
 
+        <Snackbar open={!!notice} autoHideDuration={8000} onClose={() => setNotice('')} anchorOrigin={{ vertical: 'top', horizontal: 'center' }}>
+          <Alert severity="info" onClose={() => setNotice('')}>{notice}</Alert>
+        </Snackbar>
         {/* Create/Edit Dialog */}
         <Dialog open={openCreate || !!openEdit} onClose={() => { setOpenCreate(false); setOpenEdit(null); }} maxWidth="sm" fullWidth>
           <DialogTitle>{openEdit ? 'Edit Prospect' : 'Add New Prospect'}</DialogTitle>

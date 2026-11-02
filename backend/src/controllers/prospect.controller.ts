@@ -136,7 +136,7 @@ export class LeadController {
 
   async getLeads(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const { page = 1, limit = 20, status, source, ownerId, search, fromDate, toDate, region, country, sortBy, sortDir } = req.query;
+      const { page = 1, limit = 20, status, source, ownerId, accountId, search, fromDate, toDate, region, country, sortBy, sortDir } = req.query;
 
       // Which prospects: the owners the role's leads scope allows (self, team or all), plus anyone assigned.
       const visibleOwners = await ownersForFilter(req.user, ownerId && ownerId !== '' ? (ownerId as string) : undefined, 'leads');
@@ -148,6 +148,7 @@ export class LeadController {
           status: status as string,
           source: source as string,
           ownerIds: visibleOwners ?? undefined,
+          accountId: accountId && accountId !== '' ? (accountId as string) : undefined,
           search: search as string,
           sortBy: sortBy as string | undefined,
           sortDir: sortDir as string | undefined,

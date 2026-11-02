@@ -35,6 +35,8 @@ interface LeadFilters {
   ownerId?: string;
   // Owners the viewer may see, from their privilege. Undefined means every owner.
   ownerIds?: string[];
+  // Only the prospects of this account (one per product).
+  accountId?: string;
   region?: string;
   country?: string;
   page?: number;
@@ -157,6 +159,9 @@ export class LeadService {
       }
       if (where.source) {
         query.andWhere('lead.source = :source', { source: where.source });
+      }
+      if (where.accountId) {
+        query.andWhere('lead.accountId = :accountId', { accountId: where.accountId });
       }
       if (where.ownerIds) {
         // The owners the viewer may see (from their privilege), OR anyone they are assigned to.
