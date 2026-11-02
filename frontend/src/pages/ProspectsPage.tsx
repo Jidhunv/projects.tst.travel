@@ -789,7 +789,7 @@ export default function ProspectsPage() {
                 </MenuItem>
               ))}
             </TextField>
-            <TextField error={!String(form.businessVolume).trim()} required
+            <TextField
               fullWidth
               label="Business Volume"
               type="number"
@@ -835,7 +835,7 @@ export default function ProspectsPage() {
                 />
                 {!openEdit && (
                 <Box sx={{ mt: 3 }}>
-                  <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>Step 2: Customer engagement questionnaire</Typography>
+                  <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>Step 2: {lqMissing.length ? 'Prospect questionnaire' : 'Customer engagement questionnaire'}</Typography>
                   <ProspectQualificationForm value={lqAnswers} onChange={setLqAnswers} />
                 </Box>
                 )}
@@ -843,7 +843,7 @@ export default function ProspectsPage() {
             )}
             {openEdit && !['Converted', 'Disqualified'].includes(openEdit.status) && (
               <Box sx={{ mt: 3 }}>
-                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>Customer engagement questionnaire</Typography>
+                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>{lqMissing.length ? 'Prospect questionnaire' : 'Customer engagement questionnaire'}</Typography>
                 <ProspectQualificationForm value={lqAnswers} onChange={setLqAnswers} />
               </Box>
             )}
@@ -869,14 +869,14 @@ export default function ProspectsPage() {
               <Button variant="outlined" disabled={lqMissing.length > 0} onClick={handleConvertToProspect}>Convert to prospect</Button>
             )}
             {openEdit && openEdit.status === 'Prospect' && (
-              <Button variant="outlined" onClick={() => { setEngagement({}); setEngagementOpen(true); }}>Convert to Opportunity</Button>
+              <Button variant="outlined" onClick={() => { setEngagement({}); setEngagementOpen(true); }}>Convert to Customer Engagement</Button>
             )}
             <Button
               onClick={openEdit ? handleUpdate : handleCreate}
               variant="contained"
               disabled={!form.accountId}
             >
-              {openEdit ? 'Save' : 'Create'}
+              {openEdit ? 'Save' : 'Convert as prospect'}
             </Button>
           </DialogActions>
         </Dialog>
@@ -931,7 +931,6 @@ const PROSPECT_DETAILS: { label: string; filled: (f: any) => boolean }[] = [
   { label: 'Expected close date', filled: (f) => !!f.expectedCloseDate },
   { label: 'Source', filled: (f) => !!f.source },
   { label: 'Product', filled: (f) => f.productIds.length > 0 },
-  { label: 'Business volume', filled: (f) => f.businessVolume !== '' && f.businessVolume != null },
   { label: 'Supplier list', filled: (f) => f.supplierList.length > 0 },
   { label: 'Region', filled: (f) => !!f.region?.trim() },
   { label: 'Country', filled: (f) => !!f.country?.trim() },

@@ -802,7 +802,8 @@ export default function LeadsPage({ variant = 'lead' }: { variant?: 'lead' | 'ac
             <Button
               onClick={handleSaveAsLead}
               variant="contained"
-              disabled={!formData.name.trim() || !!duplicateWarning}
+              // Qualified (prospecting complete): already a lead, so it cannot be converted again. Pending stays active.
+              disabled={!formData.name.trim() || !!duplicateWarning || !!(editingAccount as any)?.prospecting?.complete}
             >
               Convert as Lead
             </Button>
