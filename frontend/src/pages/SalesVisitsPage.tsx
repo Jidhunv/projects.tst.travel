@@ -6,6 +6,7 @@ import {
 } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 import VoiceTextField from '@components/VoiceTextField';
+import AccountPicker, { AccountOption } from '@components/AccountPicker';
 import Layout from '@components/Layout';
 import ConfirmDialog from '@components/ConfirmDialog';
 import { api } from '@services/api';
@@ -31,6 +32,8 @@ export const SalesVisitsPage: React.FC = () => {
 
   const [rows, setRows] = useState<any[]>([]);
   const [accounts, setAccounts] = useState<any[]>([]);
+  // The company chosen in the filter bar (the filter stores only its id).
+  const [filterAccount, setFilterAccount] = useState<AccountOption | null>(null);
   const emptyFilters = { search: '', accountId: '', visitType: '', fromDate: '', toDate: '', country: '', salespersonId: '' };
   const [filters, setFilters] = useState(emptyFilters);
   // People, countries and regions the viewer may filter by. Limited by the viewer's sales visit scope.
@@ -140,13 +143,11 @@ export const SalesVisitsPage: React.FC = () => {
     }
   };
 
-  const handleAccountChange = (accountId: string) => {
-    // Find and populate company name from selected account
-    const selectedAccount = accounts.find((a) => a.id === accountId);
+  const handleAccountChange = (account: AccountOption | null) => {
     setForm({
       ...form,
-      accountId,
-      companyName: selectedAccount?.name || ''
+      accountId: account?.id || '',
+      companyName: account?.name || ''
     });
   };
 
@@ -165,9 +166,6 @@ export const SalesVisitsPage: React.FC = () => {
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
           <Typography variant="h4">Sales Report (Visits / Calls)</Typography>
           <Stack direction="row" spacing={1}>
-            <Button variant="outlined" component={RouterLink} to="/my-kpis">My KPIs</Button>
-            <Button variant="outlined" component={RouterLink} to="/sales-activity">Sales KPIs</Button>
-            <Button variant="outlined" onClick={exportCsv}>Export CSV</Button>
             {canCreate && <Button variant="contained" onClick={openNew}>Log Visit / Call</Button>}
           </Stack>
         </Box>
@@ -175,10 +173,15 @@ export const SalesVisitsPage: React.FC = () => {
         <Paper sx={{ p: 2, mb: 2 }}>
           <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
             <TextField size="small" label="Search discussion" value={filters.search} onChange={(e) => setFilters({ ...filters, search: e.target.value })} />
-            <TextField size="small" select sx={{ minWidth: 180 }} label="Company" value={filters.accountId} onChange={(e) => setFilters({ ...filters, accountId: e.target.value })}>
-              <MenuItem value="">All</MenuItem>
-              {accounts.map((a) => <MenuItem key={a.id} value={a.id}>{a.name}</MenuItem>)}
-            </TextField>
+            <AccountPicker
+              label="Company"
+              minWidth={260}
+              value={filterAccount}
+              onChange={(a) => {
+                setFilterAccount(a);
+                setFilters({ ...filters, accountId: a?.id || '' });
+              }}
+            />
             <TextField size="small" select sx={{ minWidth: 120 }} label="Type" value={filters.visitType} onChange={(e) => setFilters({ ...filters, visitType: e.target.value })}>
               <MenuItem value="">All</MenuItem>
               <MenuItem value="Visit">Visit</MenuItem>
@@ -204,7 +207,7 @@ export const SalesVisitsPage: React.FC = () => {
             <TextField size="small" type="date" label="From" InputLabelProps={{ shrink: true }} value={filters.fromDate} onChange={(e) => setFilters({ ...filters, fromDate: e.target.value })} />
             <TextField size="small" type="date" label="To" InputLabelProps={{ shrink: true }} value={filters.toDate} onChange={(e) => setFilters({ ...filters, toDate: e.target.value })} />
             <Button variant="contained" onClick={load}>Apply</Button>
-            <Button onClick={() => { setFilters(emptyFilters); setTimeout(load, 0); }}>Clear</Button>
+            <Button onClick={() => { setFilters(emptyFilters); setFilterAccount(null); setTimeout(load, 0); }}>Clear</Button>
           </Stack>
         </Paper>
 
@@ -259,16 +262,12 @@ export const SalesVisitsPage: React.FC = () => {
           <DialogContent sx={{ maxHeight: '80vh', overflowY: 'auto' }}>
             <Stack spacing={2} sx={{ mt: 1 }}>
               {/* Main fields — locked (read-only) when editing an existing visit */}
-              <TextField
-                select
+              <AccountPicker
                 label="Company"
-                value={form.accountId}
-                onChange={(e) => handleAccountChange(e.target.value)}
+                value={form.accountId ? { id: form.accountId, name: form.companyName || '' } : null}
+                onChange={handleAccountChange}
                 disabled={!!editingId}
-              >
-                <MenuItem value="">-- Select company --</MenuItem>
-                {accounts.map((a) => <MenuItem key={a.id} value={a.id}>{a.name}</MenuItem>)}
-              </TextField>
+              />
 
               <TextField
                 select
