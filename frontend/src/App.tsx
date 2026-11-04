@@ -1,5 +1,6 @@
 import React, { useEffect, useState, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import SameWindowLinks from '@components/SameWindowLinks';
 import CssBaseline from '@mui/material/CssBaseline';
 import CircularProgress from '@mui/material/CircularProgress';
 import Box from '@mui/material/Box';
@@ -159,6 +160,7 @@ function App() {
           }}
         />
         <Router>
+          <SameWindowLinks />
           <Suspense fallback={<RouteLoadingFallback />}>
           <Routes>
           <Route path="/login" element={<LoginPage />} />

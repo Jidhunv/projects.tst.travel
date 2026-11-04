@@ -212,7 +212,6 @@ export default function NotificationCenter() {
                 fullWidth
                 size="small"
                 href="/audit-logs"
-                target="_blank"
                 sx={{
                   background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
                   color: 'white',
