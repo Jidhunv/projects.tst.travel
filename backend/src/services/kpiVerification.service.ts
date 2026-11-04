@@ -129,8 +129,10 @@ async function crmEvents(from: string, to: string, owners: string[] | null) {
   const queries: Array<[MetricKey, string]> = [
     ['newLeads', `SELECT DATE(a."prospectedAt")::text AS day, a."ownerId"::text AS owner, a.name AS label
        FROM leads a WHERE a."prospectedAt" IS NOT NULL AND ${range('a."prospectedAt"')}${ownerAnd('a."ownerId"')}`],
-    ['prospects', `SELECT DATE(p."createdAt")::text AS day, p."ownerId"::text AS owner, ${prospectName('p')} AS label
-       FROM prospects p WHERE ${range('p."createdAt"')}${ownerAnd('p."ownerId"')}`],
+    // Prospects: a lead moved to the Prospect status that day (adding an account to lead counts under New Leads only).
+    ['prospects', `SELECT DATE(h."createdAt")::text AS day, p."ownerId"::text AS owner, ${prospectName('p')} AS label
+       FROM prospect_status_history h JOIN prospects p ON p.id = h."prospectId"
+      WHERE h."toStatus" = 'Prospect' AND ${range('h."createdAt"')}${ownerAnd('p."ownerId"')}`],
     ['existingOpportunities', `SELECT DATE(${visitDate})::text AS day, v."createdById"::text AS owner, COALESCE(v."companyName", 'Visit') AS label
          FROM sales_visits v WHERE ${range(visitDate)}${ownerAnd('v."createdById"')}
        UNION ALL
