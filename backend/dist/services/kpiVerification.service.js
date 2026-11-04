@@ -89,7 +89,7 @@ async function assertCanVerify(actor, userId) {
 //   demosConducted: every move into Demonstration on an opportunity. A demo that happens again is counted again.
 //   statusChanges: every stage movement on an opportunity (customer engagement, demonstration, proposal, won,
 //     handover). Account, lead and prospect status changes do not count. The row written when a deal is created does not count.
-//   existingOpportunities: sales visits that day plus demos conducted.
+//   existingOpportunities: calls and visits made that day.
 //   attendance: a successful login that day (the rule in verificationDays also needs a KPI change).
 //   tasksAssigned: tasks given to the person that day.
 async function crmEvents(from, to, owners) {
@@ -105,12 +105,9 @@ async function crmEvents(from, to, owners) {
         ['prospects', `SELECT DATE(h."createdAt")::text AS day, p."ownerId"::text AS owner, ${prospectName('p')} AS label
        FROM prospect_status_history h JOIN prospects p ON p.id = h."prospectId"
       WHERE h."toStatus" = 'Prospect' AND ${range('h."createdAt"')}${ownerAnd('p."ownerId"')}`],
+        // Existing opportunities: the calls and visits made that day.
         ['existingOpportunities', `SELECT DATE(${visitDate})::text AS day, v."createdById"::text AS owner, COALESCE(v."companyName", 'Visit') AS label
-         FROM sales_visits v WHERE ${range(visitDate)}${ownerAnd('v."createdById"')}
-       UNION ALL
-       SELECT DATE(h."createdAt")::text AS day, o."ownerId"::text AS owner, o.name AS label
-         FROM opportunity_stage_history h JOIN opportunities o ON o.id = h."opportunityId"
-        WHERE h."toStage" = 'Demonstration' AND ${range('h."createdAt"')}${ownerAnd('o."ownerId"')}`],
+         FROM sales_visits v WHERE ${range(visitDate)}${ownerAnd('v."createdById"')}`],
         ['demosConducted', `SELECT DATE(h."createdAt")::text AS day, o."ownerId"::text AS owner, o.name AS label
        FROM opportunity_stage_history h JOIN opportunities o ON o.id = h."opportunityId"
       WHERE h."toStage" = 'Demonstration' AND ${range('h."createdAt"')}${ownerAnd('o."ownerId"')}`],
