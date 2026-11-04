@@ -46,14 +46,12 @@ import { formatCurrency } from '@utils/format';
 
 const statusColor: Record<string, 'info' | 'primary' | 'success' | 'error' | 'warning'> = {
   Open: 'info',
-  Qualified: 'success',
   Prospect: 'primary',
   Disqualified: 'error',
 };
 
 const statusDisplay: Record<string, string> = {
   Open: 'Open',
-  Qualified: 'Qualified',
   Prospect: 'Prospect',
   Converted: 'Converted',
   Disqualified: 'Disqualified',
@@ -90,7 +88,6 @@ export default function ProspectsPage() {
   // Memoize kanban columns to prevent recalculation on every render
   const kanbanColumns = useMemo(() => [
     { key: 'Open', statuses: ['Open'], label: 'Open' },
-    { key: 'Qualified', statuses: ['Qualified'], label: 'Qualified' },
     { key: 'Prospect', statuses: ['Prospect', 'Converted'], label: 'Prospect' },
     { key: 'Disqualified', statuses: ['Disqualified'], label: 'Disqualified' }
   ], []);
@@ -262,7 +259,7 @@ export default function ProspectsPage() {
         alert(`${form.company || 'This customer'} is already a prospect for ${names}. Choose a different product.`);
         return;
       }
-      const alreadyProspect = existing.some((x) => x.status === 'Prospect' || x.status === 'Qualified');
+      const alreadyProspect = existing.some((x) => x.status === 'Prospect');
       if (alreadyProspect && !window.confirm(`${form.company || 'This customer'} is already a prospect. Are you sure you want to create it again as a prospect for this product?`)) {
         return;
       }
@@ -287,14 +284,6 @@ export default function ProspectsPage() {
         region: form.region || undefined,
         country: form.country || undefined,
       });
-      if (alreadyProspect) {
-        const created: any[] = Array.isArray(createdRes.data.data) ? createdRes.data.data : [createdRes.data.data];
-        for (const lead of created) {
-          if (!lead?.id) continue;
-          await api.updateLeadStatus(lead.id, 'Qualified');
-          await api.updateLeadStatus(lead.id, 'Prospect');
-        }
-      }
       setOpenCreate(false);
       setLqAnswers({});
       setForm({
@@ -362,7 +351,6 @@ export default function ProspectsPage() {
     }
     try {
       await api.updateAccount(form.accountId, { leadQualification: lqAnswers });
-      if (openEdit.status !== 'Qualified') await api.updateLeadStatus(openEdit.id, 'Qualified');
       await api.updateLeadStatus(openEdit.id, 'Prospect');
       setOpenEdit(null);
       fetchLeads();
@@ -512,7 +500,6 @@ export default function ProspectsPage() {
                   <MenuItem value="active">Active prospects</MenuItem>
                   <MenuItem value="all">All</MenuItem>
                   <MenuItem value="Open">Open</MenuItem>
-                  <MenuItem value="Qualified">Qualified</MenuItem>
                   <MenuItem value="Prospect">Prospect</MenuItem>
                   <MenuItem value="Converted">Converted</MenuItem>
                   <MenuItem value="Disqualified">Disqualified</MenuItem>
@@ -903,7 +890,7 @@ export default function ProspectsPage() {
             {openEdit && !['Converted', 'Disqualified'].includes(openEdit.status) && (
               <Button color="error" onClick={handleDisqualify}>Disqualify</Button>
             )}
-            {openEdit && ['Open', 'Qualified'].includes(openEdit.status) && (
+            {openEdit && openEdit.status === 'Open' && (
               <Button variant="outlined" disabled={lqMissing.length > 0} onClick={handleConvertToProspect}>Convert to prospect</Button>
             )}
             {openEdit && openEdit.status === 'Prospect' && (

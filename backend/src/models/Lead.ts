@@ -41,7 +41,7 @@ export class Lead {
   source: string; // inbound, referral, cold outreach, website, event, etc.
 
   @Column({ default: 'Open' })
-  status: string; // Open, Qualified, Disqualified, Converted
+  status: string; // Open, Prospect, Disqualified, Converted
 
   @Column({ default: 0 })
   score: number; // Lead score

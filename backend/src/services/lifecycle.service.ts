@@ -42,7 +42,7 @@ export function buildLifecycleRow(
   dealEvents: DealEvent[],
 ): LifecycleRow {
   const first = (list: { at: Date }[], pred: (x: any) => boolean) => list.find(pred)?.at ?? null;
-  const qualifiedAt = first(leadEvents, (e) => e.status === 'Qualified');
+  const qualifiedAt = first(leadEvents, (e) => e.status === 'Prospect');
   const disqualifiedAt = first(leadEvents, (e) => e.status === 'Disqualified');
   const convertedAt = first(leadEvents, (e) => e.status === 'Converted');
   const demonstrationAt = first(dealEvents, (e) => e.stage === 'Demonstration');
@@ -155,7 +155,7 @@ class LifecycleService {
     };
 
     const L = scoped('l."createdAt"', 'l."ownerId"');
-    const Q = scoped('h."createdAt"', 'l."ownerId"', [`h."toStatus" = 'Qualified'`]);
+    const Q = scoped('h."createdAt"', 'l."ownerId"', [`h."toStatus" = 'Prospect'`]);
     const D = scoped('o."createdAt"', 'o."ownerId"');
     const W = scoped('h."createdAt"', 'o."ownerId"', [`h."toStage" IN ('Closed-Won', 'Closed-Lost')`]);
     const S = scoped('h."createdAt"', 'o."ownerId"', [`h."toStage" IN ('Demonstration', 'Proposal', 'Negotiation')`]);

@@ -12,7 +12,7 @@ const constants_1 = require("../utils/constants");
 const logger_1 = __importDefault(require("../utils/logger"));
 const NO_SCOPE = { ownerIds: null };
 // Prospect (lead) statuses shown in the pipeline, with the label each one is shown under.
-const PROSPECT_PIPELINE = { Open: 'Lead', Qualified: 'Qualified', Prospect: 'Prospect' };
+const PROSPECT_PIPELINE = { Open: 'Lead', Prospect: 'Prospect' };
 // Timeline sort keys from the screen, mapped to the row field they sort by.
 const TIMELINE_SORT = {
     account: 'accountName',

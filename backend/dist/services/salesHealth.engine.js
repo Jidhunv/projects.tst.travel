@@ -13,7 +13,7 @@ const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 function analyseAccount(a, now = new Date(), S = salesStrategy_1.SALES_STRATEGY) {
     const flags = [];
     const add = (f) => flags.push(f);
-    const openLeads = a.leads.filter((l) => l.status === 'Open' || l.status === 'Qualified');
+    const openLeads = a.leads.filter((l) => l.status === 'Open');
     const openOpps = a.opps.filter((o) => o.status === 'Open');
     const hasLivePipeline = openLeads.length > 0 || openOpps.length > 0;
     // ---- Touch history -------------------------------------------------------

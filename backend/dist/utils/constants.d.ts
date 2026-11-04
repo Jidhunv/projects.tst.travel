@@ -5,7 +5,7 @@ export declare const ROLES: {
 };
 export declare const ROLES_WITH_FULL_VISIBILITY: string[];
 export declare const ROLES_CAN_MANAGE_USERS: string[];
-export declare const LEAD_STATUSES: readonly ["Open", "Qualified", "Disqualified", "Converted"];
+export declare const LEAD_STATUSES: readonly ["Open", "Prospect", "Disqualified", "Converted"];
 export declare const OPPORTUNITY_STAGES: readonly ["Customer engagement", "Demonstration", "Proposal", "Negotiation", "Closed-Won", "Handover", "Closed-Lost"];
 export declare const REJECTION_REASONS: readonly ["Price too high", "Chose competitor", "No budget", "Bad timing", "No response", "Not a fit", "Lost to in-house solution", "Other"];
 export type RejectionReason = (typeof REJECTION_REASONS)[number];

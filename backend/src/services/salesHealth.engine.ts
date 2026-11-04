@@ -77,7 +77,7 @@ export function analyseAccount(
   const flags: HealthFlag[] = [];
   const add = (f: HealthFlag) => flags.push(f);
 
-  const openLeads = a.leads.filter((l) => l.status === 'Open' || l.status === 'Qualified');
+  const openLeads = a.leads.filter((l) => l.status === 'Open');
   const openOpps = a.opps.filter((o) => o.status === 'Open');
   const hasLivePipeline = openLeads.length > 0 || openOpps.length > 0;
 

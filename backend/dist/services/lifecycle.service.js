@@ -10,7 +10,7 @@ const days = (from, to) => (from && to ? Math.round(((to.getTime() - from.getTim
 // Pure: builds one row from a lead's status events and its (first) deal's stage events.
 function buildLifecycleRow(lead, leadEvents, deal, dealEvents) {
     const first = (list, pred) => list.find(pred)?.at ?? null;
-    const qualifiedAt = first(leadEvents, (e) => e.status === 'Qualified');
+    const qualifiedAt = first(leadEvents, (e) => e.status === 'Prospect');
     const disqualifiedAt = first(leadEvents, (e) => e.status === 'Disqualified');
     const convertedAt = first(leadEvents, (e) => e.status === 'Converted');
     const demonstrationAt = first(dealEvents, (e) => e.stage === 'Demonstration');
@@ -116,7 +116,7 @@ class LifecycleService {
             return { where: c.length ? `WHERE ${c.join(' AND ')}` : '', args: a };
         };
         const L = scoped('l."createdAt"', 'l."ownerId"');
-        const Q = scoped('h."createdAt"', 'l."ownerId"', [`h."toStatus" = 'Qualified'`]);
+        const Q = scoped('h."createdAt"', 'l."ownerId"', [`h."toStatus" = 'Prospect'`]);
         const D = scoped('o."createdAt"', 'o."ownerId"');
         const W = scoped('h."createdAt"', 'o."ownerId"', [`h."toStage" IN ('Closed-Won', 'Closed-Lost')`]);
         const S = scoped('h."createdAt"', 'o."ownerId"', [`h."toStage" IN ('Demonstration', 'Proposal', 'Negotiation')`]);

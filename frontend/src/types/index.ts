@@ -41,7 +41,7 @@ export interface Lead {
   country?: string;
   jobTitle?: string;
   source?: string;
-  status: 'Open' | 'Qualified' | 'Prospect' | 'Disqualified' | 'Converted';
+  status: 'Open' | 'Prospect' | 'Disqualified' | 'Converted';
   score: number;
   value: number;
   expectedCloseDate?: Date;

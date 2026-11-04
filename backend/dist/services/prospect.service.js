@@ -15,8 +15,6 @@ const LineItem_1 = require("../models/LineItem");
 const errorHandler_1 = require("../middleware/errorHandler");
 const constants_1 = require("../utils/constants");
 const prospectQualification_1 = require("../utils/prospectQualification");
-const prospecting_1 = require("../utils/prospecting");
-const prospectOptions_service_1 = require("./prospectOptions.service");
 const tracer_1 = require("../utils/tracer");
 const buyingCommittee_service_1 = require("./buyingCommittee.service");
 const questionnaire_service_1 = __importDefault(require("./questionnaire.service"));
@@ -55,17 +53,23 @@ class LeadService {
         const account = await this.accountRepository.findOne({
             where: { id: data.accountId },
         });
+        // A prospect exists only once the customer engagement questions are all answered.
+        const engagement = (0, prospectQualification_1.leadQualificationProgress)(account?.leadQualification);
+        if (!engagement.complete) {
+            throw new errorHandler_1.AppError(400, `Complete the customer engagement questionnaire before this lead becomes a prospect (${engagement.answered} of ${engagement.total} mandatory answered; missing: ${engagement.missing.join(', ')}).`);
+        }
         const lead = this.leadRepository.create({
             ...data,
             value: data.value ?? 0,
-            status: 'Open',
+            // A prospect is created only after its customer engagement questions are complete, so it starts as Prospect.
+            status: 'Prospect',
             score: 0,
             productIds: data.productIds || [],
             productNames: data.productNames || [],
             tier: account?.tier,
         });
         const savedLead = await this.leadRepository.save(lead);
-        await prospectStatusHistory_service_1.default.record(savedLead.id, savedLead.status || 'Open', data.ownerId ?? null, 'Lead created');
+        await prospectStatusHistory_service_1.default.record(savedLead.id, 'Prospect', data.ownerId ?? null, 'Prospect created');
         return savedLead;
     }
     async getLeadById(id) {
@@ -103,7 +107,7 @@ class LeadService {
             // Default view: the active prospects. Converted and disqualified ones show only when the status filter asks for them.
             const statusFilter = where.status || 'active';
             if (statusFilter === 'active') {
-                query.andWhere('lead.status IN (:...active)', { active: ['Open', 'Qualified', 'Prospect'] });
+                query.andWhere('lead.status IN (:...active)', { active: ['Open', 'Prospect'] });
             }
             else if (statusFilter !== 'all') {
                 query.andWhere('lead.status = :status', { status: statusFilter });
@@ -168,29 +172,20 @@ class LeadService {
     }
     async updateLeadStatus(id, status, actorId) {
         const lead = await this.getLeadById(id);
-        const validStatuses = ['Open', 'Qualified', 'Prospect', 'Disqualified', 'Converted'];
+        const validStatuses = ['Open', 'Prospect', 'Disqualified', 'Converted'];
         if (!validStatuses.includes(status)) {
             throw new errorHandler_1.AppError(400, 'Invalid lead status');
         }
-        // Each stage needs the questionnaire of the stage before it. Qualified: the lead questionnaire (13 questions).
-        if (status === 'Qualified' && lead.status !== 'Qualified') {
-            const account = await this.accountRepository.findOne({ where: { id: lead.accountId } });
-            const lead13 = (0, prospecting_1.prospectingProgress)(account, account?.prospectingAnswers, await (0, prospectOptions_service_1.activeProspectOptions)());
-            if (!lead13.complete) {
-                throw new errorHandler_1.AppError(400, `Complete the lead questionnaire before this lead is qualified (${lead13.answered} of ${lead13.total} answered; missing: ${lead13.missing.join(', ')}). It is on the account, under Prospects > Prospecting.`);
+        // An open lead becomes a prospect only when the customer engagement questionnaire (nine mandatory questions) is complete.
+        if (status === 'Prospect' && lead.status !== 'Prospect') {
+            if (lead.status !== 'Open') {
+                throw new errorHandler_1.AppError(400, 'Only an open lead can be converted to a prospect.');
             }
-        }
-        // Prospect: the qualification questionnaire (nine mandatory questions) must be complete.
-        if (status === 'Prospect' && lead.status === 'Qualified') {
             const account = await this.accountRepository.findOne({ where: { id: lead.accountId } });
             const progress = (0, prospectQualification_1.leadQualificationProgress)(account?.leadQualification);
             if (!progress.complete) {
                 throw new errorHandler_1.AppError(400, `Complete the customer engagement questionnaire before this lead becomes a prospect (${progress.answered} of ${progress.total} mandatory answered; missing: ${progress.missing.join(', ')}).`);
             }
-        }
-        // Only a qualified lead can be converted to a prospect.
-        if (status === 'Prospect' && lead.status !== 'Qualified') {
-            throw new errorHandler_1.AppError(400, 'Only a qualified lead can be converted to a prospect. Complete the customer engagement questionnaire first.');
         }
         const fromStatus = lead.status;
         lead.status = status;
@@ -205,8 +200,8 @@ class LeadService {
     }
     async convertLeadToAccount(leadId) {
         const lead = await this.getLeadById(leadId);
-        if (lead.status !== 'Qualified') {
-            throw new errorHandler_1.AppError(400, 'Lead must be qualified to convert');
+        if (lead.status !== 'Prospect') {
+            throw new errorHandler_1.AppError(400, 'Lead must be a prospect to convert');
         }
         // Check if account already exists
         if (lead.accountId) {

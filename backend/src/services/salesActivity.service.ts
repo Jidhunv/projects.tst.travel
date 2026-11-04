@@ -19,7 +19,7 @@ export interface SalesActivityFilters {
 
 const UNASSIGNED = 'unassigned';
 // Pipeline table rows. Open, qualified and prospect statuses all make up the single Lead Prospects row.
-const PROSPECT_STAGE_LABEL: Record<string, string> = { Open: 'Lead Prospects', Qualified: 'Lead Prospects', Prospect: 'Lead Prospects' };
+const PROSPECT_STAGE_LABEL: Record<string, string> = { Open: 'Lead Prospects', Prospect: 'Lead Prospects' };
 const PROSPECT_STAGE_ROWS = ['Lead Account', 'Lead Prospects'];
 const STAGE_LABEL: Record<string, string> = { 'Customer engagement': 'Customer Engagement', 'Closed-Won': 'Close Won', 'Closed-Lost': 'Close Lost' };
 const stageLabel = (stage: string) => STAGE_LABEL[stage] ?? stage;
@@ -230,7 +230,7 @@ export async function summary(user: AuthUser | undefined, input: SalesActivityFi
   const prospW = new Where().dateRange('p."createdAt"', f).owners('p."ownerId"', owners).add('TRIM(p.country) = ?', f.country).add('TRIM(p.region) = ?', f.region).build();
   const prospectStages = await rows(
     `SELECT p.status AS status, COUNT(*)::int AS n, COALESCE(SUM(p.value), 0)::float AS value
-       FROM prospects p ${accountFilter(prospW.sql)} p.status = ANY(ARRAY['Open', 'Qualified', 'Prospect']::text[])
+       FROM prospects p ${accountFilter(prospW.sql)} p.status = ANY(ARRAY['Open', 'Prospect']::text[])
       GROUP BY 1`,
     prospW.params
   );

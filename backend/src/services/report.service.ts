@@ -21,7 +21,7 @@ export interface ReportScope {
 const NO_SCOPE: ReportScope = { ownerIds: null };
 
 // Prospect (lead) statuses shown in the pipeline, with the label each one is shown under.
-const PROSPECT_PIPELINE: Record<string, string> = { Open: 'Lead', Qualified: 'Qualified', Prospect: 'Prospect' };
+const PROSPECT_PIPELINE: Record<string, string> = { Open: 'Lead', Prospect: 'Prospect' };
 
 interface StageBucket {
   stage: string;
