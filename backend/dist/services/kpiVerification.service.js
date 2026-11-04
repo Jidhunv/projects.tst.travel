@@ -87,7 +87,8 @@ async function assertCanVerify(actor, userId) {
 //   newLeads: accounts whose prospecting was completed that day.
 //   prospects: prospects added that day.
 //   demosConducted: every move into Demonstration on an opportunity. A demo that happens again is counted again.
-//   statusChanges: every stage movement on an opportunity, and every status change on a prospect.
+//   statusChanges: every stage movement on an opportunity, and every status change on a prospect (the row that
+//     records a deal or prospect being created does not count).
 //   existingOpportunities: sales visits that day plus demos conducted.
 //   attendance: a successful login that day (the rule in verificationDays also needs a KPI change).
 //   tasksAssigned: tasks given to the person that day.
@@ -114,10 +115,12 @@ async function crmEvents(from, to, owners) {
         ['statusChanges', `SELECT DATE(h."createdAt")::text AS day, o."ownerId"::text AS owner, o.name AS label
          FROM opportunity_stage_history h JOIN opportunities o ON o.id = h."opportunityId"
         WHERE ${range('h."createdAt"')}${ownerAnd('o."ownerId"')}
+          AND (h."fromStage" IS NOT NULL OR h."createdAt" > (SELECT MIN(x."createdAt") FROM opportunity_stage_history x WHERE x."opportunityId" = h."opportunityId"))
        UNION ALL
        SELECT DATE(h."createdAt")::text AS day, l."ownerId"::text AS owner, ${prospectName('l')} AS label
          FROM prospect_status_history h JOIN prospects l ON l.id = h."prospectId"
-        WHERE ${range('h."createdAt"')}${ownerAnd('l."ownerId"')}`],
+        WHERE ${range('h."createdAt"')}${ownerAnd('l."ownerId"')}
+          AND (h."fromStatus" IS NOT NULL OR h."createdAt" > (SELECT MIN(x."createdAt") FROM prospect_status_history x WHERE x."prospectId" = h."prospectId"))`],
         ['attendance', `SELECT DATE("createdAt")::text AS day, "userId"::text AS owner, 'Login' AS label
        FROM login_activity
       WHERE event = 'LOGIN_SUCCESS' AND success = true AND "userId" IS NOT NULL AND ${range('"createdAt"')}${ownerAnd('"userId"')}`],
