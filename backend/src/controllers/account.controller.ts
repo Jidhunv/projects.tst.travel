@@ -14,6 +14,7 @@ import { normaliseLeadQualification } from '../utils/prospectQualification';
 import { activeProspectOptions } from '../services/prospectOptions.service';
 import { AppDataSource } from '../config/database';
 import { CompanyType } from '../models/CompanyType';
+import { Lead } from '../models/Lead';
 
 // Access check for a single account that understands "team" (group) scope: a
 // team-scoped user may act on accounts owned by a group co-member, plus their
@@ -505,6 +506,12 @@ export class AccountController {
 
   // --- Buying-committee onboarding ---
 
+  // True when the user may update at least one prospect (lead) on this account.
+  private async canUpdateAProspectOnAccount(req: AuthRequest, accountId: string): Promise<boolean> {
+    const prospects = await AppDataSource.getRepository(Lead).find({ where: { accountId } });
+    return prospects.some((p) => canAccessRecord(req.user, 'leads', p.ownerId, 'update', p.assigneeIds));
+  }
+
   async getStakeholders(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { accountId } = req.params;
@@ -519,7 +526,13 @@ export class AccountController {
   async saveStakeholders(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { accountId } = req.params;
-      await this.assertCanAccessAccount(req, accountId, 'update');
+      // The committee can be edited from Prospects too: a user who may update a prospect on this
+      // account may update its committee, even without account-level update rights.
+      const account = await accountService.getAccountById(accountId);
+      const canEditAccount = canAccessRecord(req.user, 'accounts', account.ownerId, 'update', account.assigneeIds);
+      if (!canEditAccount && !(await this.canUpdateAProspectOnAccount(req, accountId))) {
+        throw new AppError(403, 'You can only manage contacts for your own accounts');
+      }
 
       const { stakeholders } = req.body;
       if (!Array.isArray(stakeholders)) {
