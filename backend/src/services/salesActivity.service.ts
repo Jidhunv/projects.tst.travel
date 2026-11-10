@@ -252,7 +252,8 @@ export async function summary(user: AuthUser | undefined, input: SalesActivityFi
     const label = stageLabel(r.stage);
     const stage = pipelineByStage.get(label) ?? { stage: label, count: 0, value: 0 };
     stage.count += r.n;
-    stage.value += r.value;
+    // A closed deal leaves the pipeline value: a win is counted under Won and a loss under nothing.
+    if (open) stage.value += r.value;
     pipelineByStage.set(label, stage);
   }
   for (const r of visits) {
