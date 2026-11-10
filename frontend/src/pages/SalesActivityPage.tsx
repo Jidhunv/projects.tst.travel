@@ -184,7 +184,7 @@ export default function SalesActivityPage() {
                     </TableRow>
                   ))}
                   <TableRow>
-                    <TableCell sx={{ fontWeight: 600 }}>Pipeline total</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Opportunity Total</TableCell>
                     <TableCell align="right" />
                     <TableCell align="right" sx={{ fontWeight: 600 }}>
                       {formatCurrency(data.pipelineByStage.reduce((t: number, s: any) => t + (s.countedValue ?? 0), 0))}
