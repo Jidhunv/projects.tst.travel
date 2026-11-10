@@ -1,7 +1,7 @@
 import React from 'react';
 import {
-  Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Grid, MenuItem, Stack, Table, TableBody, TableCell,
-  TableHead, TableRow, TextField, Tooltip, Typography,
+  Alert, Box, Button, Card, CardContent, Checkbox, Chip, CircularProgress, FormControlLabel, Grid, MenuItem, Stack,
+  Table, TableBody, TableCell, TableHead, TableRow, TextField, Tooltip, Typography,
 } from '@mui/material';
 import Layout from '@components/Layout';
 import { api } from '@services/api';
@@ -14,6 +14,64 @@ const formatPercent = (n: number) => `${(Math.round(n * 1000) / 10).toFixed(1)}%
 const formatDay = (iso: string) =>
   new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
 const formatStamp = (iso: string | null) => (iso ? new Date(iso).toLocaleString() : '');
+
+// Combined view of one person across the range. Targets and achieved values are added up day by day, so a target of
+// 3 over 5 days becomes 15. A KPI's achieved share is its total capped at its total target, and the weightage is the
+// KPI's weight times that share. The supervisor total uses the entered value, or the CRM value on days with none.
+// countedDays is the number of days the target is multiplied by. It can be lower than the range (for example 4
+// when a weekend falls in the range, or 25 for a month); the achieved values always add up every day in the range.
+function combinePerson(userId: string, days: any[], settings: any[], countedDays: number) {
+  let name = 'Unknown user';
+  let approvedDays = 0;
+  let presentDays = 0;
+  let lastUpdatedAt: string | null = null;
+  const totals: Record<string, { targetPerDay: number; auto: number; supervisorEntered: number; enteredCount: number; supervisorForScore: number; names: string[] }> = {};
+  for (const s of settings) {
+    totals[s.metricKey] = { targetPerDay: 0, auto: 0, supervisorEntered: 0, enteredCount: 0, supervisorForScore: 0, names: [] };
+  }
+  for (const day of days) {
+    const p = day.people.find((x: any) => x.userId === userId);
+    if (!p) continue;
+    presentDays++;
+    name = p.name;
+    if (p.approvedAt) approvedDays++;
+    if (p.lastUpdatedAt && (!lastUpdatedAt || p.lastUpdatedAt > lastUpdatedAt)) lastUpdatedAt = p.lastUpdatedAt;
+    for (const s of settings) {
+      const m = p.metrics[s.metricKey];
+      if (!m) continue;
+      const t = totals[s.metricKey];
+      // A person's target is the same every day, so the daily target is taken from the last day seen.
+      t.targetPerDay = m.target;
+      t.auto += m.auto;
+      if (m.supervisor !== null && m.supervisor !== undefined) {
+        t.supervisorEntered += m.supervisor;
+        t.enteredCount++;
+      }
+      t.supervisorForScore += m.supervisor ?? m.auto;
+      t.names.push(...(m.names || []));
+    }
+  }
+  const metrics: Record<string, any> = {};
+  let autoScore = 0;
+  let supervisorScore = 0;
+  for (const s of settings) {
+    const t = totals[s.metricKey];
+    const target = t.targetPerDay * countedDays;
+    const autoShare = target > 0 ? Math.min(t.auto / target, 1) : 0;
+    const supShare = target > 0 ? Math.min(t.supervisorForScore / target, 1) : 0;
+    autoScore += s.weight * autoShare;
+    supervisorScore += s.weight * supShare;
+    metrics[s.metricKey] = {
+      target,
+      auto: t.auto,
+      supervisor: t.enteredCount > 0 ? t.supervisorEntered : null,
+      note: null,
+      updatedAt: null,
+      names: t.names,
+    };
+  }
+  return { userId, name, dayCount: countedDays, approvedDays, presentDays, lastUpdatedAt, metrics, autoScore, supervisorScore };
+}
 
 // Daily KPI verification in the My KPI sheet layout. Achieved values come from the CRM. The supervisor enters
 // a value and remarks beside each KPI, and approves the day. Each KPI's score is its weightage times the
@@ -28,6 +86,10 @@ export default function KpiVerificationPage() {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState('');
   const [notice, setNotice] = React.useState('');
+  // Combined: one total per person for the whole range instead of a card for each day.
+  const [combined, setCombined] = React.useState(false);
+  // Days the combined targets are multiplied by. Blank means every day in the range.
+  const [combinedDays, setCombinedDays] = React.useState('');
 
   const load = React.useCallback((start: string, end: string, staff: string) => {
     setLoading(true);
@@ -121,6 +183,10 @@ export default function KpiVerificationPage() {
         <Button variant="contained" onClick={() => load(from, to, staffId)} disabled={loading}>
           Show
         </Button>
+        <FormControlLabel
+          control={<Checkbox checked={combined} onChange={(e) => setCombined(e.target.checked)} />}
+          label="Combined"
+        />
       </Stack>
 
       {error && (
@@ -146,7 +212,130 @@ export default function KpiVerificationPage() {
         </Typography>
       )}
 
-      {data?.days.map((day: any) =>
+      {combined && data && !loading && data.days.length > 0 && (
+        <Box sx={{ mb: 4 }}>
+          {(() => {
+            const rangeDays: number = data.days.length;
+            const typed = Math.floor(Number(combinedDays));
+            const countedDays = combinedDays !== '' && typed >= 1 ? typed : rangeDays;
+            return (
+              <>
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 1 }} alignItems={{ sm: 'center' }}>
+                  <Typography variant="h6">
+                    {formatDay(data.from)} to {formatDay(data.to)} ({rangeDays} {rangeDays === 1 ? 'day' : 'days'} in range)
+                  </Typography>
+                  <TextField
+                    label="Days to count"
+                    type="number"
+                    size="small"
+                    value={combinedDays}
+                    placeholder={String(rangeDays)}
+                    onChange={(e) => setCombinedDays(e.target.value)}
+                    inputProps={{ min: 1, step: 1 }}
+                    sx={{ width: 160 }}
+                  />
+                </Stack>
+                <Typography variant="body2" sx={{ mb: 1.5, color: 'text.secondary' }}>
+                  Targets are multiplied by {countedDays} {countedDays === 1 ? 'day' : 'days'}. Achieved values add up every
+                  day in the range. Leave the field blank to count every day. Enter fewer days to take out weekends or
+                  days off, or 25 for a month. Supervisor values and approvals are entered day by day: switch Combined off
+                  to change them.
+                </Typography>
+              </>
+            );
+          })()}
+          {(() => {
+            const userIds: string[] = [];
+            const names = new Map<string, string>();
+            for (const day of data.days) {
+              for (const p of day.people) {
+                if (!names.has(p.userId)) {
+                  names.set(p.userId, p.name);
+                  userIds.push(p.userId);
+                }
+              }
+            }
+            userIds.sort((a, b) => (names.get(a) || '').localeCompare(names.get(b) || ''));
+            return userIds.map((userId) => {
+              const typedDays = Math.floor(Number(combinedDays));
+              const countedDays = combinedDays !== '' && typedDays >= 1 ? typedDays : data.days.length;
+              const c = combinePerson(userId, data.days, data.settings || [], countedDays);
+              return (
+                <Card key={`combined-${userId}`} variant="outlined" sx={{ mb: 2 }}>
+                  <CardContent>
+                    <Grid container alignItems="center" spacing={2} sx={{ mb: 1 }}>
+                      <Grid item xs={12} md={4}>
+                        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                          {c.name}
+                        </Typography>
+                        {c.lastUpdatedAt && (
+                          <Typography variant="caption" color="text.secondary">
+                            Last updated {formatStamp(c.lastUpdatedAt)}
+                          </Typography>
+                        )}
+                      </Grid>
+                      <Grid item xs={6} md={3}>
+                        <Typography variant="caption" color="text.secondary">Achieved weightage (CRM)</Typography>
+                        <Typography variant="body1">{formatPercent(c.autoScore)}</Typography>
+                      </Grid>
+                      <Grid item xs={6} md={3}>
+                        <Typography variant="caption" color="text.secondary">Achieved weightage (supervisor)</Typography>
+                        <Typography variant="body1">{formatPercent(c.supervisorScore)}</Typography>
+                      </Grid>
+                      <Grid item xs={12} md={2} sx={{ textAlign: { md: 'right' } }}>
+                        <Chip
+                          size="small"
+                          variant="outlined"
+                          color={c.approvedDays === c.dayCount ? 'success' : 'default'}
+                          label={`Approved ${c.approvedDays} of ${c.presentDays} ${c.presentDays === 1 ? 'day' : 'days'}`}
+                        />
+                      </Grid>
+                    </Grid>
+                    <Box sx={{ overflowX: 'auto' }}>
+                      <Table size="small">
+                        <TableHead>
+                          <TableRow>
+                            <TableCell>KPI</TableCell>
+                            <TableCell align="right">Target</TableCell>
+                            <TableCell align="right">Achieved (CRM)</TableCell>
+                            <TableCell align="right">Achieved of target</TableCell>
+                            <TableCell align="right">Achieved weightage</TableCell>
+                            <TableCell align="right">Supervisor</TableCell>
+                            <TableCell>Remarks</TableCell>
+                            <TableCell>Last updated</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {(data.settings || []).map((s: any) => {
+                            const m = c.metrics[s.metricKey];
+                            return (
+                              <MetricRow
+                                key={`combined-${userId}-${s.metricKey}`}
+                                label={s.label}
+                                target={m.target}
+                                weight={s.weight}
+                                auto={m.auto}
+                                supervisor={m.supervisor}
+                                note={null}
+                                updatedAt={null}
+                                names={m.names}
+                                editable={false}
+                                onSave={() => {}}
+                              />
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </Box>
+                  </CardContent>
+                </Card>
+              );
+            });
+          })()}
+        </Box>
+      )}
+
+      {!combined && data?.days.map((day: any) =>
         day.people.length === 0 ? null : (
           <Box key={day.day} sx={{ mb: 4 }}>
             <Typography variant="h6" sx={{ mb: 1.5 }}>
