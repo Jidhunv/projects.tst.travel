@@ -216,8 +216,10 @@ export async function summary(user: AuthUser | undefined, input: SalesActivityFi
     if (r.stage === 'Closed-Lost') p.closedLost = r.n;
   }
   // Lead accounts, leads and prospects come first, then the opportunity stages.
-  const pipelineByStage = new Map<string, { stage: string; count: number; value: number }>(
-    [...PROSPECT_STAGE_ROWS, ...OPPORTUNITY_STAGES.map(stageLabel)].map((s) => [s, { stage: s, count: 0, value: 0 }])
+  // value is the full amount of the deals in the stage. countedValue is what adds to the pipeline total: a closed
+  // deal's amount is shown but struck off, so it adds zero. closed marks the Close Won and Close Lost rows.
+  const pipelineByStage = new Map<string, { stage: string; count: number; value: number; countedValue: number; closed: boolean }>(
+    [...PROSPECT_STAGE_ROWS, ...OPPORTUNITY_STAGES.map(stageLabel)].map((s) => [s, { stage: s, count: 0, value: 0, countedValue: 0, closed: false }])
   );
   // Lead accounts: accounts whose prospecting is complete. Accounts have no value, so only the count.
   const accountFilter = (sql: string) => (sql ? `${sql} AND` : 'WHERE');
@@ -240,6 +242,7 @@ export async function summary(user: AuthUser | undefined, input: SalesActivityFi
     const stage = pipelineByStage.get(PROSPECT_STAGE_LABEL[r.status])!;
     stage.count += r.n;
     stage.value += r.value;
+    stage.countedValue += r.value;
   }
 
   for (const r of pipeline) {
@@ -250,10 +253,11 @@ export async function summary(user: AuthUser | undefined, input: SalesActivityFi
       p.pipelineValue += r.value;
     }
     const label = stageLabel(r.stage);
-    const stage = pipelineByStage.get(label) ?? { stage: label, count: 0, value: 0 };
+    const stage = pipelineByStage.get(label) ?? { stage: label, count: 0, value: 0, countedValue: 0, closed: false };
     stage.count += r.n;
-    // A closed deal leaves the pipeline value: a win is counted under Won and a loss under nothing.
-    if (open) stage.value += r.value;
+    stage.value += r.value;
+    if (open) stage.countedValue += r.value;
+    else stage.closed = true;
     pipelineByStage.set(label, stage);
   }
   for (const r of visits) {

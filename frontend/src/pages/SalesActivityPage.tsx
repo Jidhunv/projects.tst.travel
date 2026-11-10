@@ -177,9 +177,19 @@ export default function SalesActivityPage() {
                     <TableRow key={s.stage}>
                       <TableCell>{s.stage}</TableCell>
                       <TableCell align="right">{s.count}</TableCell>
-                      <TableCell align="right">{formatCurrency(s.value)}</TableCell>
+                      {/* A closed deal's amount is struck off: shown, but it adds zero to the total. */}
+                      <TableCell align="right" sx={s.closed ? { textDecoration: 'line-through', color: 'text.secondary' } : undefined}>
+                        {formatCurrency(s.value)}
+                      </TableCell>
                     </TableRow>
                   ))}
+                  <TableRow>
+                    <TableCell sx={{ fontWeight: 600 }}>Pipeline total</TableCell>
+                    <TableCell align="right" />
+                    <TableCell align="right" sx={{ fontWeight: 600 }}>
+                      {formatCurrency(data.pipelineByStage.reduce((t: number, s: any) => t + (s.countedValue ?? 0), 0))}
+                    </TableCell>
+                  </TableRow>
                 </TableBody>
               </Table>
             </Paper>
